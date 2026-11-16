@@ -178,17 +178,18 @@ def kernel(target, defines=()):
     boot area may outgrow ZXWSZ): iterate to the fixed point."""
     top, src = stage(target)
     fs = root_fs(target)
-    free, seen = 0, set()
+    state, seen = (8192, 0), set()
     while True:
-        bootinfo(top, 8192, free)
+        bootinfo(top, *state)
         sym = assemble(src, 'unix.asm', defines)
-        img, now = fs.image(sym['ITAB'], sym['WINDOW'])
-        if now == free:
+        img, free = fs.image(sym['ITAB'], sym['WINDOW'])
+        now = (sym['kend'] - sym['KBASE'], free)
+        if now == state:
             break
         if now in seen:
             raise BuildError('the boot banner does not settle')
         seen.add(now)
-        free = now
+        state = now
     with open(os.path.join(top, 'fs.bin'), 'wb') as f:
         f.write(img)
     return top, src, sym, img, free
