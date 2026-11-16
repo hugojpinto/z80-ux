@@ -34,12 +34,51 @@ DEFAULT_DISK = os.path.join(ROOT, 'build', 'fdd3000', 'ZX-UX-FDD3000.dsk')
 HZ = 4_000_000
 
 
+class FDC(machine.FDC):
+    """The model's WD177x, with Read Address (C0h): the next ID field of
+    the track under the head (C, H, R, N and a CRC), which the ZX-UX
+    driver's geometry probe uses."""
+
+    def command(self, c):
+        if c & 0xF0 != 0xC0:
+            return super().command(c)
+        self.intrq = False
+        d = self.drive()
+        side = self.m.side()
+        if d is None or d.disk is None or d.cyl >= d.disk.cyls \
+                or side >= d.disk.sides or side >= d.heads or self.m.latch & 0x80:
+            self.status = 0x01
+            self.finish(0x10, self.T_FIND * 4)
+            return
+        self.status = 0x01
+        self.buf = bytes([d.cyl, side, 0, 1, 0, 0]) + bytes(250)
+        self.pos = 0
+        self.rda = 6
+        self.writing = None
+        self.done_status = -1
+        self.busy_until = self.m.icount + self.T_FIND
+
+    def read_data(self):
+        if getattr(self, 'rda', 0) and self.buf is not None and self.drq:
+            v = self.buf[self.pos]
+            self.pos += 1
+            self.last_io = self.m.icount
+            if self.pos == self.rda:
+                self.rda = 0
+                self.drq = False
+                self.buf = None
+                self.finish(0, 20)
+            return v
+        return super().read_data()
+
+
 class FDDUX(machine.Machine):
     """The FDD3000 with a terminal on its link."""
 
     def __init__(self, disks):
         drives = [machine.Drive(cyls=d.cyls, heads=d.sides, disk=d) for d in disks]
         super().__init__(drives, max_instr=1 << 62)
+        self.fdc = FDC(self)
         self.link = Link()
         self.tstates = 0
         self.stopped = None

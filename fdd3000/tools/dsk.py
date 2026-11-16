@@ -60,13 +60,14 @@ class Disk:
     def load(cls, path):
         with open(path, 'rb') as f:
             raw = f.read()
-        if not raw.startswith(b'EXTENDED CPC DSK'):
-            raise ValueError('not an Extended CPC DSK image')
+        ext = raw.startswith(b'EXTENDED CPC DSK')
+        if not ext and not raw.startswith(b'MV - CPC'):
+            raise ValueError('not a CPC DSK image')
         cyls, sides = raw[0x30], raw[0x31]
         d = None
         p = 0x100
         for i in range(cyls * sides):
-            tsize = raw[0x34 + i] << 8
+            tsize = raw[0x34 + i] << 8 if ext else raw[0x32] | raw[0x33] << 8
             if not tsize:
                 continue
             t = raw[p:p + tsize]
@@ -76,7 +77,8 @@ class Disk:
             q = 0x100
             for s in range(n):
                 sid = t[0x18 + 8 * s + 2]
-                ln = struct.unpack_from('<H', t, 0x18 + 8 * s + 6)[0]
+                ln = struct.unpack_from('<H', t, 0x18 + 8 * s + 6)[0] if ext \
+                    else 128 << t[0x18 + 8 * s + 3]
                 if sid < d.spt:
                     d.put(c, h, sid, t[q:q + SECSZ])
                 q += ln

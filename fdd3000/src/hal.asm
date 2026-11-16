@@ -41,6 +41,7 @@ TICK    equ FDDHZ/50/16
 SYSCOST equ 40                  ; a system call (640 T).
 CHRCOST equ 35                  ; a character over the link (560 T).
 ZCOST   equ 18100/16            ; swtch's look round and zidle's scan for a file to pack.
+ZPCOST  equ 12400/16            ; between two zpoll calls of the packer (measured).
 IDLEDLY equ 150                 ; kidle's wait: 150 x 13 T ...
 IDLECOST equ (IDLEDLY*13+170)/16 ; ... plus the key poll and the count.
 
@@ -468,6 +469,18 @@ kidle:  ld hl,ZCOST
         cp (hl)
         jr z,.l
         ret
+; hzpoll: idle packing's check point (zx.asm zpoll), every ~3 ms of work:
+; what the Spectrum's ISR did meanwhile - keys in, the clock on.  A key
+; that wakes a reader makes zpoll stop the packing.  Keeps BC, DE.
+hzpoll: push bc
+        push de
+        call hkeys
+        ld hl,ZPCOST
+        call htime
+        pop de
+        pop bc
+        ret
+
 ; htime: HL units of time passed.  Uses A, DE, HL (and what ktick uses).
 htime:  ld de,(tacc)
         add hl,de
@@ -516,6 +529,8 @@ ktick:  push bc
         inc hl
         ld (idlet),hl
         ret
+
+        include "fd.asm"        ; the floppy disk driver.
 
 ; ---------------------------------------------------------------------
 ; variables

@@ -1971,6 +1971,9 @@ FONTEND:
         include "t_zx.asm"
         include "t_tar.asm"
         include "t_ldx.asm"
+        IFDEF FDD3000
+        include "t_dd.asm"      ; /bin/dd (FDD3000 only).
+        ENDIF
 ; the resident programs: text address, size, extra mode bits (build.py).
 PTAB:   include "ptab.inc"
 

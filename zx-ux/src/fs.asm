@@ -25,12 +25,17 @@ iget:
         ld a,l
         cp ROOTINO
         jr nc,.reg
+        IFDEF FDD3000
+        call hdevok             ; tty, mem, fd0-fd3 (fd.asm).
+        jp nz,.bad
+        ELSE
         cp DEV_TAP
         jr z,.dev
         dec a
         cp DEV_MEM
         jp nc,.bad
         inc a
+        ENDIF
 .dev:   ld ix,spino
         call .clr
         ld (ix+0),00Fh          ; rw for everybody.
@@ -650,7 +655,11 @@ fopen:
         ld a,ENFILE
         scf
         ret
-.gs:    ld (hl),1               ; count.
+.gs:
+        IFDEF FDD3000
+        call fhclr              ; the disk driver's third offset byte.
+        ENDIF
+        ld (hl),1               ; count.
         inc hl
         ld (hl),c               ; flags.
         dec hl
@@ -775,6 +784,10 @@ sysopen:                        ; HL = name, DE = mode 0 r 1 w 2 rw.
         ld (u_tmp),de
         call nami
         jp c,syserr
+        IFDEF FDD3000
+        call hdopen             ; a disk: new disk, perhaps - probe it.
+        jp c,syserr
+        ENDIF
         ld a,(u_tmp)
         ld c,F_READ
         or a
@@ -880,6 +893,11 @@ sysseek:                        ; HL = fd, DE = offset, BC = 0 abs 1 rel 2 end.
         pop de
         jp c,syserr
         ld (u_ino),hl
+        IFDEF FDD3000
+        ld a,c
+        cp 3                    ; 3-5: in 256-byte sectors (fd.asm).
+        jp nc,hseek
+        ENDIF
         ld a,c
         or a
         jr z,.set

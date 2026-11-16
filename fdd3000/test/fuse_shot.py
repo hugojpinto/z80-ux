@@ -33,12 +33,11 @@ BOOT = 400            # frames for the FDD3000 to boot ZX-UX to login:
 SETTLE = 150          # frames after each line for its output
 
 
-# The TT3000 keyboard is an ASCII terminal's: / . , - ; : @ [ \ ] ^ have
-# keys of their own (typed as themselves); the rest are Shift (CS) + a key,
-# bit-paired as on an ASCII keyboard.
+# The TT3000 keyboard: / . , - ; : @ [ \ ] ^ have keys of their own
+# (typed as themselves); the shifted symbols follow the Portuguese layout
+# (Shift + 0 is =, 8 and 9 are ( and )); > < * + are Shift + . , : ;.
 SYM = {'>': '.', '<': ',', '*': ':', '+': ';', '!': '1', '"': '2', '#': '3',
-       '$': '4', '%': '5', '&': '6', "'": '7', '(': '8', ')': '9', '=': '-',
-       '?': '/'}
+       '$': '4', '%': '5', '&': '6', '(': '8', ')': '9', '=': '0', '_': '-'}
 
 
 def keyspec(lines, first):
@@ -97,7 +96,8 @@ def render(d1, d2, path, scale=2):
     png(path, 512, 192 * scale, big)
 
 
-def shoot(out_png, lines, disk=DISK, reset_at=60):
+def shoot(out_png, lines, disk=DISK, reset_at=60, keep=None):
+    """keep: where to put drive A as Fuse wrote it back at the end."""
     with tempfile.TemporaryDirectory() as t:
         d = os.path.join(t, 'zx.dsk')
         with open(disk, 'rb') as f, open(d, 'wb') as g:
@@ -114,6 +114,9 @@ def shoot(out_png, lines, disk=DISK, reset_at=60):
             raise SystemExit('fuse: no dump\n' + r.stdout + r.stderr)
         with open(os.path.join(t, 'd1'), 'rb') as f1, open(os.path.join(t, 'd2'), 'rb') as f2:
             render(f1.read(), f2.read(), out_png)
+        if keep:
+            with open(d, 'rb') as f, open(keep, 'wb') as g:
+                g.write(f.read())
 
 
 if __name__ == '__main__':

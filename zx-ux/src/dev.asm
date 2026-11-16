@@ -20,7 +20,7 @@ devread:
         cp DEV_MEM
         jr z,memrd
         IFDEF FDD3000
-        jr nodev
+        jp fdread               ; the disks (fd.asm).
         ELSE
         jr taprd
         ENDIF
@@ -33,7 +33,7 @@ devwrite:
         cp DEV_MEM
         jr z,memwr
         IFDEF FDD3000
-        jr nodev
+        jp fdwrite
         ELSE
         jr tapwr
         ENDIF

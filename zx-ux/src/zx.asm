@@ -583,7 +583,11 @@ zfind:  ld (zq),hl
         ret
 
 ; zpoll: 17 bytes. Stop idle packing when any job can run. RAM can wait its turn.
-zpoll:  ld hl,p_stat
+zpoll:
+        IFDEF FDD3000
+        call hzpoll             ; no interrupt brings keys or ticks: fetch them.
+        ENDIF
+        ld hl,p_stat
         ld b,NPROC
 .l:     ld a,(hl)
         cp SRUN
