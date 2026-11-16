@@ -54,7 +54,8 @@ class BuildError(Exception):
 
 
 # Programs of the FDD3000 build only (fdd3000/src), after programs.txt.
-FDD_PROGRAMS = [('/bin/dd', 'dd', 0)]
+FDD_PROGRAMS = [('/bin/dd', 'dd', 0), ('/etc/mount', 'mount', 0),
+                ('/etc/umount', 'umount', 0), ('/etc/mkfs', 'mkfs', 0)]
 
 
 def programs(target='spectrum'):
@@ -155,6 +156,8 @@ def root_fs(target):
     etc = fs.mkdir(zxfs.ROOTINO, 'etc')
     fs.mkdir(zxfs.ROOTINO, 'tmp', R | W | O | a)
     usr = fs.mkdir(zxfs.ROOTINO, 'usr', R | W | O | a)
+    if target == 'fdd3000':
+        fs.mkdir(zxfs.ROOTINO, 'mnt', R | W | O | a)     # for disks
     for i, (path, _label, _mode) in enumerate(programs(target)):
         d, name = path.rsplit('/', 1)
         fs.link(bin_ if d == '/bin' else etc, name, zxfs.TXINO + i)

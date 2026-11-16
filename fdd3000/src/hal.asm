@@ -531,6 +531,8 @@ ktick:  push bc
         ret
 
         include "fd.asm"        ; the floppy disk driver.
+        include "vfs.asm"       ; mounted file systems ...
+        include "zfs.asm"       ; ... of type 1, ZXFS.
 
 ; ---------------------------------------------------------------------
 ; variables

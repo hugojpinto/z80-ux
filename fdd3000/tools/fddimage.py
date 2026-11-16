@@ -17,6 +17,21 @@ import json
 import os
 
 import dsk
+import zxdfs
+
+SYSTEM_README = b'''ZX-UX on the Timex FDD3000
+
+This is the file system on the system disk, after the tracks that hold
+ZX-UX itself.  It is mounted with
+
+    /etc/mount /dev/fd0 /mnt
+
+and is a ZXFS: files of up to 64K, directories, links, as in RAM.
+/dev/fd1 to /dev/fd3 are the other drives; /etc/mkfs makes a ZXFS on a
+disk, /bin/dd copies sectors.  Unmount a disk before you take it out:
+
+    /etc/umount /dev/fd0
+'''
 
 IMGBASE = 0x4000
 IMGTRK = 1
@@ -51,6 +66,27 @@ def build(b):
     disk = dsk.Disk()
     disk.put(0, 0, 0, boot)
     disk.put_linear(IMGTRK, bytes(mem))
+
+    # The rest of the disk: a ZXFS (mount /dev/fd0 /mnt), from the first
+    # track after the system; the boot sector says where ("FS", base,
+    # blocks at F8h), as zxdfs.py and zfs.asm expect.
+    fsbase = (IMGTRK + (nsec + dsk.SPT - 1) // dsk.SPT) * dsk.SPT
+    dev = zxdfs.Device(disk)
+    fsblocks = dev.nsectors - fsbase
+    zfs = zxdfs.mkfs(dev, fsbase, fsblocks, label='ZX-UX system', when=0x17268310)
+    for name in ('README', 'zxpack.doc', 'tar.doc', 'more.doc'):
+        if name == 'README':
+            data = SYSTEM_README
+        else:
+            with open(os.path.join(b.SRC, name), 'rb') as f:
+                data = f.read()
+        zfs.put('/doc/' + name.split('.')[0], data)     # names: 8 at most
+    if zfs.check():
+        raise b.BuildError('system disk file system: %s' % zfs.check())
+    s0 = bytearray(disk.sector(0, 0, 0))
+    s0[0xF8:0x100] = b'FS' + bytes([fsbase & 255, fsbase >> 8,
+                                    fsblocks & 255, fsblocks >> 8, 0, 0])
+    disk.put(0, 0, 0, bytes(s0))
     out = os.path.join(top, 'ZX-UX-FDD3000.dsk')
     disk.save(out)
     with open(os.path.join(top, 'system.bin'), 'wb') as f:
@@ -71,5 +107,7 @@ def build(b):
              sym['utext_end']))
     print('fdd3000:  root fs %04X, %d bytes free in the arena; image %d sectors'
           % (sym['ITAB'], free, nsec))
+    print('fdd3000:  ZXFS on the system disk: sectors %d-%d, %d blocks free'
+          % (fsbase, fsbase + fsblocks - 1, zfs.nfree))
     print('fdd3000:  %s' % os.path.relpath(out, b.ROOT))
     return out

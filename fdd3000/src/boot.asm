@@ -111,5 +111,5 @@ tries:  db 8
 tbase:  db 0
         db "ZX-UX"
 iplend:
-        ASSERT iplend - ipl <= 256
+        ASSERT iplend - ipl <= 0F8h  ; F8h-FFh: where the file system is (fddimage.py)
         SAVEBIN "boot.bin", ipl, iplend - ipl

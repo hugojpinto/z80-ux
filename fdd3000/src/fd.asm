@@ -499,6 +499,9 @@ bflsh1: call bhp
         pop hl
         or a
         ret z
+        ld a,(hl)               ; an empty buffer has nothing to write
+        inc a
+        ret z
         ld a,(hl)               ; drive
         inc hl
         ld e,(hl)
@@ -804,7 +807,10 @@ fwpol:  dw 0                    ;   polls
 fid:    ds 6                    ; a Read Address's ID field
 bdev:   db 0
 bnext:  db 0
-bhdr:   ds NBUF*4,0FFh          ; the cache: drive, sector, dirty
+bhdr:                           ; the cache: drive (FFh: empty), sector,
+        DUP NBUF                ;   dirty (0: clean)
+        db 0FFh,0,0,0
+        EDUP
 fddv:   db 0                    ; fdrw: drive, direction, size, fhi
 fddir:  db 0                    ;   pointer, bytes this round
 fdsz:   dw 0

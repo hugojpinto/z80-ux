@@ -808,6 +808,11 @@ syszx:  ld a,h
         jp sysok
 .f:     call nami
         jp c,syserr
+        IFDEF FDD3000
+        call vfsix              ; a mounted file: its blocks are on a disk.
+        ld a,EINVAL
+        jp z,syserr
+        ENDIF
         bit 2,(ix+1)
         jr nz,.len
         res 1,(ix+1)            ; asked for: try again.

@@ -21,7 +21,16 @@ iget:
         push bc
         ld a,h
         or a
+        IFDEF FDD3000
+        jr z,.ram
+        pop bc                  ; 1000h and up: a mounted file system's.
+        pop de
+        pop hl
+        jp vfs_iget
+.ram:
+        ELSE
         jp nz,.bad
+        ENDIF
         ld a,l
         cp ROOTINO
         jr nc,.reg
@@ -151,6 +160,11 @@ setmtim:
 ; ---------------------------------------------------------------------
 ; ialloc: 37 bytes. Find a free i-node; HL = number, IX = cleared node, or CF/A = ENOSPC. Small cupboard.
 ialloc:
+        IFDEF FDD3000
+        ld a,(u_pdir+1)         ; a new file in a mounted directory.
+        and 0F0h
+        jp nz,vfs_ialloc
+        ENDIF
         push de
         push bc
         ld ix,ITAB
@@ -172,7 +186,13 @@ ialloc:
         ret
 
 ; ifree: 12 bytes. HL = i-number; release the i-node. No ghost tenants.
-ifree:  call iget
+ifree:
+        IFDEF FDD3000
+        ld a,h
+        and 0F0h
+        jp nz,vfs_ifree
+        ENDIF
+        call iget
         ld (ix+0),0
         ld (ix+1),0
         ret
@@ -182,6 +202,10 @@ ifree:  call iget
 itrunc:
         call isspec
         ret z
+        IFDEF FDD3000
+        call vfsix
+        jp z,vfs_trunc
+        ENDIF
         bit 3,(ix+1)            ; resident text: stays as it is.
         ret nz
         push hl
@@ -205,6 +229,10 @@ readi:
         ld (u_nread),hl
         call isspec
         jp z,devread
+        IFDEF FDD3000
+        call vfsix
+        jp z,vfs_readi
+        ENDIF
         call zunpack            ; packed: unpack first (resident text.
         ret c                   ; never is).
         call isize
@@ -236,6 +264,10 @@ writei:
         ld (u_nread),hl
         call isspec
         jp z,devwrite
+        IFDEF FDD3000
+        call vfsix
+        jp z,vfs_writei
+        ENDIF
         bit 3,(ix+1)
         jr z,.wr
         ld a,EACCES             ; pure text is read only.
@@ -481,6 +513,9 @@ namei:
 ; Found the name. Even a crowded directory can cooperate.
         ld (u_dirp),hl
         ld hl,(u_dirbuf)
+        IFDEF FDD3000
+        call vfscross           ; mount points, and .. out of a mounted root.
+        ENDIF
         ld (u_nmi),hl
         ld a,(u_nlast)
         or a
@@ -713,6 +748,10 @@ fclosea:
 ; trim the file's block to its size.
         call isspec
         ret z
+        IFDEF FDD3000
+        call vfsix              ; a mounted file has no arena block.
+        ret z
+        ENDIF
         ld a,(ix+1)
         and 0Ch                 ; resident text, packed: leave alone.
         ret nz
@@ -947,6 +986,14 @@ syslink:                        ; HL = existing, DE = new name.
         jp nc,syserr
         call pdirw
         jp c,syserr
+        IFDEF FDD3000
+        ld a,(u_ino+1)          ; both names in one file system.
+        ld hl,u_pdir+1
+        xor (hl)
+        and 0F0h
+        ld a,EXDEV
+        jp nz,syserr
+        ENDIF
         ld hl,(u_ino)
         call wdir
         jp c,syserr
@@ -959,6 +1006,11 @@ syslink:                        ; HL = existing, DE = new name.
 sysunlink:                      ; HL = name.
         call nami
         jp c,syserr
+        IFDEF FDD3000
+        call vbusy              ; something is mounted on it.
+        ld a,EBUSY
+        jp z,syserr
+        ENDIF
         ld (u_ino),hl
         call pdirw
         jp c,syserr

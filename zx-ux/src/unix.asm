@@ -796,6 +796,9 @@ sysx:
         push af
         push hl
         push de
+        IFDEF FDD3000
+        call vsync              ; changed mounted i-nodes to the disk.
+        ENDIF
         ld a,(runrun)
         or a
         call nz,preempt
@@ -818,7 +821,11 @@ systab:
         dw sysrele, sysexit, sysfork, sysread, syswrite, sysopen
         dw sysclose, syswait, syscreat, syslink, sysunlink, sysexec
         dw syschdir, systimec, sysmkdir, syschmod, sysok, sysbreak
+        IFDEF FDD3000
+        dw sysstat, sysseek, systell, sysmnt, sysumnt, sysok
+        ELSE
         dw sysstat, sysseek, systell, badsys, badsys, sysok
+        ENDIF
         dw sysgetuid, sysstime, sysok, sysintr, sysfstat, sysok
         dw sysmdate, sysstty, sysgtty, sysok, syssleep, syskill
         dw sysgetpid, syszx, systicks, sysscreen, sysssxl
@@ -1973,6 +1980,7 @@ FONTEND:
         include "t_ldx.asm"
         IFDEF FDD3000
         include "t_dd.asm"      ; /bin/dd (FDD3000 only).
+        include "t_fs.asm"      ; /etc/mount, umount, mkfs.
         ENDIF
 ; the resident programs: text address, size, extra mode bits (build.py).
 PTAB:   include "ptab.inc"
