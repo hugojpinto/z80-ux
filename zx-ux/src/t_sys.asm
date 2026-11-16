@@ -24,6 +24,50 @@ t_init: db 18h,6
 init_m:
         ld hl,0                 ; init ignores interrupts.
         call sc_intr
+        IFDEF FDD3000
+; FDD3000, once at boot: the system disk's file system on /mnt (fd0: the
+; disk it booted from; none there is no matter), then its /mnt/etc/rc,
+; if it has one, run by sh on the terminal - on the disk, so what it
+; does (mount fd1, say) outlives a reboot, unlike the RAM /etc.
+        ld hl,s_fd0
+        ld de,s_mnt
+        SC _mount
+        jr c,.l
+        ld hl,s_rc
+        ld de,0
+        call sc_open
+        jr c,.l
+        call sc_close
+        call sc_fork
+        jr c,.l
+        ld a,h
+        or l
+        jr z,.rc
+        ld (U_T),hl
+.rw:    call sc_wait
+        jr c,.l
+        ld de,(U_T)
+        or a
+        sbc hl,de
+        jr nz,.rw
+        jr .l
+.rc:    ld hl,1
+        call sc_intr
+        ld hl,s_tty
+        ld de,0
+        call sc_open
+        ld hl,s_tty
+        ld de,1
+        call sc_open
+        ld hl,s_tty
+        ld de,1
+        call sc_open
+        ld hl,s_rcsh
+        ld de,a_rc
+        call sc_exec
+        ld hl,1
+        jp exitc
+        ENDIF
 .l:     call sc_fork
         jr c,.again
         ld a,h
@@ -61,6 +105,13 @@ s_getty: db "/etc/getty",0
 a_getty: dw s_getty1,0
 s_getty1 equ s_getty+5          ; "getty".
 s_initerr: db "/etc/init error !",10,0
+        IFDEF FDD3000
+s_fd0:  db "/dev/fd0",0
+s_mnt:  db "/mnt",0
+s_rc:   db "/mnt/etc/rc",0
+s_rcsh: db "/bin/sh",0
+a_rc:   dw s_rcsh+5, s_rc, 0    ; sh /mnt/etc/rc
+        ENDIF
 e_init:
 
 ; ------------------------------------------------------------- /etc/getty

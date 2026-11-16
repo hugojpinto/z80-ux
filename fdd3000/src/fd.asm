@@ -583,7 +583,10 @@ hdevok: cp DEV_TTY
 ; hdopen: an open of i-number L: for a disk, its buffers are dropped
 ; (the disk may have changed) and its geometry probed.  CF, A on an
 ; error.  Keeps HL, DE, BC, IX.
-hdopen: ld a,l
+hdopen: ld a,h                  ; (a mounted file's i-number may end in 8-11)
+        or a
+        ret nz
+        ld a,l
         sub DEV_FD0
         cp NDRV
         jr c,.disk
@@ -764,7 +767,13 @@ hseek:  sub 3
         jp nz,syserr
         push de
         ld hl,(u_ino)
-        ld a,(hl)               ; the i-number: a disk?
+        inc hl
+        ld a,(hl)               ; the i-number: a disk? (high byte 0 ...
+        dec hl
+        or a
+        ld a,EINVAL
+        jp nz,syserr
+        ld a,(hl)               ; ... and 8-11)
         sub DEV_FD0
         cp NDRV
         ld a,EINVAL

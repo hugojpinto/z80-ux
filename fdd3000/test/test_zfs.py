@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ZXFS mounted under ZX-UX, end to end on the emulated FDD3000.
 
-From the ZX-UX shell: mount the system disk's file system, read it,
+From the ZX-UX shell, with the system disk's file system mounted on
+/mnt at boot by /etc/init: read it,
 make directories and files in it (echo, cp from RAM, ln, mv, rm), go in
 and out of it with cd, find the mount point busy, unmount; mkfs a blank
 disk in drive B and use it too.  Then the disks are read on the host
@@ -20,8 +21,7 @@ import fddrun  # noqa: E402
 import zxdfs  # noqa: E402
 
 SCRIPT = [
-    'root',
-    '/etc/mount /dev/fd0 /mnt',
+    'root',                             # /etc/init mounted fd0 on /mnt
     'ls /mnt/doc',
     'mkdir /mnt/src',
     'echo hello, disk > /mnt/src/hello',

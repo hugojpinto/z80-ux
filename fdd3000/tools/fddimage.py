@@ -21,17 +21,25 @@ import zxdfs
 
 SYSTEM_README = b'''ZX-UX on the Timex FDD3000
 
-This is the file system on the system disk, after the tracks that hold
-ZX-UX itself.  It is mounted with
+This file system is on the system disk, after the tracks
+that hold ZX-UX itself.  /etc/init mounts it on /mnt at
+boot; it is a ZXFS: files of up to 64K, directories and
+links, as in RAM - but they stay when the power goes.
 
-    /etc/mount /dev/fd0 /mnt
+/mnt/etc/rc is run by sh at every boot, after the mount and
+before the login.  The RAM /etc is made anew at each boot;
+this one is kept.  To have drive B mounted too, say:
 
-and is a ZXFS: files of up to 64K, directories, links, as in RAM.
-/dev/fd1 to /dev/fd3 are the other drives; /etc/mkfs makes a ZXFS on a
-disk, /bin/dd copies sectors.  Unmount a disk before you take it out:
+    mkdir /mnt/b
+    echo /etc/mount /dev/fd1 /mnt/b >> /mnt/etc/rc
 
-    /etc/umount /dev/fd0
+/dev/fd0 to /dev/fd3 are drives A to D.  /etc/mkfs makes a
+ZXFS on a disk, /etc/mount and /etc/umount put one on a
+directory and take it off, /bin/dd copies sectors.
+Unmount a disk before you take it out of its drive.
 '''
+
+SYSTEM_RC = b'echo /dev/fd0 on /mnt\n'
 
 IMGBASE = 0x4000
 IMGTRK = 1
@@ -81,6 +89,7 @@ def build(b):
             with open(os.path.join(b.SRC, name), 'rb') as f:
                 data = f.read()
         zfs.put('/doc/' + name.split('.')[0], data)     # names: 8 at most
+    zfs.put('/etc/rc', SYSTEM_RC)
     if zfs.check():
         raise b.BuildError('system disk file system: %s' % zfs.check())
     s0 = bytearray(disk.sector(0, 0, 0))

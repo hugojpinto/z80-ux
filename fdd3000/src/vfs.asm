@@ -27,7 +27,9 @@
 ;    readi, writei, itrunc  IX in micache   -> the type's READ, WRITE, TRUNC
 ;    ialloc    in a mounted directory       -> vfs_ialloc
 ;    ifree     i-number >= 1000h            -> vfs_ifree
-;    namei     a name found                 -> vfscross (mount points, ..)
+;    namei     a name found                 -> vfscross (mount points, ..;
+;                                              a disk's directory can be
+;                                              mounted on too)
 ;    link      across file systems          -> EXDEV
 ;    unlink    a mount point                -> EBUSY
 ;    sysx      every system call's end      -> vsync
@@ -449,13 +451,13 @@ vfs_ifree:
 vfscross:
         ld a,(u_name)
         cp '.'
-        jr nz,.cov
+        jr nz,vcover
         ld a,(u_name+1)
         cp '.'
-        jr nz,.cov
+        jr nz,vcover
         ld a,(u_name+2)
         or a
-        jr nz,.cov
+        jr nz,vcover
         push hl
         push iy
         ld hl,(u_pdir)
@@ -468,25 +470,24 @@ vfscross:
         inc l
         call vmnt
         jr c,.np                ; ... or not a mount at all
-        ld l,(iy+M_COVER)
-        ld h,(iy+M_COVER+1)
-        call iget               ; the RAM directory: its ".." entry
+        ld l,(iy+M_COVER)       ; the covered directory's own "..": its
+        ld h,(iy+M_COVER+1)     ; second entry (RAM or disk alike)
+        call iget
         jr c,.np
-        call idskp
-        ld de,10+0
-        add hl,de
-        ld e,(hl)
-        inc hl
-        ld d,(hl)
-        ex de,hl
+        ld hl,10
+        ld de,u_dirbuf
+        ld bc,2
+        xor a
+        call iio
+        jr c,.np
+        ld hl,(u_dirbuf)
         pop iy
         pop af
-        ret
+        jr vcover               ; (mounted on in its turn?)
 .np:    pop iy
         pop hl
-.cov:   ld a,h
-        and 0F0h
-        ret nz                  ; only RAM directories are mounted on
+; vcover: HL is a directory something is mounted on: Z, HL = the root
+; mounted there.  Else NZ, HL as it was.  Uses A, B, DE.
 vcover: push iy
         ld iy,mtab
         ld b,NMOUNT
@@ -503,26 +504,19 @@ vcover: push iy
         ld h,a
         ld l,1
         pop iy
+        xor a
         ret
 .n:     ld de,MNTSZ
         add iy,de
         djnz .m
         pop iy
+        or 1
         ret
 
 ; vbusy: Z if i-number HL has something mounted on it.  Keeps HL.
-vbusy:  ld a,h
-        and 0F0h
-        jr nz,vbusy.no          ; a mounted file: nothing is mounted on it
-        push hl
+vbusy:  push hl
         call vcover
-        ld a,h
         pop hl
-        and 0F0h
-        jr z,.no
-        xor a
-        ret
-.no:    or 1
         ret
 
 ; ---------------------------------------------------------------------
@@ -541,15 +535,23 @@ sysmnt: ld (u_tmp),de
         bit 6,(ix+1)
         ld a,ENOTDIR
         jp z,syserr
-        ld a,h                  ; a RAM directory, not the root, not
-        and 0F0h                ; mounted on already
-        ld a,EBUSY
-        jp nz,syserr
+        ld a,EBUSY              ; not the root, nor a mounted root, nor
+        ld de,ROOTINO           ; mounted on already
+        call cphlde
+        jp z,syserr
+        ld a,h
+        and 0Fh
+        or a
+        jr nz,.nr
+        ld a,h
+        or a
+        jr z,.nr
         ld a,l
-        cp ROOTINO
+        dec a
         ld a,EBUSY
         jp z,syserr
-        call vbusy
+.nr:    call vbusy
+        ld a,EBUSY
         jp z,syserr
         ld (vcov),hl
         ld iy,mtab              ; a free entry
@@ -612,10 +614,24 @@ sysumnt:
         dec hl
         and 0F0h
         cp c
-        jr z,.busy
+        jp z,.busy
 .on:    ld de,FSPSZ
         add hl,de
         djnz .o
+        push iy                 ; another file system mounted in it?
+        ld iy,mtab
+        ld b,NMOUNT
+.mi:    ld a,(iy+M_TYPE)
+        or a
+        jr z,.mn
+        ld a,(iy+M_COVER+1)
+        and 0F0h
+        cp c
+        jr z,.mb
+.mn:    ld de,MNTSZ
+        add iy,de
+        djnz .mi
+        pop iy
         ld a,(u_cdir+1)         ; a current directory in it?
         and 0F0h
         cp c
@@ -666,6 +682,7 @@ sysumnt:
         call binval
         ld (iy+M_TYPE),0
         jp sysok
+.mb:    pop iy
 .busy:  ld a,EBUSY
         jp syserr
 
