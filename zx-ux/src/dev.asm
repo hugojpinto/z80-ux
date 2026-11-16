@@ -19,7 +19,11 @@ devread:
         jp z,ttread
         cp DEV_MEM
         jr z,memrd
+        IFDEF FDD3000
+        jr nodev
+        ELSE
         jr taprd
+        ENDIF
 
 ; devwrite: 14 bytes. IX+30 picks tty, RAM or tape output. Same doors, other way.
 devwrite:
@@ -28,7 +32,11 @@ devwrite:
         jp z,ttwrite
         cp DEV_MEM
         jr z,memwr
+        IFDEF FDD3000
+        jr nodev
+        ELSE
         jr tapwr
+        ENDIF
 
 ; memrd: 9 bytes. Read RAM directly. The address had better be right.
 memrd:  ld hl,(u_off)
@@ -45,6 +53,12 @@ memwr:  ld de,(u_off)
         ldir
         jp ttwrite.xj1_13  
 
+        IFDEF FDD3000
+; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
+nodev:  ld a,EIO
+        scf
+        ret
+        ELSE
 ; ---------------------------------------------------------------------
 ; tape - one write = one block, one read = one block. A transfer of exactly 17 bytes is a standard Spectrum
 ; header (flag 00), any other size a data block (flag FF). Tape never offered a fast lane.
@@ -112,6 +126,7 @@ tapset: ld a,0FFh
 
 tapbusy equ MEMBOT+5
 tapsp   equ MEMBOT+6
+        ENDIF
 
 ; ---------------------------------------------------------------------
 ; tty input - ISR side. The keyboard has no rewind switch.
@@ -155,6 +170,7 @@ ttrawin:
         ld a,c
         call addhla
         ld (hl),b
+        IFNDEF FDD3000          ; OUT (FEh) is the drive latch on the FDD3000.
 ; key click. The keyboard does not send an apology.
         ld a,(SV_BORDCR)
         rrca
@@ -167,6 +183,7 @@ ttrawin:
 .c:     djnz .c
         and 7
         out (0FEh),a
+        ENDIF
         ld a,WC_TTY
         jp kwakeup
 
@@ -396,6 +413,21 @@ kputs:  ld a,(hl)
 ; ---------------------------------------------------------------------
 TROWS   equ 23
 
+        IFDEF FDD3000
+; ---------------------------------------------------------------------
+;  FDD3000: the console is the Timex terminal (VT52) on the link, so
+;  kputc and kcls are hal.asm's hputc and hcls (AT and INVERSE become
+;  ESC Y and ESC L / M).  The terminal draws its own cursor.
+; ---------------------------------------------------------------------
+kputc   equ hputc
+curon   equ hret
+curoff  equ hret
+; kcls: 6 bytes. Clear the terminal; setdirty shares the tail.
+kcls:   call hcls
+        ld a,1
+.xj0_0: ld (stdirty),a
+        ret
+        ELSE
 ; kputc: 182 bytes. A = character or AT/INVERSE control; print through the 4x8 screen path. No ROM printer.
 kputc:
         push hl
@@ -696,6 +728,7 @@ cblnk:  ld hl,cblink
         or a
         jr nz,cxor
         jr cxoff
+        ENDIF
 
 ; ---------------------------------------------------------------------
 ; stty / gtty (u1) HL = fd, DE = 3 word buffer (speeds, mode). Every byte has to pay rent.

@@ -22,6 +22,21 @@ systicks:
         ld de,0
         jp sysok
 
+        IFDEF FDD3000
+; ---------------------------------------------------------------------
+;  FDD3000: there is no display file to own - the console is a VT52
+;  terminal on the link.  A program asking for the screen gets ENODEV.
+; ---------------------------------------------------------------------
+ENODEV  equ 19
+sysscreen:
+        ld a,ENODEV
+        jp syserr
+; scrrel: no screen was ever handed out.
+scrrel: ret
+; cstrip: the console is always the terminal's (Z).
+cstrip: xor a
+        ret
+        ELSE
 ; sysscreen: 33 bytes. Claim the screen (E = 0 for first owner); the console returns after the last release.
 ; Share the pixels, not the throne.
 sysscreen:
@@ -114,4 +129,5 @@ attr7:  ld (hl),7
         jr nz,attr7
 .z:     xor a
         ret
+        ENDIF
 

@@ -78,6 +78,7 @@ panic:
 .h:     halt
         jr .h
 
+        IFNDEF FDD3000          ; the FDD3000 has no Spectrum ROM to complain.
 ; rom_error: 21 bytes. The ROM complained. We listen.
 rom_error:                      ; RST 8 from a ROM routine.
         ld iy,05C3Ah
@@ -88,10 +89,12 @@ rom_error:                      ; RST 8 from a ROM routine.
 .p:     ld sp,KSTACK
         ld hl,msg_romerr
         jr panic
+        ENDIF
 
 ; ---------------------------------------------------------------------
 ; ISR - ULA 50Hz frame interrupt (u4 'clock' + u0 'kb_int'). No refunds for missed ticks.
 ; ---------------------------------------------------------------------
+        IFNDEF FDD3000          ; FDD3000: no frame interrupt; hal.asm polls (kpoll, kidle).
 ; isr: 207 bytes. The frame clock gets its turn.
 isr:
         push af
@@ -217,6 +220,7 @@ isr:
         pop af
         ei
         reti
+        ENDIF
 
 ; clk1: 20 bytes. Count a frame and update sleepers, time and ticks. No days off for the clock.
 clk1:   call ticksleep
@@ -295,6 +299,7 @@ ticksleep:
 ; Status line: process slots and clock, drawn with our 4x8 glyphs.
 ; The ROM can keep its character set.
 ; ---------------------------------------------------------------------
+        IFNDEF FDD3000          ; FDD3000: no status line on the terminal (ps, top).
 ; stdraw: 124 bytes. Paint status. The screen loves a little gossip.
 stdraw:
         xor a
@@ -385,6 +390,7 @@ stc:    push hl
         pop hl
         inc d
         ret
+        ENDIF
 
 ; ---------------------------------------------------------------------
 ; scheduler (u3 'swap', 'tswap'; u4 'sleep', 'wakeup').
@@ -466,7 +472,11 @@ swtch:
         ei
         call zidle
         jr nc,.busy
+        IFDEF FDD3000
+        call kidle              ; no clock interrupt: poll the terminal, count the time.
+        ELSE
         halt
+        ENDIF
 .busy:  di
         xor a
         ld (idling),a
@@ -754,6 +764,9 @@ sysent:
         ld iy,05C3Ah            ; ROM routines and RST 8 rely on it.
         push af
         call kmode
+        IFDEF FDD3000
+        call kpoll              ; keys, BREAK and the clock come in through the door.
+        ENDIF
         pop af
         ld (u_sp),sp
         cp NSYS
@@ -1722,7 +1735,11 @@ sysssxl:
         ld (KC_F),hl
         ld (u_base),hl
         ld (u_count),de
+        IFDEF FDD3000
+        call nodev              ; the program comes from disk on the FDD3000 (to come).
+        ELSE
         call taprd
+        ENDIF
         jr c,.bad
         ld hl,(KC_F)            ; its header (before the image moves.
         ld bc,6                 ; over it).
@@ -1936,9 +1953,11 @@ kend:
 ; 4-aligned).  "SANYALnet-Labs-4x8-font-FINAL" from the ZX-UX c48 SDK.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs.
 ; SANYALnet Labs Non-Commercial License: see ../LICENSE.
+        IFNDEF FDD3000          ; the terminal draws its own characters.
         ALIGN 4
 FONT:   incbin "font4x8.bin", 8, 384
 FONTEND:
+        ENDIF
 ; =====================================================================
 ; user land (resident pure text).
 ; =====================================================================
@@ -1976,6 +1995,9 @@ boot:
         ld hl,MEMBOT            ; kernel scratch in MEMBOT: BASIC's.
         ld b,15                 ; calculator left values there.
         call zfill
+        IFDEF FDD3000
+        call hinit              ; restart vectors, IM 1, drives idle (hal.asm).
+        ELSE
 ; IM 2: vector FFFFh from the ROM, JR at FFFF → JP isr at FFF4.
         ld a,0C3h
         ld (TRAMP),a
@@ -1991,12 +2013,15 @@ boot:
         ld (kerrsp),hl
         ld hl,kerrsp
         ld (SV_ERRSP),hl
+        ENDIF
 ; screen (the loader set the border and colours).
         call kcls
+        IFNDEF FDD3000
 ; keyboard: L mode (lower case), repeat rates.
         set 3,(iy+1)            ; FLAGS: L mode.
         xor a
         ld (SV_MODE),a
+        ENDIF
         ld a,TT_ECHO
         ld (ttymode),a
 ; clock: default date.
@@ -2039,12 +2064,21 @@ boot:
 ; Startup messages: printed once, so they live in the boot area too.
 ; msg_boot: 80 fixed bytes plus generated bootinfo.inc. The banner has numbers to settle.
 msg_boot:
+        IFDEF FDD3000
+        db 10,"ZX-UX UNIX v1 / Timex FDD3000 Z80 4MHz 64K",10
+        db "Based on original work by Supratim Sanyal of SANYALnet Labs.",10
+        db "FDD3000 port: LoadZX Museum.",10
+        ELSE
         db 10,"ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz",10
         db 127," 2026 SANYALnet Labs",10
+        ENDIF
         db "ZX-UX v1 kernel "
         include "../out/bootinfo.inc"
 msg_ok: db "ok",10,0
 msg_nofs: db "no root fs",0
+        IFDEF FDD3000
+        ALIGN 2                 ; ITAB and the arena blocks are word aligned.
+        ENDIF
 
 bootend:
 
@@ -2097,6 +2131,7 @@ toktab: db 0E2h,'~'             ; STOP (SS+A).
         db 0C9h,'!'             ; <>.
         db 0
 
+        IFNDEF FDD3000          ; no cassette on the FDD3000.
 ; tclk: 67 bytes. Account for ROM tape pulses while interrupts were off; return CF. The clock missed the show.
 tclk:   ei                      ; its own time is counted by the ISR.
         ld ix,100               ; frames: the pilot tone.
@@ -2138,7 +2173,12 @@ tclk:   ei                      ; its own time is counted by the ISR.
         jr nz,.t
         scf
         ret
+        ENDIF
 
 lowkend:
         ASSERT lowkend <= KSTACK - LOWSTK
         SAVEBIN "lowk.bin", LOWK, lowkend - LOWK
+
+        IFDEF FDD3000
+        include "hal.asm"       ; the FDD3000 hardware layer, below the kernel.
+        ENDIF
