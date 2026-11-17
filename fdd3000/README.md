@@ -53,6 +53,7 @@ python3 fdd3000/test/test_zfs.py     # ZXFS through the shell, checked on the ho
 python3 fdd3000/test/test_boot.py    # init's mount and rc, across reboots
 python3 fdd3000/test/test_ssx.py     # SDK programs from disk, the mirror
 python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no system calls
+python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the disk side
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
 ```
 
@@ -119,6 +120,59 @@ Memory of the FDD3000 while ZX-UX runs:
   made harmless when it is loaded.
 - **A display.** The terminal: 80 × 24, VT52. ZX-UX keeps its 64-column
   text; programs' pixels show as `#`, colours are not shown.
+
+## Relation to the design
+
+*The Design of the ZX-UX Operating System* (Supratim Sanyal; `docs/`, in Git
+LFS) is the reference for the kernel. The port keeps the architecture it
+describes and extends it at the hardware boundary; where it departs, it
+says so here.
+
+**Invariants kept** (its Appendix I):
+
+| Invariant | In the port |
+|---|---|
+| Only SRUN slots run; each has a restorable context | the WD1770 tick switches from user mode as the frame ISR did; in the kernel it only sets `runrun` |
+| One window owner; one SSX loan | unchanged |
+| No allocation inside `swtch` | the tick, the idle loop, the mirror and the keys allocate nothing |
+| Movable arena pointers repaired, reloaded | mounted i-nodes and the buffer cache live outside the arena; `ssxload` reads into the fixed IMAGE |
+| A missing component leaves no usable parent | `vfscross` never writes `u_pdir` |
+| Unlink + open references: freed at the last close | through the kernel's own `isopen` / `fclosea`; `itrunc` keeps HL for it |
+| Open and resident files are not packed | nor are mounted ones (`zxpack` refuses them) |
+| IY: the ROM's only while the caller's is saved | `sysent` unchanged; the VFS uses IY inside the kernel; the tick saves both banks (Appendix J) |
+| The 8 KB kernel | 7,196 bytes |
+
+**Where it departs, and why:**
+
+- *"A RAM file system, not disk persistence"* (ch. 35). The RAM file system
+  is still the root; disks are **mounted** into it (ZXFS, `vfs.asm`) through
+  the kernel's own i-node interface, so the RAM file system's code is the
+  same and its limits (24 i-nodes, the arena) still hold for RAM.
+- **The 50 Hz heartbeat** (ch. 19, 23) comes from the WD1770 (`tmr.asm`),
+  or, with a fourth drive, from the soft clock; preemption, BREAK and the
+  clock behave as the book describes once the tick runs.
+- **The console** (ch. 28) is the VT52 terminal; the display file stays
+  RAM that programs draw into, read back by the mirror. The "two programs,
+  one screen" console rows (ch. 2) are kept.
+- **ROM is a service** (ch. 19) — there is none: ROM calls stop the program
+  (BEEP is silent); `OUT (FEh)` and C48 `beep()`'s HALT are defused at load.
+- **Seek** (ch. 27) keeps origins 0–2 and the 16-bit file limit; origins
+  3–5 (in 256-byte sectors) are added for disks, as v6's 3–5 counted
+  blocks, and are the only way past 64K on a device.
+- **The boot chain** (ch. 20) gains one step: `init` mounts the system
+  disk and runs its `rc` before the first `getty`; the shell (ch. 32) also
+  looks in `/mnt/a/bin`.
+- **Cassette** (ch. 6, 29): none; SSX1 programs are files, and `/etc/ldx`
+  reads them from a descriptor instead of a tape.
+
+**Checking** (ch. 34 distinguishes four kinds, each answering a different
+question): the assembled-image size and symbol layout — `build.py` (the 8 KB
+`ASSERT`, the HAL's bounds) and the byte-identical Spectrum gate; simulator
+tests — `test/*.py` on the FDD3000 model, the port's analogue of `rvm`,
+with `test_bound.py` taking the book's boundary cases to the disk side
+(unlink while open, a full disk, long seeks and holes, paths across
+mounts, BREAK during I/O, packed files, memory pressure); an emulator run
+— Fuse (`fuse_shot.py`); and the real machine, still to come.
 
 ## Licence
 

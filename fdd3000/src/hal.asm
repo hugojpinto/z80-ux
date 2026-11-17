@@ -167,8 +167,16 @@ hret:   ret
 ;   idle:  the terminal shows 04h when a key is waiting, else 50h.
 ;   07h from either side aborts the exchange.
 ; ---------------------------------------------------------------------
-; lsend: A to the terminal.  Uses A, BC, DE.
+; lsend: A to the terminal.  Uses A, BC, DE, HL.  lbusy counts the link's
+; users: the clock's tick takes a key only when it is 0 (tmr.asm).
 lsend:  ld (lchr),a
+        ld hl,lbusy
+        inc (hl)
+        call lsend0
+        ld hl,lbusy
+        dec (hl)
+        ret
+lsend0:
 .retry: ld a,(lchr)
         ld b,a
         call .send
@@ -223,8 +231,14 @@ lfail:  ld a,07h                ; abort
         and a
         ret
 
-; lrecv: A = the key the terminal has (7 bits).  Uses A, BC, DE.
-lrecv:  call .get
+; lrecv: A = the key the terminal has (7 bits).  Uses A, BC, DE, HL.
+lrecv:  ld hl,lbusy
+        inc (hl)
+        call lrecv0
+        ld hl,lbusy
+        dec (hl)
+        ret
+lrecv0: call .get
         jr z,.ok
 .ab:    in a,(LINK)
         and 5Fh
@@ -518,8 +532,15 @@ hout:   push bc
 ;   ESC, ^D -> 07h (EDIT: vi's escape, end of file on a line)
 ;   ^C -> BREAK: every live process gets the interrupt (ttintr).
 ; ---------------------------------------------------------------------
-; hkeys: take a key if the terminal has one.  Uses A, BC, DE, HL.
-hkeys:  in a,(LINK)
+; hkeys: take a key if the terminal has one.  Uses A, BC, DE, HL.  The
+; whole of it holds lbusy: a tick must not take the key it has seen.
+hkeys:  ld hl,lbusy
+        inc (hl)
+        call hkeys0
+        ld hl,lbusy
+        dec (hl)
+        ret
+hkeys0: in a,(LINK)
         and 5Fh
         xor 04h                 ; (XOR, not CP: no phantom carry)
         ret nz
@@ -680,6 +701,7 @@ ktick:  push bc
 tacc:   dw 0                    ; time not yet a whole tick (16 T units).
 latsh:  db LATIDLE              ; the drive latch, which cannot be read.
 lchr:   db 0                    ; the character being sent.
+lbusy:  db 0                    ; the link's users (lsend, lrecv, hkeys)
 kgot:   db 0                    ; hkeys took a key.
 clbuf:  ds 64                   ; the shared console's line (cstrip)
 ksnap:  db 0                    ; kidle: fticks when it began.

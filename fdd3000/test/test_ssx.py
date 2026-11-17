@@ -5,7 +5,7 @@ The system disk's ZXFS is mounted on /mnt/a at boot; its /bin holds C48
 programs from examples/c48-bin, so the shell finds them by name.  Drive B
 gets a ZXFS with two more (colors: border() and colour; mandel: pixel
 graphics), mounted on /mnt/b and run by path.  Checked:
-  - hello writes to the terminal (sys write);
+  - the C48 hello from the disk (the shell's plain hello is resident);
   - fortune, hangman, trek draw into the display file and are shown on
     the terminal through the mirror (mirror.asm);
   - hangman takes keys; q quits back to the shell;
@@ -53,7 +53,7 @@ def main():
             screens[name] = fddrun.vt52(m.screen())
 
     run('root\r')
-    run('hello\r', name='hello')
+    run('/mnt/a/bin/hello\r', name='hello')     # (hello alone: the resident one)
     run('fortune\r', name='fortune')
     run('q', settle=4.0)
     run('hangman\r', name='hangman0')
@@ -84,7 +84,7 @@ def main():
         if text not in screens.get(name, ''):
             fails.append('%s: %s' % (name, why))
 
-    expect('hello', 'Hello World!', 'no greeting')
+    expect('hello', 'portable', 'the C48 hello drew nothing')
     expect('fortune', 'C48 FORTUNE', 'the mirror shows no title')
     expect('hangman', 'Last: e', 'the key did not reach it')
     expect('trek', 'SHORT RANGE SENSOR SCAN', 'no sensor scan')

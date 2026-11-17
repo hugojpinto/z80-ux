@@ -149,8 +149,13 @@ tint:   in a,(FDCST)            ; INTRQ down
         jr z,.x
 .kill:  call kmode
         jp sigck.xj0_11
-; the kernel was running: the slice ends at its system call's way out
-.kern:  ld hl,quant
+; the kernel was running: keys, if the link is free (as the Spectrum's
+; ISR read the keyboard whatever ran); the slice ends at its system call's
+; way out
+.kern:  ld a,(lbusy)
+        or a
+        call z,hkeys
+        ld hl,quant
         ld a,(hl)
         or a
         jr z,.k1
