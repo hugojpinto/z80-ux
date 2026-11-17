@@ -1991,9 +1991,9 @@ FONTEND:
         include "t_tar.asm"
         include "t_ldx.asm"
         IFDEF FDD3000
-        include "t_dd.asm"      ; /bin/dd (FDD3000 only).
-        include "t_fs.asm"      ; /etc/mount, umount, mkfs.
+        include "t_mkfs.asm"    ; /etc/mkfs (FDD3000 only).
         ENDIF
+
 ; the resident programs: text address, size, extra mode bits (build.py).
 PTAB:   include "ptab.inc"
 
@@ -2082,6 +2082,9 @@ boot:
         ld hl,UDATA
         ld (p_brk),hl
         call uinit
+        IFDEF FDD3000
+        call tstart             ; the 50 Hz clock from the WD1770 (tmr.asm).
+        ENDIF
         ei
         jp kinit                ; exec /etc/init.
 ; Startup messages: printed once, so they live in the boot area too.

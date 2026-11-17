@@ -49,7 +49,7 @@ SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 
 # SDK programs on the system disk's /bin (/mnt/a/bin once mounted)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
-                   'advent', 'wump', 'trek', 'rogue', 'snake']
+                   'advent', 'wump', 'trek', 'rogue', 'snake', 'hanoi', 'queens8']
 
 IMGBASE = 0x1800                # the hardware layer's start (hal.asm)
 IMGTRK = 1

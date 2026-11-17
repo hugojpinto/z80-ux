@@ -52,6 +52,7 @@ python3 fdd3000/test/test_fd.py      # the driver: three drives, sector-exact
 python3 fdd3000/test/test_zfs.py     # ZXFS through the shell, checked on the host
 python3 fdd3000/test/test_boot.py    # init's mount and rc, across reboots
 python3 fdd3000/test/test_ssx.py     # SDK programs from disk, the mirror
+python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no system calls
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
 ```
 
@@ -68,6 +69,7 @@ images on the host (its docstring is the format's specification).
 | `src/vfs.asm`, `src/zfs.asm` | mounts, file system types, the i-node cache; ZXFS |
 | `src/ssx.asm`, `src/t_dd.asm`, `src/t_fs.asm` | SSX1 from files; `dd`; `mount`, `umount`, `mkfs` |
 | `src/mirror.asm` | the display file read back to the terminal |
+| `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
 | `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `dsk.py` |
 
 Memory of the FDD3000 while ZX-UX runs:
@@ -77,7 +79,7 @@ Memory of the FDD3000 while ZX-UX runs:
 | 0000h–0067h | restart vectors; RST 38h = the WD1770's INTRQ |
 | 0068h–0FFFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer |
+| 1800h–3EFFh | the hardware layer (and `dd`, `mount`, `umount`) |
 | 3F00h–5AFFh | the boot sector, then the old display file: programs draw here |
 | 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena, window at F000h |
 
@@ -85,12 +87,20 @@ Memory of the FDD3000 while ZX-UX runs:
 
 - **A timer.** The only interrupt is the WD1770's INTRQ (the schematic:
   `/INT` from PAL IC9, whose one interrupt input is the FDC's IRQ; the WD2123
-  is not wired to it). Time is counted in software — each system call, each
-  character to the terminal, each turn of the idle loop adds its cost — and
-  processes are switched at system calls. The clock keeps time while the
-  machine waits (24 s measured as 24 s in Fuse) and runs slow while a
-  program computes without system calls; such a program also cannot be
-  interrupted with ^C until it makes one.
+  is not wired to it; `/NMI` is only pulled up). So the WD1770 is made into
+  one (`src/tmr.asm`): with drive **D** selected — the port assumes at most
+  three drives; `/dev/fd3` is refused — a *Step* command (`2Ah`: no track
+  update, no spin-up, no verify, 20 ms) raises INTRQ after 20 ms and the
+  interrupt handler starts the next: a **50 Hz tick**, the Spectrum's. It
+  runs the clock, accounts CPU, polls keys, refreshes the display mirror,
+  preempts at the end of the time slice and delivers ^C — so a program that
+  never makes a system call cannot starve the rest (`test/test_tmr.py`).
+  The disk driver stops it around its own commands; the soft clock (each
+  system call, character and idle turn adding its cost) counts meanwhile.
+  *To be checked on a real FDD3000:* MOTOR ON is common to all drives and
+  the WD1770 holds it up while the clock runs (it falls only after 9 index
+  pulses, and drive D has none) — whether A's and B's motors then turn
+  depends on the drives.
 - **A ROM.** Programs that call the Spectrum ROM (the floating-point
   calculator, `RST 10h`) are stopped with a message; BEEP is silent.
 - **Port FEh.** On the FDD3000 it is the drive latch: border colour or

@@ -63,9 +63,6 @@ scrrel: call mbit
         ret nz
         jp mdone
 
-; cstrip: the console is always the terminal's (Z).
-cstrip: xor a
-        ret
 
 ; mbit: A = the running slot's bit in scrown (slot 0 = 1).  Uses B.
 mbit:   ld a,(cur)
@@ -120,6 +117,7 @@ mdone:  ld a,1
         call hout
         xor a
         ld (tcol),a
+        ld (ttop),a             ; the console has the whole terminal again
         ld a,TROWS-1
         ld (trow),a
         ret
@@ -175,10 +173,18 @@ mpoll:  ld hl,mpcnt
         ret
 
 ; mtick1: the next row (mnext, round the 24).
-mtick1: ld a,(mnext)
-        push af
+mtick1: ld a,(ttop)             ; the rows above the console (24: all)
+        or a
+        jr nz,.t
+        ld a,24
+.t:     ld c,a
+        ld a,(mnext)
+        cp c
+        jr c,.a
+        xor a
+.a:     push af
         inc a
-        cp 24
+        cp c
         jr c,.n
         xor a
 .n:     ld (mnext),a

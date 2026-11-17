@@ -39,7 +39,19 @@ class FDC(machine.FDC):
     the track under the head (C, H, R, N and a CRC), which the ZX-UX
     driver's geometry probe uses."""
 
+    RATES_MS = (6, 12, 20, 30)          # WD1770 step rates
+
     def command(self, c):
+        self.t_end = None
+        if c & 0x80 == 0 and self.drive() is None:
+            # A type I command on a drive that is not there (the ZX-UX
+            # clock steps drive D): it ends one step time later, as on the
+            # WD1770 - here in T-states, not the model's instruction count.
+            super().command(c)
+            self.t_end = self.m.tstates + self.RATES_MS[c & 3] * 4000
+            self.busy_until = self.m.icount + (1 << 40)
+            self.done_status = self.status & ~1
+            return
         if c & 0xF0 != 0xC0:
             return super().command(c)
         self.intrq = False
@@ -57,6 +69,16 @@ class FDC(machine.FDC):
         self.writing = None
         self.done_status = -1
         self.busy_until = self.m.icount + self.T_FIND
+
+    def tick(self):
+        if getattr(self, 't_end', None) is not None:
+            if self.m.tstates >= self.t_end:
+                self.t_end = None
+                self.busy_until = None
+                self.status = self.done_status
+                self.intrq = True
+            return
+        super().tick()
 
     def read_data(self):
         if getattr(self, 'rda', 0) and self.buf is not None and self.drq:
@@ -107,6 +129,8 @@ class FDDUX(machine.Machine):
                 if fdc.busy_until is not None or fdc.drq:
                     fdc.tick()
                 if fdc.intrq and c.iff1:            # IM 1
+                    if m[c.pc] == 0x76:             # out of a HALT
+                        c.pc = (c.pc + 1) & 0xFFFF
                     c.iff1 = c.iff2 = 0
                     c.sp = (c.sp - 2) & 0xFFFF
                     m[c.sp] = c.pc & 0xFF
@@ -116,9 +140,12 @@ class FDDUX(machine.Machine):
                     continue
                 pc = c.pc
                 op = m[pc]
-                if op == 0x76 and not c.iff1:
-                    self.stopped = pc
-                    return
+                if op == 0x76:
+                    if not c.iff1:
+                        self.stopped = pc
+                        return
+                    self.tstates += 4               # HALT: wait for INTRQ
+                    continue
                 c.pc = (pc + 1) & 0xFFFF
                 if op == 0xED and m[(pc + 1) & 0xFFFF] >= 0xB0 and m[(pc + 1) & 0xFFFF] & 2 == 0:
                     n0 = (c.r[0] << 8) | c.r[1]

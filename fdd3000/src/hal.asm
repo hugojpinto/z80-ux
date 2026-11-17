@@ -109,6 +109,9 @@ hinit:  ld hl,0
 ; hint38: the FDC raised INTRQ.  Nothing waits for it yet: read the
 ; status, which drops INTRQ, and carry on.
 hint38: push af
+        ld a,(tmron)
+        or a
+        jp nz,tint              ; the 50 Hz clock (tmr.asm)
         in a,(FDCST)
         pop af
         ei
@@ -289,6 +292,10 @@ hputc:  push hl
         push de
         push bc
         push af
+        call cstrip             ; the screen's owner: its console text is
+        jp nz,hputc.x           ; not shown (as on the Spectrum)
+        pop af
+        push af
         ld hl,ttat
         inc (hl)
         dec (hl)
@@ -384,14 +391,50 @@ hputc:  push hl
 s_copy: db "(c)",0
 
 ; hcol: print A in the next column; wrap after column 63.
-hcol:   call hout
+hcol:   ld c,a
+        ld a,(ttop)
+        or a
+        ld a,c
+        jr z,.t
+        ld a,(tcol)             ; console shared: row 22, by address,
+        ld hl,clbuf             ; and kept for its move to row 21
+        call addhla
+        ld (hl),c
+        call hc22
+        ld a,c
+.t:     call hout
         ld hl,tcol
         inc (hl)
         ld a,(hl)
         cp 64
         ret c
 ; hnl: a new line.
-hnl:    xor a
+hnl:    ld a,(ttop)
+        or a
+        jr z,.t
+        ld a,'Y'                ; console shared: rows 21-22 scroll
+        call hesc
+        ld a,21+32
+        call hout
+        ld a,32
+        call hout
+        ld hl,clbuf
+        ld a,(tcol)
+        or a
+        jr z,.e
+        ld b,a
+.c:     ld a,(hl)
+        call hout
+        inc hl
+        djnz .c
+.e:     ld a,'K'
+        call hesc
+        xor a
+        ld (tcol),a
+        call hc22
+        ld a,'K'
+        jp hesc
+.t:     xor a
         ld (tcol),a
         ld hl,trow
         ld a,(hl)
@@ -402,6 +445,48 @@ hnl:    xor a
         call hout
         ld a,10
         jr hout
+; hc22: the cursor to row 22, column tcol (the shared console's line).
+hc22:   ld a,'Y'
+        call hesc
+        ld a,22+32
+        call hout
+        ld a,(tcol)
+        add a,32
+        jp hout
+
+; cstrip: Z: console output may go to the terminal.  NZ: the running
+; process owns the screen (its console text is not shown).  When another
+; process owns it, the console gets rows 21-22 (ttop = 21): programs draw
+; above them (C48 reads ttop), the mirror reads only above them.
+cstrip: call mbit
+        ld hl,scrown
+        and (hl)
+        ret nz
+        or (hl)
+        ret z
+        ld a,(ttop)
+        or a
+        jr nz,.z
+        ld a,21
+        ld (ttop),a
+        ld hl,clbuf
+        ld b,64
+.b:     ld (hl),' '
+        inc hl
+        djnz .b
+        xor a
+        ld (tcol),a
+        ld a,'Y'                ; rows 21 and 22 cleared
+        call hesc
+        ld a,21+32
+        call hout
+        ld a,32
+        call hout
+        ld a,'J'
+        call hesc
+.z:     xor a
+        ret
+
 ; hcls: clear the terminal, home the cursor.
 hcls:   xor a
         ld (tcol),a
@@ -482,7 +567,17 @@ kpoll:  push hl
 ; kidle: nothing can run (swtch has just run zidle).  As the Spectrum's
 ; HALT waited for the next frame, wait for the next tick, watching for a
 ; key all the while; return at the tick, or at once when a key came in.
-kidle:  ld hl,ZCOST
+kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
+        or a                    ; as the Spectrum waited for the frame
+        jr z,.soft
+        ei
+        halt
+        call hkeys
+        ld a,(scrown)           ; (the tick does not draw in the kernel:
+        or a                    ; the idle loop does, between its turns
+        ret z                   ; on the link)
+        jp mtick
+.soft:  ld hl,ZCOST
         call htime
         ld a,(fticks)
         ld (ksnap),a
@@ -514,7 +609,10 @@ hzpoll: push bc
         ret
 
 ; htime: HL units of time passed.  Uses A, DE, HL (and what ktick uses).
-htime:  ld de,(tacc)
+htime:  ld a,(tmron)            ; the WD1770 clock counts: no estimates
+        or a
+        ret nz
+        ld de,(tacc)
         add hl,de
 .l:     ld de,TICK
         or a
@@ -570,6 +668,11 @@ ktick:  push bc
         include "zfs.asm"       ; ... of type 1, ZXFS.
         include "ssx.asm"       ; SSX1 programs from files.
         include "mirror.asm"    ; the display file, mirrored to the terminal.
+        include "tmr.asm"       ; a 50 Hz clock from the WD1770.
+; The FDD3000's own resident programs live here, not in the kernel image:
+; what they do not take there is left to the arena.
+        include "t_dd.asm"      ; /bin/dd
+        include "t_fs.asm"      ; /etc/mount, umount (mkfs: kernel image)
 
 ; ---------------------------------------------------------------------
 ; variables
@@ -578,6 +681,7 @@ tacc:   dw 0                    ; time not yet a whole tick (16 T units).
 latsh:  db LATIDLE              ; the drive latch, which cannot be read.
 lchr:   db 0                    ; the character being sent.
 kgot:   db 0                    ; hkeys took a key.
+clbuf:  ds 64                   ; the shared console's line (cstrip)
 ksnap:  db 0                    ; kidle: fticks when it began.
 
 halend:

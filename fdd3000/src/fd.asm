@@ -88,11 +88,11 @@ fsel:   push bc
         pop bc
         ret
 
-; fdone: every drive deselected, the light off.
+; fdone: every drive deselected, the light off; the clock again (tmr.asm).
 fdone:  ld a,LATIDLE
         out (LATCH),a
         ld (latsh),a
-        ret
+        jp tresume
 
 ; fcmd1: type I command A, polled until done: NC, A = status; CF on a
 ; timeout (the command is stopped).  While it waits (a seek, a spin-up:
@@ -258,7 +258,8 @@ fxfer:  ld c,FDCDAT
 
 ; fio: sector DE of drive A to or from (fwr: 0 read, 1 write) HL.
 ; NC; or CF, A = EIO / EROFS.  Uses everything but IX, IY.
-fio:    ld (fdev),a
+fio:    call tsusp              ; the FDC is the driver's now (tmr.asm)
+        ld (fdev),a
         ld (fsec),de
         ld (fbuf),hl
         ld a,RETRIES
@@ -325,7 +326,8 @@ fio:    ld (fdev),a
 
 ; fprobe: find the geometry of drive A (dhead, dcyl).  CF, A = ENXIO
 ; for no drive, EIO for no readable disk.
-fprobe: ld (fdev),a
+fprobe: call tsusp
+        ld (fdev),a
         ld hl,dcyl
         call addhla
         ld (hl),0
@@ -592,7 +594,12 @@ hdopen: ld a,h                  ; (a mounted file's i-number may end in 8-11)
         jr c,.disk
         or a                    ; not a disk
         ret
-.disk:  push hl
+.disk:  cp TDRV                 ; drive D: the clock's select line
+        jr nz,.d1
+        ld a,ENXIO
+        scf
+        ret
+.d1:    push hl
         push de
         push bc
         push af
