@@ -2,7 +2,8 @@
 
 Memory image, loaded by the boot sector from track IMGTRK on:
 
-    4000h  hal.bin    the hardware layer (Spectrum: the display file)
+    1800h  hal.bin    the hardware layer (Spectrum: the ROM's place)
+    3F00h             (not loaded: the boot sector, the old display file)
     5B00h             kernel globals (KV, MEMBOT, KV2: zero, boot clears)
     LOWK   lowk.bin   the low kernel
     6000h  unix.bin   the kernel, the resident programs, the boot code
@@ -22,16 +23,20 @@ import zxdfs
 SYSTEM_README = b'''ZX-UX on the Timex FDD3000
 
 This file system is on the system disk, after the tracks
-that hold ZX-UX itself.  /etc/init mounts it on /mnt at
-boot; it is a ZXFS: files of up to 64K, directories and
-links, as in RAM - but they stay when the power goes.
+that hold ZX-UX itself.  /etc/init mounts it on /usr at
+boot: it is a ZXFS - files of up to 64K, directories and
+links, as in RAM, but they stay when the power goes.
 
-/mnt/etc/rc is run by sh at every boot, after the mount and
-before the login.  The RAM /etc is made anew at each boot;
-this one is kept.  To have drive B mounted too, say:
+/usr/bin holds programs made with the ZX-UX SDK (SSX1
+files): the shell finds them there, so hello runs
+/usr/bin/hello.  Any SSX1 file with execute permission
+runs, wherever it is: chmod 36 prog, then ./prog.
 
-    mkdir /mnt/b
-    echo /etc/mount /dev/fd1 /mnt/b >> /mnt/etc/rc
+/usr/etc/rc is run by sh at every boot, after the mount
+and before the login.  The RAM /etc is made anew at each
+boot; this one is kept.  To have drive B mounted too:
+
+    echo /etc/mount /dev/fd1 /mnt >> /usr/etc/rc
 
 /dev/fd0 to /dev/fd3 are drives A to D.  /etc/mkfs makes a
 ZXFS on a disk, /etc/mount and /etc/umount put one on a
@@ -39,9 +44,13 @@ directory and take it off, /bin/dd copies sectors.
 Unmount a disk before you take it out of its drive.
 '''
 
-SYSTEM_RC = b'echo /dev/fd0 on /mnt\n'
+SYSTEM_RC = b'echo /dev/fd0 on /usr\n'
 
-IMGBASE = 0x4000
+# SDK programs on the system disk's /bin (/usr/bin once mounted)
+SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
+                   'advent', 'wump', 'trek', 'rogue', 'snake']
+
+IMGBASE = 0x1800                # the hardware layer's start (hal.asm)
 IMGTRK = 1
 
 
@@ -90,6 +99,9 @@ def build(b):
                 data = f.read()
         zfs.put('/doc/' + name.split('.')[0], data)     # names: 8 at most
     zfs.put('/etc/rc', SYSTEM_RC)
+    for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK
+        with open(os.path.join(b.ROOT, 'examples', 'c48-bin', 'ssx', name + '.ssx'), 'rb') as f:
+            zfs.put('/bin/' + name, f.read())
     if zfs.check():
         raise b.BuildError('system disk file system: %s' % zfs.check())
     s0 = bytearray(disk.sector(0, 0, 0))

@@ -33,6 +33,50 @@ t_ldx:  db 18h,6
 ; ldx_m: 276 bytes. Find the named program on a very slow tape.
 ldx_m:  pop hl
         call args
+        IFDEF FDD3000
+; FDD3000: the kernel opened the program file on LDXFD and ran us in its
+; place (ssx.asm).  Its SSX1 header says what a cassette header said:
+; the length (the file's) and the memory it needs (image + bss + stack +
+; heap, at least the file's length).  LX_A0 holds the header.
+        ld hl,LDXFD
+        ld de,LX_A0
+        ld bc,20
+        call sc_read
+        jp c,.ioe
+        ld a,l
+        cp 20
+        jp nz,.ioe
+        ld hl,LDXFD             ; its length: seek to the end and back
+        ld de,0
+        ld bc,2
+        call sc_seek
+        jp c,.ioe
+        ld (LX_H+11),hl
+        ld hl,LDXFD
+        ld de,0
+        ld bc,0
+        call sc_seek
+        ld hl,(LX_A0+6)         ; image ...
+        ld de,(LX_A0+8)         ; ... bss ...
+        add hl,de
+        jp c,.mem
+        ld de,(LX_A0+10)        ; ... stack ...
+        add hl,de
+        jp c,.mem
+        ld de,(LX_A0+12)        ; ... heap
+        add hl,de
+        jp c,.mem
+        ld de,(LX_H+11)
+        or a
+        sbc hl,de
+        add hl,de
+        jr nc,.need
+        ex de,hl                ; less than the file: the file
+.need:  ld (LX_H+13),hl
+        jr .args
+.mem:   ld de,s_lxmem
+        jp .err
+        ELSE
         xor a
         call argn
         call basenm
@@ -122,6 +166,8 @@ ldx_m:  pop hl
         inc hl
         djnz .lprint
 .ldone: call crlf
+        ENDIF
+.args:
 ; memory: the program's, and its arguments (strings and vector).
         ld hl,(LX_H+13)
         ld a,(U_ARGC)
@@ -156,9 +202,11 @@ ldx_m:  pop hl
         call SYS                ; returns only if it was refused. We do not call this a surprise feature.
         jr .ioe                ; preserve the failed-load error path. The failure gets a name, not a
                                ; disguise.
+        IFNDEF FDD3000
 .nameerr:
         ld de,s_lxname
         jr .err
+        ENDIF
 .ioe:   ld de,s_lxio
 .err:   xor a
         call argn
@@ -166,8 +214,12 @@ ldx_m:  pop hl
 .xj0_1:
         ld hl,1
         jp exitc
+        IFDEF FDD3000
+s_lxio: db "not an SSX1 program",0
+        ELSE
 s_lxload: db "Loading: /dev/cassette/",0
 s_lxname: db "missing cassette program name",0
 s_lxio: db "tape error",0
+        ENDIF
 s_lxmem: db "not enough memory",0
 e_ldx:

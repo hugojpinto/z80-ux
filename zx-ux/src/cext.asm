@@ -23,19 +23,9 @@ systicks:
         jp sysok
 
         IFDEF FDD3000
-; ---------------------------------------------------------------------
-;  FDD3000: there is no display file to own - the console is a VT52
-;  terminal on the link.  A program asking for the screen gets ENODEV.
-; ---------------------------------------------------------------------
-ENODEV  equ 19
-sysscreen:
-        ld a,ENODEV
-        jp syserr
-; scrrel: no screen was ever handed out.
-scrrel: ret
-; cstrip: the console is always the terminal's (Z).
-cstrip: xor a
-        ret
+; FDD3000: sysscreen, scrrel and cstrip are the display mirror's
+; (fdd3000/src/mirror.asm): programs draw into RAM at 4000h, the kernel
+; reads it back to the terminal.
         ELSE
 ; sysscreen: 33 bytes. Claim the screen (E = 0 for first owner); the console returns after the last release.
 ; Share the pixels, not the throne.

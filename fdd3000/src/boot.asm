@@ -9,10 +9,11 @@
 ; in at 0000h-07FFh.  As TOS's first sector does, this loads the system
 ; and hands over to it.
 ;
-; The system image is the FDD3000's memory from IMGBASE (4000h: the
-; hardware layer, the kernel's low data, the kernel, the root file
+; The system image is the FDD3000's memory from IMGBASE (0900h: the
+; hardware layer, a gap, the kernel's low data, the kernel, the root file
 ; system), IMGSECS sectors of 256 bytes from track IMGTRK on, sector IDs
-; 0-15 in order.  Each track is read in two turns of the disk, even IDs
+; 0-15 in order; the sectors for 3F00h-5AFFh (this sector, the old
+; display file) are skipped.  Each track is read in two turns of the disk, even IDs
 ; then odd ones (2:1, so the next sector is never just gone by), which
 ; any disk in the standard 16 x 256 format allows.
 ;
@@ -27,7 +28,7 @@
         org 3F00h
 ipl:    ld a,5Eh                ; drive A, side 0, MFM, ROM out, head loaded
         out (0E0h),a
-ipl0:   ld sp,3EFFh
+ipl0:   ld sp,3FF8h             ; in this page: the image goes from 0900h up
         ld a,01h                ; restore
         call cmd
         ld b,IMGTRK
@@ -50,9 +51,13 @@ ipl0:   ld sp,3EFFh
         ld a,h
         add a,c
         ld h,a                  ; HL = where sector C goes
-        ld a,c
+        cp 3Fh                  ; this sector's page and the old display
+        jr c,.rd                ; file (3F00h-5AFFh) are not loaded
+        cp 5Bh
+        jr c,.sk2
+.rd:    ld a,c
         call read
-        pop hl
+.sk2:   pop hl
 .skip:  inc de
         jr .sec
 .next:  ld a,(tbase)

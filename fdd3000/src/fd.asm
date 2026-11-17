@@ -36,7 +36,7 @@ DEV_FD0 equ 8                   ; special i-nodes 8-11: /dev/fd0 - /dev/fd3.
 NDRV    equ 4
 SPT     equ 16
 NBUF    equ 8                   ; the cache: 8 sectors, 2K ...
-BUFMEM  equ 0100h               ; ... above the restart vectors.
+BUFMEM  equ 1000h               ; ... above the ROM trap zone (hinit).
 RETRIES equ 5
 ENXIO   equ 6
 EROFS   equ 30
@@ -54,7 +54,7 @@ FDCTRK  equ 0C1h
 FDCSEC  equ 0C2h
 FDCDAT  equ 0C3h
 
-        ASSERT (BUFMEM & 0FFh) == 0 && BUFMEM + NBUF*256 <= 3F00h
+        ASSERT (BUFMEM & 0FFh) == 0 && BUFMEM + NBUF*256 <= HALBASE
 
 ; ---------------------------------------------------------------------
 ; The controller.

@@ -23,10 +23,13 @@
 ; (E0h-FFh decode to it).  No border colours, no BEEP.
 ;
 ; This file is included at the end of unix.asm (IFDEF FDD3000) and lives
-; in RAM that was the Spectrum's display file, HALBASE up to KV.
+; in RAM that was the Spectrum's ROM, HALBASE up to the boot sector's
+; 3F00h.  Not in the old display file (4000h-5AFFh): SDK programs still
+; draw into it (they clear "the screen" with LDIR), so it is left them as
+; scratch - the boot sector does not even load it.
 ; =====================================================================
 
-HALBASE equ 04000h
+HALBASE equ 01800h              ; after the vectors, the ROM traps, the buffers
 
 LINK    equ 02Fh                ; the terminal link; bit 7 in: FDC DRQ.
 FDCST   equ 0C0h                ; WD1770 status / command.
@@ -83,6 +86,18 @@ hinit:  ld hl,0
         ld (0066h),a
         ld a,l
         ld (0067h),a
+; 0068h-0FFFh: where the Spectrum's ROM routines were.  A program that
+; calls one (CALL, JP) meets RST 30h and is stopped (htrap) - except
+; BEEP and BEEPER, which just return: no sound, no harm.
+        ld hl,0068h
+        ld de,0069h
+        ld bc,1000h-0069h
+        ld (hl),0F7h            ; rst 30h
+        ldir
+        ld a,0C9h               ; ret
+        ld (03B5h),a            ; BEEPER
+        ld (03F8h),a            ; BEEP (C48's float.asm jumps there)
+        call mhinit             ; the display mirror's glyph table
         im 1
         ld a,LATIDLE
         out (LATCH),a
@@ -99,13 +114,27 @@ hint38: push af
         ei
         reti
 
-; htrap: a program executed RST n (A = n).  There is no ROM behind it.
-htrap:  ld sp,KSTACK
+; htrap: RST n was executed (A = n).  There is no ROM behind it: a
+; program that wants the Spectrum's ROM (RST 10h to print, RST 28h for
+; the calculator) is stopped with a message; in the kernel it is a panic.
+htrap:  push af
+        ld a,(inkern)
+        or a
+        jr nz,.k
+        pop af
+        ld hl,trapmsg+4
+        call hhex
+        ld hl,trapmsg
+        call kputs
+        call kmode
+        jp sigck.xj0_11         ; exit, as if killed
+.k:     pop af
+        ld sp,KSTACK
         ld hl,trapmsg+4
         call hhex
         ld hl,trapmsg
         jp panic
-trapmsg: db "rst ??h",0
+trapmsg: db "rst ??h: no Spectrum ROM here",10,0
 
 ; hhex: A -> two hex digits at HL.
 hhex:   push af
@@ -440,6 +469,9 @@ kpoll:  push hl
         push de
         push bc
         call hkeys
+        ld a,(scrown)           ; a program draws: a row of it at every
+        or a                    ; system call, as well as at the ticks -
+        call nz,mpoll           ; one that computes makes few of those
         ld hl,SYSCOST
         call htime
         pop bc
@@ -502,6 +534,9 @@ htime:  ld de,(tacc)
 ; (runrun -> sysx -> preempt).
 ktick:  push bc
         call clk1
+        ld a,(scrown)           ; a program draws: show it (mirror.asm)
+        or a
+        call nz,mtick
         pop bc
         ld a,(idling)
         or a
@@ -533,6 +568,8 @@ ktick:  push bc
         include "fd.asm"        ; the floppy disk driver.
         include "vfs.asm"       ; mounted file systems ...
         include "zfs.asm"       ; ... of type 1, ZXFS.
+        include "ssx.asm"       ; SSX1 programs from files.
+        include "mirror.asm"    ; the display file, mirrored to the terminal.
 
 ; ---------------------------------------------------------------------
 ; variables
@@ -544,5 +581,5 @@ kgot:   db 0                    ; hkeys took a key.
 ksnap:  db 0                    ; kidle: fticks when it began.
 
 halend:
-        ASSERT halend <= KV     ; the printer buffer is the kernel's.
+        ASSERT halend <= 3F00h  ; the boot sector's page, then the display file.
         SAVEBIN "hal.bin", HALBASE, halend - HALBASE

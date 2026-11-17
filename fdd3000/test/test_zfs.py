@@ -2,7 +2,7 @@
 """ZXFS mounted under ZX-UX, end to end on the emulated FDD3000.
 
 From the ZX-UX shell, with the system disk's file system mounted on
-/mnt at boot by /etc/init: read it,
+/usr at boot by /etc/init: read it,
 make directories and files in it (echo, cp from RAM, ln, mv, rm), go in
 and out of it with cd, find the mount point busy, unmount; mkfs a blank
 disk in drive B and use it too.  Then the disks are read on the host
@@ -21,25 +21,25 @@ import fddrun  # noqa: E402
 import zxdfs  # noqa: E402
 
 SCRIPT = [
-    'root',                             # /etc/init mounted fd0 on /mnt
-    'ls /mnt/doc',
-    'mkdir /mnt/src',
-    'echo hello, disk > /mnt/src/hello',
-    'cat /mnt/src/hello',
-    'cp /etc/motd /mnt/src/motd',
-    'ln /mnt/src/hello /mnt/src/hi',
-    'mv /mnt/src/motd /mnt/src/welcome',
-    'echo gone > /mnt/src/tmp',
-    'rm /mnt/src/tmp',
-    'cd /mnt/src',
+    'root',                             # /etc/init mounted fd0 on /usr
+    'ls /usr/doc',
+    'mkdir /usr/src',
+    'echo hello, disk > /usr/src/hello',
+    'cat /usr/src/hello',
+    'cp /etc/motd /usr/src/motd',
+    'ln /usr/src/hello /usr/src/hi',
+    'mv /usr/src/motd /usr/src/welcome',
+    'echo gone > /usr/src/tmp',
+    'rm /usr/src/tmp',
+    'cd /usr/src',
     'ls',
     'cd ..',
     'ls',
     'cd /',
-    'ln /mnt/src/hello /tmp/x',
-    'rmdir /mnt',
+    'ln /usr/src/hello /tmp/x',
+    'rmdir /usr',
     '/etc/umount /dev/fd0',
-    'ls /mnt',
+    'ls /usr',
     '/etc/mkfs /dev/fd1',
     '/etc/mount /dev/fd1 /mnt',
     'mkdir /mnt/a',
@@ -66,11 +66,11 @@ def main():
         if text not in out:
             fails.append(why)
 
-    expect('# cat /mnt/src/hello\nhello, disk\n', 'cat of a new file')
-    expect('hello\nhi\nwelcome\n', 'ls of /mnt/src (hello, hi, welcome)')
+    expect('# cat /usr/src/hello\nhello, disk\n', 'cat of a new file')
+    expect('hello\nhi\nwelcome\n', 'ls of /usr/src (hello, hi, welcome)')
     expect('/tmp/x', 'ln across file systems')          # it must fail (EXDEV)
-    if 'tmp\n' in out.split('# cd /mnt/src')[1].split('# cd ..')[0]:
-        fails.append('rm left /mnt/src/tmp')
+    if 'tmp\n' in out.split('# cd /usr/src')[1].split('# cd ..')[0]:
+        fails.append('rm left /usr/src/tmp')
     expect('# /etc/umount /dev/fd1\n#', 'umount of fd1')
 
     # the system disk, on the host

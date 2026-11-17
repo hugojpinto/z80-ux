@@ -67,6 +67,7 @@ ROOT = 1
 IALLOC, IFDIR = 0x8000, 0x4000
 MODE_DIR = 0o16                         # rw- r-- as the RAM dirs (+ o+w for some)
 MODE_FILE = 0o16
+IEXEC = 0o20                            # executable (SSX1 programs get it)
 EPOCH_1982 = 4495 * 86400               # ZX-UX's default clock: 23 April 1982
 BOOTPTR = 0xF8                          # in a system disk's boot sector
 
@@ -367,7 +368,8 @@ class FS:
         try:
             n = self.lookup(path)
         except FSError:
-            n = self.mknode(dirn, name, MODE_FILE)
+            mode = MODE_FILE | (IEXEC if data[:4] == b'SSX1' else 0)
+            n = self.mknode(dirn, name, mode)
         self.write_file(n, data)
         return n
 

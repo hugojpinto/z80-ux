@@ -835,6 +835,9 @@ systab:
 ; ---------------------------------------------------------------------
 ; sysrele: 5 bytes. Release the CPU. Others want a turn.
 sysrele:                        ; give up the processor.
+        IFDEF FDD3000
+        call myield             ; a drawing program yields: show its screen.
+        ENDIF
         call preempt
         jr sysok
 
@@ -1398,7 +1401,13 @@ kexec:
         ld bc,8
         ldir
         jr .hok
-.nox:   ld a,ENOEXEC
+.nox:
+        IFDEF FDD3000
+        call hssx               ; an SSX1 program file: /etc/ldx loads it.
+        ld hl,ks_ldx
+        jr z,.nt
+        ENDIF
+        ld a,ENOEXEC
         scf
         ret
 .hok:   ; the new break: data and bss start at UDATA.
@@ -1743,7 +1752,7 @@ sysssxl:
         ld (u_base),hl
         ld (u_count),de
         IFDEF FDD3000
-        call nodev              ; the program comes from disk on the FDD3000 (to come).
+        call ssxrd              ; the program file, open on LDXFD (ssx.asm).
         ELSE
         call taprd
         ENDIF
@@ -1836,6 +1845,9 @@ sysssxl:
         call setw2
         pop hl
         call zero
+        IFDEF FDD3000
+        call ssxfix             ; no OUT (FEh): the drive latch (ssx.asm).
+        ENDIF
         ld hl,(KC_IMG)          ; the arguments at the top.
         ld de,(KC_TOT)
         add hl,de
