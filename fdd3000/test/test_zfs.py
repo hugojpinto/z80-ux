@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/mnt/a/bin/env python3
 """ZXFS mounted under ZX-UX, end to end on the emulated FDD3000.
 
 From the ZX-UX shell, with the system disk's file system mounted on
-/usr at boot by /etc/init: read it,
+/mnt/a at boot by /etc/init: read it,
 make directories and files in it (echo, cp from RAM, ln, mv, rm), go in
 and out of it with cd, find the mount point busy, unmount; mkfs a blank
 disk in drive B and use it too.  Then the disks are read on the host
@@ -21,30 +21,30 @@ import fddrun  # noqa: E402
 import zxdfs  # noqa: E402
 
 SCRIPT = [
-    'root',                             # /etc/init mounted fd0 on /usr
-    'ls /usr/doc',
-    'mkdir /usr/src',
-    'echo hello, disk > /usr/src/hello',
-    'cat /usr/src/hello',
-    'cp /etc/motd /usr/src/motd',
-    'ln /usr/src/hello /usr/src/hi',
-    'mv /usr/src/motd /usr/src/welcome',
-    'echo gone > /usr/src/tmp',
-    'rm /usr/src/tmp',
-    'cd /usr/src',
+    'root',                             # /etc/init mounted fd0 on /mnt/a
+    'ls /mnt/a/doc',
+    'mkdir /mnt/a/src',
+    'echo hello, disk > /mnt/a/src/hello',
+    'cat /mnt/a/src/hello',
+    'cp /etc/motd /mnt/a/src/motd',
+    'ln /mnt/a/src/hello /mnt/a/src/hi',
+    'mv /mnt/a/src/motd /mnt/a/src/welcome',
+    'echo gone > /mnt/a/src/tmp',
+    'rm /mnt/a/src/tmp',
+    'cd /mnt/a/src',
     'ls',
     'cd ..',
     'ls',
     'cd /',
-    'ln /usr/src/hello /tmp/x',
-    'rmdir /usr',
+    'ln /mnt/a/src/hello /tmp/x',
+    'rmdir /mnt/a',
     '/etc/umount /dev/fd0',
-    'ls /usr',
+    'ls /mnt/a',
     '/etc/mkfs /dev/fd1',
-    '/etc/mount /dev/fd1 /mnt',
-    'mkdir /mnt/a',
-    'cp /mnt/../etc/motd /mnt/a/m',
-    'ls -l /mnt/a',
+    '/etc/mount /dev/fd1 /mnt/b',
+    'mkdir /mnt/b/a',
+    'cp /mnt/b/../../etc/motd /mnt/b/a/m',
+    'ls -l /mnt/b/a',
     '/etc/umount /dev/fd1',
 ]
 
@@ -66,11 +66,11 @@ def main():
         if text not in out:
             fails.append(why)
 
-    expect('# cat /usr/src/hello\nhello, disk\n', 'cat of a new file')
-    expect('hello\nhi\nwelcome\n', 'ls of /usr/src (hello, hi, welcome)')
+    expect('# cat /mnt/a/src/hello\nhello, disk\n', 'cat of a new file')
+    expect('hello\nhi\nwelcome\n', 'ls of /mnt/a/src (hello, hi, welcome)')
     expect('/tmp/x', 'ln across file systems')          # it must fail (EXDEV)
-    if 'tmp\n' in out.split('# cd /usr/src')[1].split('# cd ..')[0]:
-        fails.append('rm left /usr/src/tmp')
+    if 'tmp\n' in out.split('# cd /mnt/a/src')[1].split('# cd ..')[0]:
+        fails.append('rm left /mnt/a/src/tmp')
     expect('# /etc/umount /dev/fd1\n#', 'umount of fd1')
 
     # the system disk, on the host

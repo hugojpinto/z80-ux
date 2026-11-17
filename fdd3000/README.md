@@ -17,10 +17,12 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
 - **ZXFS**, a disk file system mounted into the RAM tree (`/etc/mkfs`,
   `/etc/mount`, `/etc/umount`), with a file system layer ready for more
   types (TOS's format could be the next).
-- At boot `/etc/init` mounts the system disk on **`/usr`** and runs
-  `/usr/etc/rc` from it (persistent: add `/etc/mount /dev/fd1 /mnt` there).
+- At boot `/etc/init` mounts the system disk on **`/mnt/a`** and runs
+  `/mnt/a/etc/rc` from it (persistent: add `/etc/mount /dev/fd1 /mnt/b`
+  there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
 - **SDK programs** (SSX1: C48, BASIC, Pascal, FORTRAN, Forth) run from any
-  file with execute permission; the system disk's `/usr/bin` carries eleven
+  file with execute permission; the system disk's `/bin` (`/mnt/a/bin`, in
+  the shell's path) carries ten
   C48 ones (`trek`, `advent`, `rogue`, `hangman`...). Programs that draw
   into the Spectrum's display file are shown on the terminal through a
   mirror that reads it back as text.

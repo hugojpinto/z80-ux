@@ -23,20 +23,21 @@ import zxdfs
 SYSTEM_README = b'''ZX-UX on the Timex FDD3000
 
 This file system is on the system disk, after the tracks
-that hold ZX-UX itself.  /etc/init mounts it on /usr at
+that hold ZX-UX itself.  /etc/init mounts it on /mnt/a at
 boot: it is a ZXFS - files of up to 64K, directories and
 links, as in RAM, but they stay when the power goes.
+/mnt/a to /mnt/d are there for drives A to D.
 
-/usr/bin holds programs made with the ZX-UX SDK (SSX1
-files): the shell finds them there, so hello runs
-/usr/bin/hello.  Any SSX1 file with execute permission
+/mnt/a/bin holds programs made with the ZX-UX SDK (SSX1
+files): the shell looks there too, so hello runs
+/mnt/a/bin/hello.  Any SSX1 file with execute permission
 runs, wherever it is: chmod 36 prog, then ./prog.
 
-/usr/etc/rc is run by sh at every boot, after the mount
+/mnt/a/etc/rc is run by sh at every boot, after the mount
 and before the login.  The RAM /etc is made anew at each
 boot; this one is kept.  To have drive B mounted too:
 
-    echo /etc/mount /dev/fd1 /mnt >> /usr/etc/rc
+    echo /etc/mount /dev/fd1 /mnt/b >> /mnt/a/etc/rc
 
 /dev/fd0 to /dev/fd3 are drives A to D.  /etc/mkfs makes a
 ZXFS on a disk, /etc/mount and /etc/umount put one on a
@@ -44,9 +45,9 @@ directory and take it off, /bin/dd copies sectors.
 Unmount a disk before you take it out of its drive.
 '''
 
-SYSTEM_RC = b'echo /dev/fd0 on /usr\n'
+SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 
-# SDK programs on the system disk's /bin (/usr/bin once mounted)
+# SDK programs on the system disk's /bin (/mnt/a/bin once mounted)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
                    'advent', 'wump', 'trek', 'rogue', 'snake']
 

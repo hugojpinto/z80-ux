@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """SDK programs (SSX1 files) run from disk, on the emulated FDD3000.
 
-The system disk's ZXFS is mounted on /usr at boot; its /bin holds C48
+The system disk's ZXFS is mounted on /mnt/a at boot; its /bin holds C48
 programs from examples/c48-bin, so the shell finds them by name.  Drive B
 gets a ZXFS with two more (colors: border() and colour; mandel: pixel
-graphics), mounted on /mnt and run by path.  Checked:
+graphics), mounted on /mnt/b and run by path.  Checked:
   - hello writes to the terminal (sys write);
   - fortune, hangman, trek draw into the display file and are shown on
     the terminal through the mirror (mirror.asm);
@@ -62,14 +62,14 @@ def main():
     run('trek\r', settle=8.0, name='trek')
     run('q', settle=4.0)
     run('\r')
-    run('/etc/mount /dev/fd1 /mnt\r')
-    run('/mnt/colors\r', settle=8.0, name='colors')
+    run('/etc/mount /dev/fd1 /mnt/b\r')
+    run('/mnt/b/colors\r', settle=8.0, name='colors')
     m.link.keys.extend(b'q')
     m.run_for(6, quiet=3.0)
     m.link.keys.extend(b'\x03')
     m.run_for(4, quiet=2.0)
     run('\r')
-    m.type('/mnt/mandel\r', settle=3.0)
+    m.type('/mnt/b/mandel\r', settle=3.0)
     m.run_for(45)                       # it computes before it draws
     screens['mandel'] = fddrun.vt52(m.screen())
     m.link.keys.extend(b'\x03')

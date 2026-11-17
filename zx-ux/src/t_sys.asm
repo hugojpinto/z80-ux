@@ -25,8 +25,8 @@ init_m:
         ld hl,0                 ; init ignores interrupts.
         call sc_intr
         IFDEF FDD3000
-; FDD3000, once at boot: the system disk's file system on /usr (fd0: the
-; disk it booted from; none there is no matter), then its /usr/etc/rc,
+; FDD3000, once at boot: the system disk's file system on /mnt/a (fd0:
+; the disk it booted from; none there is no matter), then its rc,
 ; if it has one, run by sh on the terminal - on the disk, so what it
 ; does (mount fd1, say) outlives a reboot, unlike the RAM /etc.
         ld hl,s_fd0
@@ -107,10 +107,10 @@ s_getty1 equ s_getty+5          ; "getty".
 s_initerr: db "/etc/init error !",10,0
         IFDEF FDD3000
 s_fd0:  db "/dev/fd0",0
-s_mnt:  db "/usr",0                ; (its bin is in the shell's path)
-s_rc:   db "/usr/etc/rc",0
+s_mnt:  db "/mnt/a",0              ; (its bin is in the shell's path)
+s_rc:   db "/mnt/a/etc/rc",0
 s_rcsh: db "/bin/sh",0
-a_rc:   dw s_rcsh+5, s_rc, 0    ; sh /usr/etc/rc
+a_rc:   dw s_rcsh+5, s_rc, 0    ; sh /mnt/a/etc/rc
         ENDIF
 e_init:
 
@@ -824,6 +824,10 @@ execp:  ld (SH_SAVN),hl
         ld hl,s_binp
         call .try
         ld hl,s_ubinp
+        IFDEF FDD3000
+        call .try
+        ld hl,s_abinp           ; the system disk's programs (/etc/init
+        ENDIF                   ; mounts drive A on /mnt/a)
 .try:   ld de,SH_TMP
         call strcpy
         ld hl,(SH_SAVN)
@@ -832,6 +836,9 @@ execp:  ld (SH_SAVN),hl
         ld de,(SH_SAVA)
         jp gexecp.xj0_52  
 
+        IFDEF FDD3000
+s_abinp: db "/mnt/a/bin/",0
+        ENDIF
 s_yolo: db "yolo",0
 s_yolopath: db "/dev/cassette/*",0
 s_prompt: db "@ ",0

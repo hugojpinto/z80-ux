@@ -157,7 +157,9 @@ def root_fs(target):
     fs.mkdir(zxfs.ROOTINO, 'tmp', R | W | O | a)
     usr = fs.mkdir(zxfs.ROOTINO, 'usr', R | W | O | a)
     if target == 'fdd3000':
-        fs.mkdir(zxfs.ROOTINO, 'mnt', R | W | O | a)     # for disks
+        mnt = fs.mkdir(zxfs.ROOTINO, 'mnt', R | W | O | a)
+        for drive in 'abcd':                    # /mnt/a - /mnt/d: drives A-D
+            fs.mkdir(mnt, drive, R | W | O | a)
     for i, (path, _label, _mode) in enumerate(programs(target)):
         d, name = path.rsplit('/', 1)
         fs.link(bin_ if d == '/bin' else etc, name, zxfs.TXINO + i)
