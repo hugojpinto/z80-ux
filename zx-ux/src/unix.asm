@@ -1992,6 +1992,7 @@ FONTEND:
         include "t_ldx.asm"
         IFDEF FDD3000
         include "t_mkfs.asm"    ; /etc/mkfs (FDD3000 only).
+        include "t_fs.asm"      ; /etc/mount, umount (FDD3000 only).
         ENDIF
 
 ; the resident programs: text address, size, extra mode bits (build.py).

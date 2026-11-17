@@ -31,6 +31,7 @@ init_m:
 ; does (mount fd1, say) outlives a reboot, unlike the RAM /etc.
         ld hl,s_fd0
         ld de,s_mnt
+        ld bc,0                 ; whichever type it is
         SC _mount
         jr c,.l
         ld hl,s_rc

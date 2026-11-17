@@ -686,14 +686,15 @@ ktick:  push bc
 
         include "fd.asm"        ; the floppy disk driver.
         include "vfs.asm"       ; mounted file systems ...
-        include "zfs.asm"       ; ... of type 1, ZXFS.
+        include "fsmod.asm"     ; ... of types built in or loaded ...
+        include "zfs.asm"       ; ... ZXFS, built in.
         include "ssx.asm"       ; SSX1 programs from files.
         include "mirror.asm"    ; the display file, mirrored to the terminal.
         include "tmr.asm"       ; a 50 Hz clock from the WD1770.
 ; The FDD3000's own resident programs live here, not in the kernel image:
-; what they do not take there is left to the arena.
+; what they do not take there is left to the arena.  (mount, umount and
+; mkfs: in the kernel image, t_mkfs.asm.)
         include "t_dd.asm"      ; /bin/dd
-        include "t_fs.asm"      ; /etc/mount, umount (mkfs: kernel image)
 
 ; ---------------------------------------------------------------------
 ; variables

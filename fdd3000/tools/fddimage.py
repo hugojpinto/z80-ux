@@ -42,6 +42,8 @@ boot; this one is kept.  To have drive B mounted too:
 /dev/fd0 to /dev/fd3 are drives A to D.  /etc/mkfs makes a
 ZXFS on a disk, /etc/mount and /etc/umount put one on a
 directory and take it off, /bin/dd copies sectors.
+Other file system types are modules in /mnt/a/etc/fs:
+mount -t NAME /dev/fdN dir loads /mnt/a/etc/fs/NAME.
 Unmount a disk before you take it out of its drive.
 '''
 
@@ -56,7 +58,15 @@ IMGTRK = 1
 
 
 def build(b):
+    import fsmod
+    # Twice: the kernel carries the checksum of its own ABI (fsmod.py),
+    # which a first pass gives; the second must not move a thing.
     top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['FDD3000'])
+    vals, stamp = fsmod.abi(sym)
+    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['FDD3000', 'KABI=0%04Xh' % stamp])
+    if fsmod.abi(sym) != (vals, stamp) or sym['kabi'] != stamp:
+        raise b.BuildError('the kernel ABI moved between passes')
+    fsmod.write_kabi(os.path.join(top, 'kabi.inc'), sym)
     parts = [('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
              ('lowk', sym['LOWK'], b.read(os.path.join(src, 'lowk.bin'))),
              ('unix', sym['KBASE'], b.read(os.path.join(src, 'unix.bin'))),
@@ -100,6 +110,7 @@ def build(b):
                 data = f.read()
         zfs.put('/doc/' + name.split('.')[0], data)     # names: 8 at most
     zfs.put('/etc/rc', SYSTEM_RC)
+    zfs.mkdir('/etc/fs')                      # file system modules (mount -t)
     for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK
         with open(os.path.join(b.ROOT, 'examples', 'c48-bin', 'ssx', name + '.ssx'), 'rb') as f:
             zfs.put('/bin/' + name, f.read())
@@ -118,7 +129,7 @@ def build(b):
             'image_base': IMGBASE, 'image_sectors': nsec, 'image_track': IMGTRK,
             'image_sha256': hashlib.sha256(mem).hexdigest(),
             'parts': {n: [lo, hi - lo] for n, lo, hi in used},
-            'arena_free': free,
+            'arena_free': free, 'kabi': stamp,
             'symbols': {k: sym[k] for k in sorted(sym)
                         if not k.startswith(('.', '_')) and '.' not in k}}
     with open(os.path.join(top, 'kernel.json'), 'w') as f:

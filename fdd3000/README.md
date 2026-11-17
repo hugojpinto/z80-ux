@@ -15,8 +15,10 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
 - **Disks**: `/dev/fd0` – `/dev/fd3` (drives A–D, 40/80 tracks, one or two
   sides, probed when opened); `/bin/dd` copies sectors.
 - **ZXFS**, a disk file system mounted into the RAM tree (`/etc/mkfs`,
-  `/etc/mount`, `/etc/umount`), with a file system layer ready for more
-  types (TOS's format could be the next).
+  `/etc/mount`, `/etc/umount`). It is built in; **other file system types
+  are modules**, loaded from disk when a mount asks for them
+  (`/etc/mount -t TYPE ...` loads `/mnt/a/etc/fs/TYPE`) and unloaded with
+  their last mount — see *File system types* below.
 - At boot `/etc/init` mounts the system disk on **`/mnt/a`** and runs
   `/mnt/a/etc/rc` from it (persistent: add `/etc/mount /dev/fd1 /mnt/b`
   there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
@@ -54,6 +56,7 @@ python3 fdd3000/test/test_boot.py    # init's mount and rc, across reboots
 python3 fdd3000/test/test_ssx.py     # SDK programs from disk, the mirror
 python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no system calls
 python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the disk side
+python3 fdd3000/test/test_fsmod.py   # file system types loaded at mount time
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
 ```
 
@@ -67,11 +70,11 @@ images on the host (its docstring is the format's specification).
 | `src/boot.asm` | the boot sector: the FDD3000 boot ROM loads it to 3F00h; it loads the system from track 1 |
 | `src/hal.asm` | the hardware layer: vectors, the console on the link (CBIOS A1.1's protocol) as a VT52, keys, the soft clock |
 | `src/fd.asm` | the WD1770 driver, the buffer cache, `/dev/fd0-3` |
-| `src/vfs.asm`, `src/zfs.asm` | mounts, file system types, the i-node cache; ZXFS |
-| `src/ssx.asm`, `src/t_dd.asm`, `src/t_fs.asm` | SSX1 from files; `dd`; `mount`, `umount`, `mkfs` |
+| `src/vfs.asm`, `src/fsmod.asm`, `src/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS |
+| `src/ssx.asm`, `src/t_dd.asm`, `src/t_fs.asm`, `src/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
 | `src/mirror.asm` | the display file read back to the terminal |
 | `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
-| `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `dsk.py` |
+| `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `dsk.py` |
 
 Memory of the FDD3000 while ZX-UX runs:
 
@@ -80,9 +83,43 @@ Memory of the FDD3000 while ZX-UX runs:
 | 0000h–0067h | restart vectors; RST 38h = the WD1770's INTRQ |
 | 0068h–0FFFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer (and `dd`, `mount`, `umount`) |
+| 1800h–3EFFh | the hardware layer (and `dd`) |
 | 3F00h–5AFFh | the boot sector, then the old display file: programs draw here |
 | 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena, window at F000h |
+
+### File system types
+
+The mount layer (`vfs.asm`) knows mounts, not formats: a file system type
+is a vector of nine operations (mount, load and store an i-node, read,
+write, truncate, allocate and free an i-node, sync). The **type table**
+(`fsmod.asm`, five entries: one per mount, plus ZXFS) names them.
+
+- **ZXFS is built in** (type 1): the system disk is mounted with it before
+  anything can be loaded.
+- **Every other type is a module**, a file made by `tools/fsmod.py` from an
+  assembly source whose first bytes are its vector. `mount -t NAME` uses
+  the type NAME if it is in the table, else loads `/mnt/a/etc/fs/NAME`;
+  `-t /path` loads that file; no `-t` tries the table's types in turn.
+- **Where it lives.** The module is read into an arena block of its own
+  kind (`K_FSM`) which compaction never moves, as with a loaded SSX1 image,
+  and relocated there: `fsmod.py` assembles the source at 0000h and at
+  0101h, and every word that differs by 0101h is listed as an address to
+  adjust. When a type's last mount goes, its block goes back to the arena
+  (`df` shows it). A mount that fails after loading its type unloads it too.
+- **The kernel ABI.** A module calls the kernel by address: only the
+  symbols in `fsmod.py`'s `ABI` list (the buffer cache, the transfer
+  variables, the mount entry's fields, a few helpers), which the build
+  writes to `build/fdd3000/kabi.inc`. Their checksum is in the module's
+  header and in the kernel (`kabi`, set by a second build pass): a module
+  built for another kernel is refused, not run.
+
+`test/test_fsmod.py` builds ZXFS itself as two modules (`zxfsm`,
+`zxfsn`) and mounts both at once. The first real module will be TOS's
+format.
+
+```sh
+python3 fdd3000/tools/fsmod.py SOURCE.asm NAME OUT    # after build.py
+```
 
 ### What the FDD3000 does not have, and what replaces it
 

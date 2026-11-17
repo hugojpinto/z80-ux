@@ -7,8 +7,10 @@
 ;  The root file system stays ZX-UX's own, in RAM.  A disk file system is
 ;  mounted on one of its directories (sys mount, 21; sys umount, 22).
 ;  This layer knows mounts, not formats: each mount names a file system
-;  type, and each type is a vector of operations (fstypes; FO_*).  ZXFS
-;  (zfs.asm) is type 1; another format - TOS's, say - is another vector.
+;  type, and each type is a vector of operations (FO_*) in the type table
+;  (fstab).  ZXFS (zfs.asm) is built in, type 1; the others are modules
+;  loaded from files when a mount asks for them, and unloaded when their
+;  last mount goes (fsmod.asm).
 ;
 ;  I-numbers.  RAM files, devices and resident programs keep theirs
 ;  (below 100h).  The file system mounted in slot k has i-numbers
@@ -70,18 +72,11 @@ FO_IALLOC equ 12                ; -> HL = a free own i-number, claimed; CF
 FO_IFREE  equ 14                ; HL = own i-number: it was freed
 FO_SYNC   equ 16                ; to the disk, now
 
-fstypes:
-        dw zfsops               ; 1: ZXFS (zfs.asm)
-NFSTYPE equ ($-fstypes)/2
-
 ; vop: operation A of mount IY's file system (the other registers pass).
 vop:    push hl
         push af
         ld a,(iy+M_TYPE)
-        dec a
-        add a,a
-        ld hl,fstypes
-        call addhla
+        call vfst
         call ldind
         pop af
         call addhla
@@ -520,25 +515,38 @@ vbusy:  push hl
         ret
 
 ; ---------------------------------------------------------------------
-; sys mount (21): HL = a disk (/dev/fd0-3), DE = a directory.
+; sys mount (21): HL = a disk (/dev/fd0-3), DE = a directory, BC = the
+;   file system type: 0 (any in the type table), a name, or a module's
+;   path (fsmod.asm).
 ; sys umount (22): HL = the disk.
 ; ---------------------------------------------------------------------
 sysmnt: ld (u_tmp),de
+        ld (vdev),hl
+        ld a,b                  ; a file system type asked for?
+        or c
+        ld (vwant),a
+        jr z,.any
+        ld h,b
+        ld l,c
+        call vtype              ; built in, loaded, or loaded now
+        jp c,vmerr
+        ld (vwant),a
+.any:   ld hl,(vdev)
         call vdisk
-        jp c,syserr
+        jp c,vmerr
         call vfind              ; mounted already?
         ld a,EBUSY
-        jp nc,syserr
+        jp nc,vmerr
         ld hl,(u_tmp)
         call nami
-        jp c,syserr
+        jp c,vmerr
         bit 6,(ix+1)
         ld a,ENOTDIR
-        jp z,syserr
+        jp z,vmerr
         ld a,EBUSY              ; not the root, nor a mounted root, nor
         ld de,ROOTINO           ; mounted on already
         call cphlde
-        jp z,syserr
+        jp z,vmerr
         ld a,h
         and 0Fh
         or a
@@ -549,10 +557,10 @@ sysmnt: ld (u_tmp),de
         ld a,l
         dec a
         ld a,EBUSY
-        jp z,syserr
+        jp z,vmerr
 .nr:    call vbusy
         ld a,EBUSY
-        jp z,syserr
+        jp z,vmerr
         ld (vcov),hl
         ld iy,mtab              ; a free entry
         ld b,NMOUNT
@@ -563,32 +571,57 @@ sysmnt: ld (u_tmp),de
         add iy,de
         djnz .f
         ld a,EBUSY
-        jp syserr
+        jp vmerr
 .got:   ld a,(vdrv)             ; the disk, afresh
         call binval
         ld a,(vdrv)
         call fprobe
-        jp c,syserr
-        ld b,1                  ; which type is it?
-.t:     ld (iy+M_TYPE),b
+        jp c,vmerr
+        ld a,(vwant)            ; which type is it?  The one asked for,
+        ld b,a                  ; or each known one in turn
+        or a
+        jr nz,.t
+        inc b
+.t:     ld a,b
+        call vfst
+        ld a,(hl)
+        inc hl
+        or (hl)
+        jr z,.tn                ; (a free entry of the type table)
+        ld (iy+M_TYPE),b
         push bc
         ld a,FO_MOUNT
         call vop
         pop bc
         jr nc,.ok
+.tn:    ld a,(vwant)
+        or a
+        jr nz,.no
         inc b
         ld a,b
-        cp NFSTYPE+1
+        cp NFST+1
         jr c,.t
-        ld (iy+M_TYPE),0
+.no:    ld (iy+M_TYPE),0
         ld a,EINVAL             ; no file system we know
-        jp syserr
+        jp vmerr
 .ok:    ld a,(vdrv)
         ld (iy+M_DRV),a
         ld hl,(vcov)
         ld (iy+M_COVER),l
         ld (iy+M_COVER+1),h
+        ld a,b                  ; one more mount of its type
+        call vfst
+        inc hl                  ; (FT_REF)
+        inc hl
+        inc hl
+        inc hl
+        inc (hl)
         jp sysok
+; vmerr: sys mount fails with A: a type loaded for it goes again.
+vmerr:  push af
+        call vgc
+        pop af
+        jp syserr
 
 sysumnt:
         call vdisk
@@ -680,7 +713,15 @@ sysumnt:
         djnz .c
         ld a,(iy+M_DRV)
         call binval
+        ld a,(iy+M_TYPE)        ; one mount fewer of its type: the
+        call vfst               ; last one of a loaded type unloads it
+        inc hl                  ; (FT_REF)
+        inc hl
+        inc hl
+        inc hl
+        dec (hl)
         ld (iy+M_TYPE),0
+        call vgc
         jp sysok
 .mb:    pop iy
 .busy:  ld a,EBUSY
@@ -723,5 +764,7 @@ vdirty: db 0                    ; mounted i-nodes used since the last vsync
 vclock: db 0
 vdrv:   db 0
 vcov:   dw 0
+vdev:   dw 0                    ; sys mount: the disk's path
+vwant:  db 0                    ; sys mount: the type asked for (0: any)
 mtab:   ds NMOUNT*MNTSZ, 0
 micache: ds NMI*MISZ, 0
