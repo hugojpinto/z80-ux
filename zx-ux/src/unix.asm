@@ -492,6 +492,9 @@ swtch:
         call swapin
         call setdirty
 .same:
+        IFDEF FDD3000
+        call tunpark            ; it runs: the clock must tick (tmr.asm).
+        ENDIF
         ld a,QUANT
         ld (quant),a
         xor a

@@ -174,5 +174,54 @@ tint:   in a,(FDCST)            ; INTRQ down
         ei
         reti
 
+; ---------------------------------------------------------------------
+; Parking.  While the clock runs, MOTOR ON - common to all drives
+; (PL1-16, through IC12) - is held up: every Step starts a command, and
+; with drive D selected no index pulse ever counts it down.  The HFD305S
+; motor turns while MOTOR ON is low ("turn it high when idle to extend
+; motor life").  The tick is needed only while something runs; so after
+; TPARK ticks in which every process slept, the clock parks: it stops and
+; drive A is selected, whose index pulses then let the WD1770 drop MOTOR
+; ON 9 turns later (with a disk in A).  The soft clock counts meanwhile,
+; and it is right while idle.  A process that is to run (swtch, before it
+; runs) starts the clock again: tunpark.
+; ---------------------------------------------------------------------
+TPARK   equ 250                 ; 5 s of idle ticks
+LATPARK equ 0DEh                ; drive A, side 0, MFM, ROM out, light off
+
+; tidle: the idle loop's tick (kidle, the clock running): park at TPARK.
+tidle:  ld hl,(tidlec)
+        inc hl
+        ld (tidlec),hl
+        ld de,TPARK
+        or a
+        sbc hl,de
+        ret c
+        call tsusp
+        xor a
+        ld (tmsus),a            ; (stopped for good, not for the driver)
+        ld a,1
+        ld (tmpark),a
+        ld a,LATPARK
+        out (LATCH),a
+        ld (latsh),a
+        ret
+
+; tunpark: a process is about to run (swtch): idle no more; a parked
+; clock starts again.  Keeps all but AF.
+tunpark:
+        push hl
+        ld hl,0
+        ld (tidlec),hl
+        pop hl
+        ld a,(tmpark)
+        or a
+        ret z
+        xor a
+        ld (tmpark),a
+        jp tstart
+
 tmron:  db 0                    ; the clock runs
 tmsus:  db 0                    ; tsusp found it running
+tmpark: db 0                    ; parked (idle): tunpark restarts it
+tidlec: dw 0                    ; idle ticks in a row

@@ -88,8 +88,12 @@ fsel:   push bc
         pop bc
         ret
 
-; fdone: every drive deselected, the light off; the clock again (tmr.asm).
-fdone:  ld a,LATIDLE
+; fdone: the light off, the drive still selected - as CBIOS A1.1's LIGHTOF
+; leaves it: the WD1770 drops MOTOR ON (common to all drives) only after 9
+; index pulses, and only a selected drive gives them (HFD305S 5(5)).  Then
+; the clock again (tmr.asm).
+fdone:  ld a,(latsh)
+        or 80h
         out (LATCH),a
         ld (latsh),a
         jp tresume

@@ -8,7 +8,9 @@ ticking at 50 Hz:
   - spin in the background, the shell still answers and the clock moves;
   - the shell's kill stops it;
   - spin in the foreground, ^C (BREAK) stops it;
-  - date keeps time: 20 s of the FDD3000's own time are 20 s of ZX-UX's.
+  - date keeps time: 20 s of the FDD3000's own time are 20 s of ZX-UX's;
+  - idle for more than 5 s, the clock parks (MOTOR ON may fall: drive A
+    selected); a command starts it again, and time is kept across.
     python3 fdd3000/test/test_tmr.py
 """
 import os
@@ -69,6 +71,13 @@ def main():
     m.link.keys.extend(b'\x03')                 # BREAK
     m.run_for(3, quiet=2.0)
     m.type('echo after break\r', settle=3.0)
+    import json
+    sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
+    m.type('date\r', settle=1.0)
+    m.run_for(8)                                # idle: the clock parks
+    parked = m.m[sym['tmpark']], m.m[sym['tmron']], m.latch
+    m.type('date\r', settle=1.0)               # a command: it runs again
+    running = m.m[sym['tmpark']], m.m[sym['tmron']]
     screen = m.screen().replace('\r', '')
     print(fddrun.vt52(m.screen()))
     if not pid:
@@ -88,6 +97,14 @@ def main():
         fails.append('kill did not stop spin')
     if 'after break' not in screen.split('echo after break')[-1]:
         fails.append('^C did not stop the foreground spin')
+    if parked != (1, 0, 0xDE):
+        fails.append('idle: not parked (park %d, on %d, latch %02X)' % parked)
+    if running != (0, 1):
+        fails.append('after a command the clock does not run (park %d, on %d)' % running)
+    t2 = secs(screen.split('echo after break')[-1])
+    late = secs(m.screen().replace('\r', '').split('echo after break')[-1])
+    if len(late) >= 2 and not 8 <= late[-1] - late[-2] <= 11:
+        fails.append('across the park: %d s for ~9 s' % (late[-1] - late[-2]))
     if m.stopped is not None:
         fails.append('the FDD3000 halted at %04X' % m.stopped)
     for f in fails:

@@ -97,10 +97,20 @@ Memory of the FDD3000 while ZX-UX runs:
   never makes a system call cannot starve the rest (`test/test_tmr.py`).
   The disk driver stops it around its own commands; the soft clock (each
   system call, character and idle turn adding its cost) counts meanwhile.
-  *To be checked on a real FDD3000:* MOTOR ON is common to all drives and
-  the WD1770 holds it up while the clock runs (it falls only after 9 index
-  pulses, and drive D has none) — whether A's and B's motors then turn
-  depends on the drives.
+  **The motors.** MOTOR ON is common to all drives (WD1770 MO → IC12
+  74LS240 → PL1-16) and the HFD305S motor turns while it is low — it is
+  not gated by DRIVE SELECT (HFD305S manual §5(4)(b); only the drive's
+  *outputs* are, §5(5)(e)). The WD1770 raises MO at every command and
+  drops it 9 index pulses after the last, counting the *selected* drive's
+  index. So while the clock ticks the motors turn, and the clock **parks**
+  after 5 s in which every process slept: it stops, drive A is selected,
+  and MOTOR ON falls 9 turns later (with a disk in A); the soft clock keeps
+  time meanwhile, and the clock starts again before any process runs.
+  For the same reason the driver ends a transfer with its drive still
+  selected, light off — as CBIOS A1.1's `LIGHTOF` does.
+  *On a real FDD3000:* the drives must be jumpered DS0/DS1, not **MX**
+  ("constantly enabled regardless of DRIVE SELECT"): an MX drive would see
+  the clock's STEP pulses and move its head.
 - **A ROM.** Programs that call the Spectrum ROM (the floating-point
   calculator, `RST 10h`) are stopped with a message; BEEP is silent.
 - **Port FEh.** On the FDD3000 it is the drive latch: border colour or
