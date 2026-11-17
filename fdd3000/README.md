@@ -19,6 +19,8 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
   are modules**, loaded from disk when a mount asks for them
   (`/etc/mount -t TYPE ...` loads `/mnt/a/etc/fs/TYPE`) and unloaded with
   their last mount — see *File system types* below.
+- **TOS disks**, the FDD3000's own system's, read and written:
+  `/etc/mount -t tos /dev/fd1 /mnt/b` (`src/tfs.asm`, the first module).
 - At boot `/etc/init` mounts the system disk on **`/mnt/a`** and runs
   `/mnt/a/etc/rc` from it (persistent: add `/etc/mount /dev/fd1 /mnt/b`
   there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
@@ -57,6 +59,7 @@ python3 fdd3000/test/test_ssx.py     # SDK programs from disk, the mirror
 python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no system calls
 python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the disk side
 python3 fdd3000/test/test_fsmod.py   # file system types loaded at mount time
+python3 fdd3000/test/test_tfs.py     # TOS disks: a real one read, a blank one written
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
 ```
 
@@ -71,10 +74,11 @@ images on the host (its docstring is the format's specification).
 | `src/hal.asm` | the hardware layer: vectors, the console on the link (CBIOS A1.1's protocol) as a VT52, keys, the soft clock |
 | `src/fd.asm` | the WD1770 driver, the buffer cache, `/dev/fd0-3` |
 | `src/vfs.asm`, `src/fsmod.asm`, `src/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS |
+| `src/tfs.asm` | TOS's disks: a file system module (`/etc/fs/tos`) |
 | `src/ssx.asm`, `src/t_dd.asm`, `src/t_fs.asm`, `src/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
 | `src/mirror.asm` | the display file read back to the terminal |
 | `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
-| `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `dsk.py` |
+| `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `tosfs.py` (TOS disks), `dsk.py` |
 
 Memory of the FDD3000 while ZX-UX runs:
 
@@ -114,8 +118,32 @@ write, truncate, allocate and free an i-node, sync). The **type table**
   built for another kernel is refused, not run.
 
 `test/test_fsmod.py` builds ZXFS itself as two modules (`zxfsm`,
-`zxfsn`) and mounts both at once. The first real module will be TOS's
-format.
+`zxfsn`) and mounts both at once.
+
+**TOS** (`src/tfs.asm`, `/etc/fs/tos`; about 3K of arena while a TOS
+disk is mounted). TOS keeps no i-nodes and no directory files — one
+table of 128 entries, files in 1K allocation units, a 7:1 sector
+interleave — so the module makes them up from the table, and makes the
+kernel's directory writes into changes of it:
+
+- **I-numbers**: 1 is the root, 100h + n the file or directory whose
+  first entry is entry n. A directory reads as `.`, `..` and an entry for
+  each of its files.
+- **Names**: `name.ext` in lower case; ZX-UX's names are 8 characters, so
+  a longer one shows as its first five letters, `~` and its entry number
+  (`biomas2.bas` → `bioma~3e`). New names are split at the last dot and
+  upper-cased.
+- **What TOS has not**: links (`ln` is refused; `mv` copies), times (not
+  kept), holes (writing past the end fills with zeros). A file unlinked
+  while open is kept, nameless, until its last close.
+- **Formats**: 40-track single-sided disks, with TOS's system tracks
+  (tos40) or without (TOS4). Not yet the 80-track and Polish double-sided
+  ones (4K allocation units, other layouts).
+
+`tools/tosfs.py` is its reference on the host (`ls`, `get`, `put`,
+`mkdir`, `check`); it reads every file of the collection's TENET-A1 disk
+byte for byte as tomato does, and `test/test_tfs.py` has tomato read back
+what ZX-UX wrote.
 
 ```sh
 python3 fdd3000/tools/fsmod.py SOURCE.asm NAME OUT    # after build.py

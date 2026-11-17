@@ -44,6 +44,9 @@ ZXFS on a disk, /etc/mount and /etc/umount put one on a
 directory and take it off, /bin/dd copies sectors.
 Other file system types are modules in /mnt/a/etc/fs:
 mount -t NAME /dev/fdN dir loads /mnt/a/etc/fs/NAME.
+/etc/fs/tos reads and writes TOS disks:
+
+    /etc/mount -t tos /dev/fd1 /mnt/b
 Unmount a disk before you take it out of its drive.
 '''
 
@@ -52,6 +55,9 @@ SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 # SDK programs on the system disk's /bin (/mnt/a/bin once mounted)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
                    'advent', 'wump', 'trek', 'rogue', 'snake', 'hanoi', 'queens8']
+
+# File system modules on the system disk's /etc/fs (mount -t NAME)
+FS_MODULES = [('tos', 'tfs.asm')]       # TOS's disks
 
 IMGBASE = 0x1800                # the hardware layer's start (hal.asm)
 IMGTRK = 1
@@ -111,6 +117,11 @@ def build(b):
         zfs.put('/doc/' + name.split('.')[0], data)     # names: 8 at most
     zfs.put('/etc/rc', SYSTEM_RC)
     zfs.mkdir('/etc/fs')                      # file system modules (mount -t)
+    for name, source in FS_MODULES:
+        zfs.put('/etc/fs/' + name,
+                fsmod.build(b.SJASMPLUS, os.path.join(top, 'kabi.inc'),
+                            os.path.join(b.PORT, 'src', source), name,
+                            os.path.join(top, 'mod')))
     for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK
         with open(os.path.join(b.ROOT, 'examples', 'c48-bin', 'ssx', name + '.ssx'), 'rb') as f:
             zfs.put('/bin/' + name, f.read())

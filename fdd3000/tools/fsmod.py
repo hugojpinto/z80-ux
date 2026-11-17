@@ -45,10 +45,10 @@ ABI = [
     # the mount entry: fields of IY
     'M_TYPE', 'M_DRV', 'M_BASE', 'M_BLKS', 'M_INOS', 'M_BMAP', 'M_ITAB',
     'M_DATA', 'M_COVER',
-    # the in-core i-node
-    'I_SIZE',
+    # the in-core i-node, and its place in the cache (its number)
+    'I_SIZE', 'IWOWN', 'MI_NUM', 'MI_CORE',
     # errors
-    'EIO', 'EINVAL', 'ENOSPC', 'EFBIG', 'ENOENT',
+    'EIO', 'EINVAL', 'ENOSPC', 'EFBIG', 'ENOENT', 'EPERM',
 ]
 
 
