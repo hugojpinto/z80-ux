@@ -492,9 +492,6 @@ swtch:
         call swapin
         call setdirty
 .same:
-        IFDEF FDD3000
-        call tunpark            ; it runs: the clock must tick (tmr.asm).
-        ENDIF
         ld a,QUANT
         ld (quant),a
         xor a
@@ -2086,7 +2083,7 @@ boot:
         ld (p_brk),hl
         call uinit
         IFDEF FDD3000
-        call tstart             ; the 50 Hz clock from the WD1770 (tmr.asm).
+        call tinit              ; the 50 Hz clock from the WD1770 (tmr.asm).
         ENDIF
         ei
         jp kinit                ; exec /etc/init.

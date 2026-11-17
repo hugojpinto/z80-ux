@@ -572,7 +572,6 @@ kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
         jr z,.soft
         ei
         halt
-        call tidle              ; long idle: park the clock (tmr.asm)
         call hkeys
         ld a,(scrown)           ; (the tick does not draw in the kernel:
         or a                    ; the idle loop does, between its turns

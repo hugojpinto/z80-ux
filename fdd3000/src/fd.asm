@@ -598,8 +598,12 @@ hdopen: ld a,h                  ; (a mounted file's i-number may end in 8-11)
         jr c,.disk
         or a                    ; not a disk
         ret
-.disk:  cp TDRV                 ; drive D: the clock's select line
-        jr nz,.d1
+.disk:  cp TDRV                 ; drive D: the clock's select line, if
+        jr nz,.d1               ; it took it (tmr.asm tinit)
+        ld a,(tmuse)
+        or a
+        ld a,TDRV
+        jr z,.d1
         ld a,ENXIO
         scf
         ret

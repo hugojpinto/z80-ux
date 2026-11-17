@@ -14,13 +14,14 @@
 ;    h = 1 - no spin-up, which would wait for index pulses -, V = 0 - no
 ;    verify -, rate 10 = 20 ms.
 ;
-;  Drive D (TDRV) must not exist: its select line is the timer's (the
-;  FDD3000 port assumes at most three drives; /dev/fd3 is refused while
-;  the timer runs).  Its STEP pulses reach no drive; nothing moves.  But
-;  MOTOR ON is common to all drives and only falls 9 index pulses after a
-;  command - with D selected there are none - so while the clock runs the
-;  WD1770 keeps MOTOR ON up; whether A's and B's motors turn depends on the
-;  drives.  (That is to be seen on a real FDD3000.)
+;  Drive D (TDRV) must not exist: its select line is the clock's.  tinit
+;  looks for it at boot; with four drives the soft clock is used.  The
+;  STEP pulses reach no drive; nothing moves.  MOTOR ON, common to all
+;  drives (WD1770 MO -> IC12 -> PL1-16), stays up while the clock runs -
+;  but an HFD305S turns its motor only while selected: on a two-drive
+;  FDD3000, B never turns while A works.  A and B are not selected while
+;  the clock runs, so no motor turns.  (A drive jumpered MX, "enabled
+;  regardless of DRIVE SELECT", would: the drives must be DS0 - DS2.)
 ;
 ;  The disk driver stops the clock around its own commands (fio, fprobe:
 ;  tsusp / tresume); meanwhile the soft clock (hal.asm htime) counts, as it
@@ -175,53 +176,33 @@ tint:   in a,(FDCST)            ; INTRQ down
         reti
 
 ; ---------------------------------------------------------------------
-; Parking.  While the clock runs, MOTOR ON - common to all drives
-; (PL1-16, through IC12) - is held up: every Step starts a command, and
-; with drive D selected no index pulse ever counts it down.  The HFD305S
-; motor turns while MOTOR ON is low ("turn it high when idle to extend
-; motor life").  The tick is needed only while something runs; so after
-; TPARK ticks in which every process slept, the clock parks: it stops and
-; drive A is selected, whose index pulses then let the WD1770 drop MOTOR
-; ON 9 turns later (with a disk in A).  The soft clock counts meanwhile,
-; and it is right while idle.  A process that is to run (swtch, before it
-; runs) starts the clock again: tunpark.
+; tinit (boot): is there a drive D?  Restored at 6 ms steps, a present
+; drive shows TRACK 00 (an HFD305S drives it whenever selected, disk or
+; not: manual 5(5)); an absent one never does, and the WD1770 gives up
+; after 255 steps (~1.5 s).  Absent: the clock runs, and from then on
+; drive D is its.  Present (a four-drive system): the soft clock (hal.asm)
+; keeps time, and /dev/fd3 is drive D.
 ; ---------------------------------------------------------------------
-TPARK   equ 250                 ; 5 s of idle ticks
-LATPARK equ 0DEh                ; drive A, side 0, MFM, ROM out, light off
-
-; tidle: the idle loop's tick (kidle, the clock running): park at TPARK.
-tidle:  ld hl,(tidlec)
-        inc hl
-        ld (tidlec),hl
-        ld de,TPARK
-        or a
-        sbc hl,de
-        ret c
-        call tsusp
-        xor a
-        ld (tmsus),a            ; (stopped for good, not for the driver)
-        ld a,1
-        ld (tmpark),a
-        ld a,LATPARK
+tinit:  ld a,TDRV
+        ld c,0
+        call fsel
+        ld a,FC_PROBE
+        call fcmd1
+        push af
+        ld a,LATIDLE            ; D deselected again
         out (LATCH),a
         ld (latsh),a
-        ret
-
-; tunpark: a process is about to run (swtch): idle no more; a parked
-; clock starts again.  Keeps all but AF.
-tunpark:
-        push hl
-        ld hl,0
-        ld (tidlec),hl
-        pop hl
-        ld a,(tmpark)
-        or a
-        ret z
-        xor a
-        ld (tmpark),a
+        call dcurp              ; (the driver: D's position unknown)
+        ld (hl),0FFh
+        pop af
+        ret c                   ; (a timeout: no answer, treat as present)
+        and 04h                 ; TRACK 00: a drive D is there
+        ret nz
+        ld a,1
+        ld (tmuse),a
         jp tstart
+FC_PROBE equ 00h                ; restore, 6 ms steps, spin-up, no verify
 
 tmron:  db 0                    ; the clock runs
 tmsus:  db 0                    ; tsusp found it running
-tmpark: db 0                    ; parked (idle): tunpark restarts it
-tidlec: dw 0                    ; idle ticks in a row
+tmuse:  db 0                    ; drive D is the clock's (tinit)

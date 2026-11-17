@@ -9,8 +9,8 @@ ticking at 50 Hz:
   - the shell's kill stops it;
   - spin in the foreground, ^C (BREAK) stops it;
   - date keeps time: 20 s of the FDD3000's own time are 20 s of ZX-UX's;
-  - idle for more than 5 s, the clock parks (MOTOR ON may fall: drive A
-    selected); a command starts it again, and time is kept across.
+  - with four drives (a drive D on its select line) the clock is not
+    used: /dev/fd3 is a disk, the soft clock keeps time.
     python3 fdd3000/test/test_tmr.py
 """
 import os
@@ -73,11 +73,7 @@ def main():
     m.type('echo after break\r', settle=3.0)
     import json
     sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
-    m.type('date\r', settle=1.0)
-    m.run_for(8)                                # idle: the clock parks
-    parked = m.m[sym['tmpark']], m.m[sym['tmron']], m.latch
-    m.type('date\r', settle=1.0)               # a command: it runs again
-    running = m.m[sym['tmpark']], m.m[sym['tmron']]
+    timer_on = m.m[sym['tmuse']], m.m[sym['tmron']]
     screen = m.screen().replace('\r', '')
     print(fddrun.vt52(m.screen()))
     if not pid:
@@ -97,14 +93,26 @@ def main():
         fails.append('kill did not stop spin')
     if 'after break' not in screen.split('echo after break')[-1]:
         fails.append('^C did not stop the foreground spin')
-    if parked != (1, 0, 0xDE):
-        fails.append('idle: not parked (park %d, on %d, latch %02X)' % parked)
-    if running != (0, 1):
-        fails.append('after a command the clock does not run (park %d, on %d)' % running)
-    t2 = secs(screen.split('echo after break')[-1])
-    late = secs(m.screen().replace('\r', '').split('echo after break')[-1])
-    if len(late) >= 2 and not 8 <= late[-1] - late[-2] <= 11:
-        fails.append('across the park: %d s for ~9 s' % (late[-1] - late[-2]))
+    if timer_on != (1, 1):
+        fails.append('three drives: the clock is not running (use %d, on %d)' % timer_on)
+    # four drives: drive D is there, the soft clock is used
+    m4 = fddrun.FDDUX([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK), fddrun.fdd.Disk(cyls=40, sides=1),
+                       fddrun.fdd.Disk(cyls=40, sides=1), fddrun.fdd.Disk(cyls=40, sides=1)])
+    m4.boot()
+    m4.run_for(25, quiet=3.0)
+    m4.type('root\r')
+    m4.type('date\r', settle=1.0)
+    m4.run_for(10)
+    m4.type('date\r', settle=1.0)
+    m4.type('dd if=/dev/fd3 of=/tmp/d count=1\r', settle=6.0)
+    s4 = m4.screen().replace('\r', '')
+    if m4.m[sym['tmuse']] or m4.m[sym['tmron']]:
+        fails.append('four drives: the clock took drive D')
+    if '1 blocks' not in s4:
+        fails.append('four drives: /dev/fd3 is not a disk')
+    t4 = secs(s4)
+    if len(t4) < 2 or not 9 <= t4[-1] - t4[-2] <= 13:
+        fails.append('four drives, soft clock: %s' % t4)
     if m.stopped is not None:
         fails.append('the FDD3000 halted at %04X' % m.stopped)
     for f in fails:
