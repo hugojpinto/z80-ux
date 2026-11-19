@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ZXFS: the ZX-UX disk file system (file system type 1), on the host.
 
-The reference for fdd3000/src/zfs.asm, and the tool that makes and reads
+The reference for drivers/zxfs/zfs.asm, and the tool that makes and reads
 these file systems in disk images:
 
     zxdfs.py mkfs  DISK [--base SECTOR] [--blocks N] [--inodes N] [--label L]

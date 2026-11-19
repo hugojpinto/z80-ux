@@ -20,7 +20,7 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
   (`/etc/mount -t TYPE ...` loads `/mnt/a/etc/fs/TYPE`) and unloaded with
   their last mount — see *File system types* below.
 - **TOS disks**, the FDD3000's own system's, read and written:
-  `/etc/mount -t tos /dev/fd1 /mnt/b` (`src/tfs.asm`, the first module).
+  `/etc/mount -t tos /dev/fd1 /mnt/b` (`drivers/tos/tfs.asm`, the first module).
 - At boot `/etc/init` mounts the system disk on **`/mnt/a`** and runs
   `/mnt/a/etc/rc` from it (persistent: add `/etc/mount /dev/fd1 /mnt/b`
   there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
@@ -75,9 +75,9 @@ images on the host (its docstring is the format's specification).
 | `src/boot.asm` | the boot sector: the FDD3000 boot ROM loads it to 3F00h; it loads the system from track 1 |
 | `src/hal.asm` | the hardware layer: vectors, the console on the link (CBIOS A1.1's protocol) as a VT52, keys, the soft clock |
 | `src/fd.asm` | the WD1770 driver, the buffer cache, `/dev/fd0-3` |
-| `src/vfs.asm`, `src/fsmod.asm`, `src/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS |
-| `src/tfs.asm` | TOS's disks: a file system module (`/etc/fs/tos`) |
-| `src/ssx.asm`, `src/t_dd.asm`, `src/t_fs.asm`, `src/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
+| `../drivers/vfs/vfs.asm`, `fsmod.asm`; `../drivers/zxfs/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS (shared subsystems: `../platform/README.md`) |
+| `../drivers/tos/tfs.asm` | TOS's disks: a file system module (`/etc/fs/tos`) |
+| `../drivers/ssxfile/ssx.asm`, `src/t_dd.asm`, `../drivers/vfs/t_fs.asm`, `../drivers/zxfs/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
 | `src/mirror.asm` | the display file read back to the terminal |
 | `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
 | `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `tosfs.py` (TOS disks), `dsk.py` |
@@ -123,7 +123,7 @@ write, truncate, allocate and free an i-node, sync). The **type table**
 `test/test_fsmod.py` builds ZXFS itself as two modules (`zxfsm`,
 `zxfsn`) and mounts both at once.
 
-**TOS** (`src/tfs.asm`, `/etc/fs/tos`; about 3K of arena while a TOS
+**TOS** (`drivers/tos/tfs.asm`, `/etc/fs/tos`; about 3K of arena while a TOS
 disk is mounted). TOS keeps no i-nodes and no directory files — one
 table of 128 entries, files in 1K allocation units, a 7:1 sector
 interleave — so the module makes them up from the table, and makes the

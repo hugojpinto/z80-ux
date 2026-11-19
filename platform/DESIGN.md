@@ -21,7 +21,10 @@ drivers/             shared implementations behind one interface each:
                      (48K; 128K/+3 ROM1/ROM3; TC3256 BASIC page)
   screen64/          the 64x24 console in 4x8 glyphs on a bitmap page
   vt52link/          the FDD3000's terminal over the link
-  wd1770/ ...        block devices; vfs/ zxfs/ tos/: mounts and file systems
+  vfs/ zxfs/ tos/    mounts and file systems, over a block interface
+  ssxfile/           SSX1 programs from files
+                     (the FDD3000's own drivers - WD1770, link, mirror,
+                     clock - are its machine layer, fdd3000/src)
 platform/<machine>/  memory map, boot, vectors and tick source, paging, the
                      choice of drivers; its system.asm is the top-level
                      assembly: it places and includes everything

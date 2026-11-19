@@ -65,7 +65,7 @@ class BuildError(Exception):
     pass
 
 
-# Programs of the FDD3000 build only (fdd3000/src), after programs.txt.
+# Programs of the FDD3000 build only (drivers/, fdd3000/src), after programs.txt.
 FDD_PROGRAMS = [('/bin/dd', 'dd', 0), ('/etc/mount', 'mount', 0),
                 ('/etc/umount', 'umount', 0), ('/etc/mkfs', 'mkfs', 0)]
 

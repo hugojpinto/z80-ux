@@ -58,7 +58,7 @@ SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
                    'advent', 'wump', 'trek', 'rogue', 'snake', 'hanoi', 'queens8']
 
 # File system modules on the system disk's /etc/fs (mount -t NAME)
-FS_MODULES = [('tos', 'tfs.asm')]       # TOS's disks
+FS_MODULES = [('tos', 'drivers/tos/tfs.asm')]   # TOS's disks
 
 # IMGBASE: the image starts with the resident programs placed low
 # (hal.asm LOWTEXT, 0400h), then a gap (the buffer cache), the hardware
@@ -125,7 +125,7 @@ def build(b):
     for name, source in FS_MODULES:
         zfs.put('/etc/fs/' + name,
                 fsmod.build(b.SJASMPLUS, os.path.join(top, 'kabi.inc'),
-                            os.path.join(b.PORT, 'src', source), name,
+                            os.path.join(b.ROOT, source), name,
                             os.path.join(top, 'mod')))
     for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK
         with open(os.path.join(b.ROOT, 'examples', 'c48-bin', 'ssx', name + '.ssx'), 'rb') as f:

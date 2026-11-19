@@ -58,7 +58,7 @@ def to_model(d):
 
 def modules():
     kabi = os.path.join(BUILD, 'kabi.inc')
-    src = os.path.join(ROOT, 'fdd3000', 'src', 'zfs.asm')
+    src = os.path.join(ROOT, 'drivers', 'zxfs', 'zfs.asm')
     work = os.path.join(BUILD, 'mod')
     m = fsmod.build(SJASMPLUS, kabi, src, 'zxfsm', work)
     n = fsmod.build(SJASMPLUS, kabi, src, 'zxfsn', work)

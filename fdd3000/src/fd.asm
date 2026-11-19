@@ -576,6 +576,17 @@ binval: push af
 ; ---------------------------------------------------------------------
 ; (Which device numbers exist: devtab, hal.asm.)
 
+; The block interface the mount layer and the file systems use
+; (platform/README.md): units are the drives, 0-3.
+;   blkunit   A = a device number -> A = its unit; CF if not a disk
+;   blkprobe  A = a unit: what disk is there (fprobe); CF, A
+;   bget, bflush, bdirty, binval: the buffer cache (below)
+blkunit: sub DEV_FD0
+        cp NDRV
+        ccf
+        ret
+blkprobe equ fprobe
+
 ; hdopen: an open of i-number L: for a disk, its buffers are dropped
 ; (the disk may have changed) and its geometry probed.  CF, A on an
 ; error.  Keeps HL, DE, BC, IX.

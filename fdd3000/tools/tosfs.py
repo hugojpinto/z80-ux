@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TOS disks on the host: the reference for fdd3000/src/tfs.asm.
+"""TOS disks on the host: the reference for drivers/tos/tfs.asm.
 
     tosfs.py mkfs  DISK [--label L] [--tos4]
     tosfs.py ls    DISK

@@ -575,7 +575,7 @@ sysmnt: ld (u_tmp),de
 .got:   ld a,(vdrv)             ; the disk, afresh
         call binval
         ld a,(vdrv)
-        call fprobe
+        call blkprobe           ; what disk is in it (the platform's)
         jp c,vmerr
         ld a,(vwant)            ; which type is it?  The one asked for,
         ld b,a                  ; or each known one in turn
@@ -727,16 +727,15 @@ sysumnt:
 .busy:  ld a,EBUSY
         jp syserr
 
-; vdisk: path HL -> (vdrv) = the drive of a disk device; CF, A else.
+; vdisk: path HL -> (vdrv) = the unit of a block device; CF, A else.
 vdisk:  call nami
         ret c
         ld a,h
         or a
         jr nz,.nb
         ld a,l
-        sub DEV_FD0
-        cp NDRV
-        jr nc,.nb
+        call blkunit            ; a block device: its unit (the platform's)
+        jr c,.nb
         ld (vdrv),a
         or a
         ret

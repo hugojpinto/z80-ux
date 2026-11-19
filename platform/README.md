@@ -113,19 +113,23 @@ layer:
 | **Memory** | `mem_swapout` (A = slot: the window as it is becomes that slot's image), `mem_swapin` (A = slot: its image into the window) — the scheduler's lazy hand-over, fork, exec | `equ wsave`, `wload`: a copy to and from the slot's SAVE block in the arena | the same |
 | **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |
 | **Devices** | `devtab`: entries `db FIRST, LAST` / `dw read, write, open` (0: none), a 0 ends it; read/write: A = device number, the transfer in u_off, u_base, u_count; open: HL = the i-number, CF/A, keeps HL, DE, BC, IX. The kernel's `devfind`, `devread`, `devwrite`, `devopen` use it (iget, open) | tty, mem, tap (machine.asm) | tty, mem, fd0–3 with `hdopen` (hal.asm); seek in sectors (`hseek`, `fhclr`) with `HAL_BLKDEV` |
-| **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | fdd3000/src |
+| **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | `drivers/vfs`, `drivers/ssxfile` (shared), over the block interface |
 
 The register conventions are the kernel's own (the routines' headers).
 The kernel's IY is `KIY`: 5C3Ah with rom48 (its routines need it), 0 on
 the FDD3000.
 
-`fdd3000/src` mixes the FDD3000's own code (`hal.asm`, `fd.asm`,
-`tmr.asm`, `mirror.asm`, `boot.asm`) with subsystems that are not
-FDD3000-specific (`vfs.asm`, `fsmod.asm`, `zfs.asm`, `tfs.asm`, `ssx.asm`,
-`t_fs.asm`, `t_mkfs.asm`). They move to a shared tree when a second
-platform uses them; their couplings to the FDD3000 today: the drive
-numbers (`DEV_FD0`, `NDRV`, `vdisk`), `fprobe` at mount, `bget(drive,
-sector)` as the block interface, the buffer cache's place (1000h).
+The optional subsystems are shared sources in `drivers/`, used by any
+platform that switches them on: `drivers/vfs` (mounts, the type table and
+module loader, `/etc/mount`, `/etc/umount`), `drivers/zxfs` (ZXFS,
+`/etc/mkfs`), `drivers/tos` (TOS disks, a module), `drivers/ssxfile`
+(SSX1 programs from files). Under them, the **block interface** a
+platform with disks provides: `blkunit` (A = a device number → A = its
+unit; CF if not a block device), `blkprobe` (A = a unit: what medium is
+there), and the buffer cache by unit — `bget` (sector DE of unit A → HL,
+B = the buffer), `bdirty` (buffer B written; NC), `bflush`, `binval`; the
+FDD3000's are in `fd.asm` (units are its drives). Seeking a block device
+in sectors (seek origins 3–5) is `hseek`, `fhclr`.
 
 ## The ABI: what binaries pin, and what they do not
 
@@ -220,9 +224,9 @@ kernel sites:
    kernel, resident programs and machine layer together low and the arena
    in one piece up to the window (memory-plan, §11). Then a low pool for
    fixed blocks, or, on the 128K, per-process banks.
-7. ~~Block devices~~ — done: `devtab` (step 4). Still FDD3000-named: the
-   sector seek (`hseek`, `fhclr`) and the mount layer's disks (`vdisk`,
-   `DEV_FD0`, `NDRV`, `fprobe`), next when a second disk driver comes.
+7. ~~Block devices~~ — done: `devtab` (step 4); the mount layer and the
+   file systems use the block interface (`blkunit`, `blkprobe`, the
+   buffer cache) and live in `drivers/`, shared.
 
 Each lands the same way: the Spectrum's `platform.inc` reproduces today's
 bytes, the gate proves it.
