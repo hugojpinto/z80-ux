@@ -14,6 +14,8 @@ from tempfile import TemporaryDirectory
 
 HERE = Path(__file__).resolve().parent
 SDK = HERE.parent
+sys.path.insert(0, str(SDK))
+import rld  # noqa: E402
 
 
 def main(argv=None):
@@ -25,6 +27,10 @@ def main(argv=None):
     mode.add_argument('-c', action='store_true', help='relocatable ras object')
     parser.add_argument('--max', type=int, default=14000)
     parser.add_argument('--stack', type=int, default=384)
+    parser.add_argument('--ux', action='store_true',
+                        help='no 48K ROM: clean-room routines from libux (rbc/ux.py)')
+    parser.add_argument('--rom-ok', action='store_true',
+                        help='with --ux: allow the ROM for routines not yet clean-room (a Spectrum only)')
     args = parser.parse_args(argv)
     source = args.source.resolve()
     target = (args.output or source.with_suffix('.s' if args.S else '.sso' if args.c else '.ssx')).resolve()
@@ -75,10 +81,29 @@ def main(argv=None):
                                         engine, hisoft_source, kw, fp)
             asm, obj, ssx, report = compile_native(
                 inp, HERE, HERE / 'frontend', HERE / 'hisoft48.tap',
-                SDK / 'rom/48.rom', stack=args.stack, maximum=args.max)
+                SDK / 'rom/48.rom', stack=args.stack, maximum=args.max,
+                use_fit=not args.ux)
+            if args.ux:
+                from . import ux
+                asm, ssx, uxr = ux.link(asm, args.stack)
+                if uxr['rom'] and not args.rom_ok:
+                    raise ValueError('still the ROM for %s (--rom-ok: a Spectrum only)'
+                                     % ' '.join(uxr['rom']))
+                image = rld.parse_ssx(ssx)
+                report.update(file=len(ssx), image=len(image['image']), bss=image['bss'],
+                              total=len(image['image']) + image['bss'] + args.stack,
+                              relocations=len(image['relocs']))
+                if uxr['rom']:
+                    print('RBC_UX_ROM ' + ' '.join(uxr['rom']), file=sys.stderr)
+                if args.c:
+                    raise ValueError('--ux makes a linked program; -c is not available')
+                ux_map = uxr['symbols']
             payload = asm.encode('ascii') if args.S else obj if args.c else ssx
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
+        if args.ux and not args.S:          # the clean-room routines' offsets in the image
+            import json
+            Path(str(target) + '.map').write_text(json.dumps(ux_map, sort_keys=True) + '\n')
         print(f'RBC_NATIVE_OK file={report["file"]} image={report["image"]} '
               f'bss={report["bss"]} stack={report["stack"]} '
               f'total={report["total"]} relocs={report["relocations"]}')

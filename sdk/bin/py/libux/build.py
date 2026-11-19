@@ -16,6 +16,10 @@
                        and fstr.asm (numbers to text and back: ftoa, atof)
     libux/libtty.ssa   libux/tty.asm: the stream and console kinds' text
                        through the terminal (platform/screen-kinds.md)
+    libux/librbc.ssa   libux/rbc/*.asm: the BASIC compiler's clean-room
+                       routines in place of the 48K ROM's (rbc --ux)
+    libux/librom.ssa   the ROM's own entry points, for those with no
+                       clean-room routine yet (rbc/ux.py; a Spectrum only)
 
 lib/ and lib/libc48.ssa are not touched: the original runtime still
 rebuilds the shipped examples byte for byte.
@@ -76,7 +80,15 @@ def main():
     tty = members([os.path.join(HERE, 'tty.asm')])
     with open(os.path.join(HERE, 'libtty.ssa'), 'wb') as f:
         f.write(rld.write_archive(tty))
-    print('libux: libc48.ssa %d members, libtty.ssa %d members' % (len(objs), len(tty)))
+    rbc = members(sorted(glob.glob(os.path.join(HERE, 'rbc', '*.asm'))))
+    with open(os.path.join(HERE, 'librbc.ssa'), 'wb') as f:
+        f.write(rld.write_archive(rbc))
+    sys.path.insert(0, os.path.join(SDK, 'rbc'))
+    from rbc import ux
+    with open(os.path.join(HERE, 'librom.ssa'), 'wb') as f:
+        f.write(ux.rom_archive())
+    print('libux: libc48.ssa %d members, libtty.ssa %d members, librbc.ssa %d members'
+          % (len(objs), len(tty), len(rbc)))
 
 
 if __name__ == '__main__':
