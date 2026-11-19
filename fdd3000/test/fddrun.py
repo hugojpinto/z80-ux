@@ -215,6 +215,19 @@ def vt52(raw):
     return '\n'.join(''.join(x).rstrip() for x in rows).rstrip('\n')
 
 
+def arena_ok(mem, sym):
+    """The kernel's arena block chain, AR0 up to a_top: None if whole, else
+    what is wrong with it (a block header overwritten: size 0 or odd, or a
+    chain that overshoots the top)."""
+    a, top = sym['AR0'], mem[sym['a_top']] | mem[sym['a_top'] + 1] << 8
+    while a < top:
+        size = mem[a] | mem[a + 1] << 8
+        if size == 0 or size & 1:
+            return 'block %04X: size %04X (kind %d)' % (a, size, mem[a + 2])
+        a += size
+    return None if a == top else 'the chain ends at %04X, not %04X' % (a, top)
+
+
 def boot(disk_path=DEFAULT_DISK, seconds=20):
     m = FDDUX([fdd.Disk.load(disk_path)])
     m.boot()

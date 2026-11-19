@@ -373,11 +373,7 @@ _print_at:
         djnz .lp
         pop hl                  ; attribute cell
         ld a,h
-        rrca
-        rrca
-        rrca
-        and 3
-        call @pg58              ; (+ its attributes' page)
+        call @pxat              ; its attribute's page
         ld h,a
         ld a,(@attr)
         ld (hl),a
@@ -535,7 +531,6 @@ _point: pop bc
 ; @pxad: 39 bytes. Turn C=x and B=top-down y into bitmap address and mask.
 @pxad:  ld a,b
         and 7
-        call @pg40              ; (+ the display file's page)
         ld h,a
         ld a,b
         rra
@@ -543,6 +538,7 @@ _point: pop bc
         rra
         and 18h
         or h
+        call @pg40              ; (+ the display file's page: added, last)
         ld h,a
         ld a,b
         rla
@@ -594,11 +590,7 @@ _point: pop bc
 .set:   or (hl)
 .st:    ld (hl),a
 .at:    ld a,h
-        rrca
-        rrca
-        rrca
-        and 3
-        call @pg58              ; (+ its attributes' page)
+        call @pxat              ; its attribute's page
         ld h,a
         ld a,(@attr)
         ld (hl),a
@@ -726,11 +718,7 @@ _udg_draw:
         djnz .r
         pop hl
         ld a,h
-        rrca
-        rrca
-        rrca
-        and 3
-        call @pg58              ; (+ its attributes' page)
+        call @pxat              ; its attribute's page
         ld h,a
         ld a,(@attr)
         ld (hl),a
@@ -817,6 +805,20 @@ _udg_draw_2x2:
         ret
 @pg58:  push hl
         ld hl,@scrhi
+        add a,(hl)
+        add a,18h
+        pop hl
+        ret
+; @pxat: A = the high byte of a pixel's address -> its attribute's.  The
+; display file's page need not be 40h, nor 8K-aligned (the FDD3000's comes
+; from the arena): its third is read after the page is taken off.
+@pxat:  push hl
+        ld hl,@scrhi
+        sub (hl)
+        rrca
+        rrca
+        rrca
+        and 3
         add a,(hl)
         add a,18h
         pop hl

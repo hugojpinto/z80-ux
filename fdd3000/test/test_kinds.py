@@ -74,6 +74,8 @@ def main():
     r.m.link.keys.extend(b'\x03')
     watch(3)
     check(m.m[sym['dpage']] == 0, 'the display file was not given back')
+    bad = fddrun.arena_ok(m.m, sym)
+    check(bad is None, 'the arena after hanoi: %s' % bad)
     out = r.sh('echo still here')
     check('still here' in out and m.stopped is None, 'the machine did not survive')
     for f in fails:

@@ -12,6 +12,8 @@ the shipped one), on the SDK's headless Spectrum:
   - lines (stream, test/kinds/lines.c): its output redirected to a file,
     which then holds it;
   - mandel (bitmap): it claims the screen and draws; BREAK stops it;
+  - keys (test/kinds/keys.c): kbd_down sees A held (the keyboard rows:
+    the Spectrum's console is a screen, not a terminal);
   - mandel on the shipped ZX-UX.tzx, a kernel with no system call 41:
     the runtime falls back to 4000h and it draws all the same.
 """
@@ -30,7 +32,8 @@ SRC = {'hello': 'examples/c48-src/examples/hello.c',
        'fortune': 'examples/c48-src/games/fortune.c',
        'mandel': 'examples/c48-src/demos/mandel.c',
        'colour': 'test/kinds/colour.c',
-       'lines': 'test/kinds/lines.c'}
+       'lines': 'test/kinds/lines.c',
+       'keys': 'test/kinds/keys.c'}
 KIND = ['stream', 'console', 'bitmap', 'fixed']
 
 
@@ -123,6 +126,17 @@ def main():
     s.kb.add(zxux.parse_keys('{BREAK}'))
     s.wait_prompt(6000)
     check(job.ended is not None, 'BREAK did not stop mandel')
+    # kbd_down: the keyboard rows
+    s.kb.type('cls\n')
+    s.wait_prompt()
+    job = s.launch(progs['keys'][0], 'keys')
+    s.kb.add([('wait', 20), ('press', zxux.char_keys('a'), 60)])
+    for _ in range(400):
+        s.step()
+        if job.ended is not None:
+            break
+    settle(s)
+    check('a:1' in s.text(), 'keys: A held was not seen: %r' % s.text()[-200:])
 
     # the shipped kernel: no call 41
     t = golden.session('shipped')

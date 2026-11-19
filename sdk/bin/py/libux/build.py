@@ -9,8 +9,9 @@
 
     libux/libc48.ssa   lib/*.asm and lib/*.c as lib/build.py builds them,
                        with libux's crt0.asm (no screen claimed at start:
-                       @scrstart) and console.asm (the display file where
-                       system call 41 puts it) in place of lib's
+                       @scrstart), console.asm (the display file where
+                       system call 41 puts it) and sys.asm (no keyboard
+                       rows behind a terminal) in place of lib's
     libux/libtty.ssa   libux/tty.asm: the stream and console kinds' text
                        through the terminal (platform/screen-kinds.md)
 
@@ -34,7 +35,7 @@ spec = importlib.util.spec_from_file_location('libbuild', os.path.join(LIB, 'bui
 libbuild = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(libbuild)
 
-OVERRIDE = ('crt0.asm', 'console.asm')
+OVERRIDE = ('crt0.asm', 'console.asm', 'sys.asm')
 
 
 def members(paths):

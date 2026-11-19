@@ -14,10 +14,14 @@ path.  Checked:
   - colors' OUT (FEh) (border, the FDD3000's drive latch) is defused at
     load (ssxfix) and the machine lives on; mandel's pixels show as #,
     from a display file the kernel put in the arena (sys 41);
+  - the arena is whole while mandel draws into its display file;
   - the shipped mandel is refused: 4000h holds resident programs here;
+  - keys (test/kinds/keys.c): kbd_down and kbdmatrix see no key down,
+    even with A typed at the terminal: there are no keyboard rows here;
   - an executable file that is no SSX1 program is refused (ENOEXEC).
     python3 fdd3000/test/test_ssx.py
 """
+import json
 import os
 import subprocess
 import sys
@@ -45,7 +49,8 @@ def main():
     fs = zxdfs.mkfs(zxdfs.Device(b))
     out = os.path.join(ROOT, 'build', 'ux')
     os.makedirs(out, exist_ok=True)
-    for name, src in (('colors', 'examples/colors.c'), ('mandel', 'demos/mandel.c')):
+    for name, src in (('colors', 'examples/colors.c'), ('mandel', 'demos/mandel.c'),
+                      ('keys', '../../test/kinds/keys.c')):
         dst = os.path.join(out, name + '.ssx')
         subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--ux', '-o', dst,
                         os.path.join(ROOT, 'examples', 'c48-src', src)], check=True)
@@ -84,10 +89,19 @@ def main():
     m.type('/mnt/b/mandel\r', settle=3.0)
     m.run_for(45)                       # it computes before it draws
     screens['mandel'] = fddrun.vt52(m.screen())
+    sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
+    bad = fddrun.arena_ok(m.m, sym)       # its display file is in the arena
+    if bad:
+        fails.append('the arena while mandel draws: %s' % bad)
     m.link.keys.extend(b'\x03')
     m.run_for(4, quiet=2.0)
     run('\r')
     run('/mnt/b/mand0\r', name='old')
+    m.type('/mnt/b/keys\r', settle=1.0)
+    m.link.keys.extend(b'aaaa')
+    m.run_for(6, quiet=3.0)
+    screens['keys'] = fddrun.vt52(m.screen())
+    run('\r')
     run('cp /etc/motd /tmp/x\r')
     run('chmod 36 /tmp/x\r')
     run('/tmp/x\r', name='noexec')
@@ -104,6 +118,7 @@ def main():
     expect('colors', 'INK / PAPER / BRIGHT / BORDER', 'colors did not draw')
     expect('mandel', '####', 'no pixels as #')
     expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
+    expect('keys', 'a:0 m:0', 'a key was seen down behind the terminal')
     expect('noexec', '/tmp/x', 'a non-SSX1 file was not refused')
     expect('end', 'still alive', 'the machine did not survive')
     if m.stopped is not None:

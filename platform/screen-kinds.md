@@ -157,6 +157,18 @@ Per platform:
   39 first, then asks 41 for the page, so the file cannot be freed between
   the two. A program that needs 4000h (flags bit 3 clear, or the fixed
   kind) is refused at load by the SSX1 loader (`HAL_SCR4000 equ 0`).
+  The page is any page (B1h, say), not 8K-aligned like 40h: the bitmap
+  runtime adds it last when it builds an address (`@pxad`) and takes it
+  off before reading a pixel address's third (`@pxat`).
+
+## Keys behind a terminal
+
+`kbd_down`, `kbdmatrix`, `kbdpoll` read the Spectrum's keyboard rows
+(port FEh). A terminal sends characters, not key states, so where call 41
+says the console is a terminal (E = 1: the FDD3000) libux's versions
+(`libux/sys.asm`) report no key down, without touching the port (the
+FDD3000's drive latch). Programs read the terminal with `getchar`. On a
+kernel without call 41 they read the rows as before.
   With no bitmap program running, the pool holds other fixed blocks
   (memory-plan Idea C) - and once no program draws at 4000h by default,
   the resident text can move low (§11): ~28 KB of arena.
