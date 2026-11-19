@@ -39,8 +39,21 @@ RST = re.compile(r'^(\s+)rst(\s+)' + NUM + r'(\s*(?:;.*)?)$', re.I)
 JR = re.compile(r'^(\s+)jr(\s+)', re.I)
 DJNZ = re.compile(r'^(\s*)([A-Za-z_.][\w.]*:?\s+)?djnz\s+(\S+)\s*(;.*)?$', re.I)
 
+WORK = 512                  # the stack's region grows by this: the workspace and
+                            # the calculator stack are there (@rinit: from @end)
 KIND_FIXED = 0x0E           # SSX1 flags: declared, bitmap fixed at 4000h
 KIND_BITMAP = 0x0C          # declared, bitmap on any page (call 41)
+
+# The Spectrum's system variables, which the compiled program names by
+# address ($5C3A, 0x5c65, 23692): in the program instead (@rsv + n,
+# libux/rbc/sv.asm), IY = @rsv + 3Ah.
+SV_LO, SV_HI = 0x5C00, 0x5CB6
+SV_REF = re.compile(r'(?<![\w$])(\$5[cC][0-9a-fA-F]{2}|0[xX]5[cC][0-9a-fA-F]{2}|\d{5})(?![\w])')
+# The runtime's ATTR forms the attributes' page as 58h + the third: the
+# display file's page instead (@rattrh).  rbc's POKE and PEEK reach the
+# screen (and PEEK the ROM) at these labels: through @rmap.
+ATTR_PAGE = re.compile(r'^(\s+)xor 0x58\s*$')
+MAPPED = ('rbc_poke_entry_local_write_public:', 'rbc_peek_entry_local_read_public:')
 
 
 # The ROM entry points the 100 examples reach (build/rbcs: rbc -S), for
@@ -164,6 +177,31 @@ def inline_data(text):
     return '\n'.join(out)
 
 
+def _sv(m):
+    t = m.group(1)
+    v = int(t[1:], 16) if t[0] == '$' else int(t, 16) if t[:2].lower() == '0x' else int(t)
+    return '@rsv+%d' % (v - SV_LO) if SV_LO <= v < SV_HI else t
+
+
+def own_memory(text):
+    """The system variables, the display file's page and PEEK/POKE's
+    addresses, the program's own (above).  IY set at the start."""
+    out = []
+    lines = text.split('\n')
+    for i, line in enumerate(lines):
+        code, sep, comment = line.partition(';')
+        if ATTR_PAGE.match(code):
+            code = ATTR_PAGE.sub(r'\1call @rattrh', code)
+        elif not code.lstrip().lower().startswith(('db', 'dw', 'ds', 'defb', 'defw')):
+            code = SV_REF.sub(_sv, code)
+        out.append(code + sep + comment)
+        if line.strip() == 'start:':
+            out.append('    ld iy,@rsv+%d' % (0x5C3A - SV_LO))
+        elif line.strip() in MAPPED:
+            out.append('    call @rmap')
+    return '\n'.join(out)
+
+
 def rewrite(text):
     """The ROM's addresses as symbols -> (text, {symbol: address})."""
     out, used = [], {}
@@ -237,12 +275,12 @@ def needs_tokens(basic):
         for m in TOKEN_ESCAPE.finditer(basic))
 
 
-def link(text, stack, kind=KIND_FIXED, tokens=True):
+def link(text, stack, kind=KIND_BITMAP, tokens=True):
     """The --ux program -> (source, ssx, report)."""
     if CLAIMED not in text:
         raise UxError('the wrapper does not claim the screen (call 39)')
     text = text.replace(CLAIMED, CLAIMED + '    call @rinit\n', 1)   # then the page: call 41
-    src, used = rewrite(inline_data(text))
+    src, used = rewrite(own_memory(inline_data(text)))
     obj, src = _assemble(src, 'rbc-ux.s')
     libs = archives()
     rom_members = {id(m) for m in libs[2]}
@@ -251,7 +289,7 @@ def link(text, stack, kind=KIND_FIXED, tokens=True):
         objs.append(rld.Obj(ras.assemble_text(NO_TOKENS, 'notokens'), 'notokens.sso'))
     try:
         ssx, bss, ent, gaddr, chosen = rld.link(objs, libs,
-                                                entry='start', stack=stack, flags=kind)
+                                                entry='start', stack=stack + WORK, flags=kind)
     except rld.LinkError as e:
         raise UxError('link: %s' % e) from e
     rom = sorted(n for m in chosen if id(m) in rom_members for n in m.defs())

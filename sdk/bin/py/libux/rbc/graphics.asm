@@ -11,7 +11,7 @@
 ; error carried from half the longer.  Clean room: checked pixel by
 ; pixel against the ROM's (test/basic/romdiff.py).
         section text
-        global @r22AA,@r22E5,@r22DF,@r24B7,@r2477,@r2538,@rstkbc,@rdline,@r232D
+        global @r22AA,@r22E5,@r22DF,@r24B7,@r2477,@r2538,@rstkbc,@rdline,@r232D,@rmap,@rattrh
 
 ; PIXEL-ADD: B = y (0 at the bottom), C = x -> HL = the pixel's byte, A =
 ; its bit's place from the left (0-7); B Integer out of range past YMAX.
@@ -428,7 +428,49 @@
         ldir
         ret
 
+; @rattrh: A = a third of the screen (0-3) -> A = its attributes' page
+; (the runtime's ATTR formed it as 58h + the third).
+@rattrh:
+        push bc
+        ld b,a
+        ld a,(@rdh)
+        add a,ATTRS>>8
+        add a,b
+        pop bc
+        ret
+
+; @rmap: HL = an address as BASIC PEEKs and POKEs it (the Spectrum's) ->
+; HL = where it is here: the display file (4000h - 5AFFh) at page @rdh;
+; the ROM's font (FONT_ROM - 3FFFh) the program's own (CHARS); the rest of
+; the ROM: a zero byte.  Keeps BC, DE.
+@rmap:  ld a,h
+        cp SCR_SPEC
+        j c,.rom
+        cp SCR_SPEC+(ATTRS+COLS*LINES)/256
+        ret nc
+        sub SCR_SPEC
+        push bc
+        ld b,a
+        ld a,(@rdh)
+        add a,b
+        ld h,a
+        pop bc
+        ret
+.rom:   cp FONT_ROM>>8
+        j c,.none
+        push de
+        ld de,FONT_ROM-256
+        or a
+        sbc hl,de               ; (CHARS: 256 bytes before ' ')
+        ld de,(CHARS)
+        add hl,de
+        pop de
+        ret
+.none:  ld hl,@rzero
+        ret
+
         section bss
+@rzero: ds 1
 @rcx:   ds FNUM
 @rcy:   ds FNUM
 @rcr:   ds FNUM

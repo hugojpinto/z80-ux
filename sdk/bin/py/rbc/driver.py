@@ -92,7 +92,8 @@ def main(argv=None):
                                      % ' '.join(uxr['rom']))
                 image = rld.parse_ssx(ssx)
                 report.update(file=len(ssx), image=len(image['image']), bss=image['bss'],
-                              total=len(image['image']) + image['bss'] + args.stack,
+                              stack=image['stack'],
+                              total=len(image['image']) + image['bss'] + image['stack'],
                               relocations=len(image['relocs']))
                 if uxr['rom']:
                     print('RBC_UX_ROM ' + ' '.join(uxr['rom']), file=sys.stderr)

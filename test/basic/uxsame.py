@@ -94,6 +94,15 @@ def run(data, name, frames, steps, entry):
         return False
     if not isinstance(entry, tuple):
         m.hooks[entry] = hit
+        sys_hook0 = m.hooks[SYSCALL]  # the ROM's build: the ROM's print position as
+
+        def top_left(mm):             # after CLS (--ux's own starts there; the ROM's
+            if m.hooks.get(SYSCALL) is top_left and mm.cpu.a == 39:   # is where the
+                mm.mem[0x5C88:0x5C8A] = bytes([0x21, 0x18])           # system left it)
+                mm.mem[0x5C84:0x5C86] = bytes([0x00, 0x40])
+                m.hooks[SYSCALL] = sys_hook0
+            return sys_hook0(mm)
+        m.hooks[SYSCALL] = top_left
     else:                               # at its first system call (39, the
         sys_hook = m.hooks[SYSCALL]     # wrapper's claim): it is loaded there
         offset = entry[1]
@@ -104,6 +113,8 @@ def run(data, name, frames, steps, entry):
                 ret = mm.mem[sp] | mm.mem[sp + 1] << 8
                 base = ret - len(START)
                 if bytes(mm.mem[base:ret]) == START:
+                    if mm.mem[base - 4] == 0xFD and mm.mem[base - 3] == 0x21:
+                        base -= 4       # (--ux: ld iy,@rsv+3Ah first)
                     m.hooks[base + offset] = hit
                     m.hooks[SYSCALL] = sys_hook
             return sys_hook(mm)

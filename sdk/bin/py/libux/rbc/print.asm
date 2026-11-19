@@ -862,11 +862,17 @@
 .errk:  ld a,R_COL
         jp @rerr
 
-; RANDOMIZE BC (0: FRAMES).
+; RANDOMIZE BC (0: the time, the kernel's ticks: nothing counts FRAMES in
+; the program's own system variables).
 @r1E52: ld a,b
         or c
         j nz,@rseed
-@r1E56: ld bc,(FRAMES)
+@r1E56: push hl                 ; (FRAMES: the kernel's ticks)
+        ld a,SYS_TICKS
+        call SYS
+        ld b,h
+        ld c,l
+        pop hl
 @rseed: ld (SEED),bc
         ret
 
@@ -886,12 +892,38 @@
 @rchp:  dw 0,0
         db 'P'
 
-; @rinit: the display file's page from the platform (system call 41: D)
+; @rinit, at the start (after the screen's claim): the system variables
+; set up; the display file's page from the platform (system call 41: D)
 ; and whether the console is a terminal (E = 1), or the Spectrum's for a
 ; kernel without it.  Keeps BC, DE, HL.
 @rinit: push bc
         push de
         push hl
+        ld hl,@rsv              ; the system variables: as a Spectrum
+        ld b,SVSIZE             ; has them after CLS - KSTATE no key, the
+.z:     ld (hl),0               ; lower screen two lines, the positions
+        inc hl                  ; top left (the display file's own page
+        djnz .z                 ; first, below)
+        ld hl,KSTATE
+        ld b,8
+.ks:    ld (hl),0FFh
+        inc hl
+        djnz .ks
+        ld a,0FFh
+        ld (ERRNR),a
+        ld a,LOWER
+        ld (DFSZ),a
+        ld a,ATTR_INIT
+        ld (BORDCR),a
+        ld (ATTRP),a
+        ld a,1
+        ld (SCRCT),a
+        ld hl,MEMBOT
+        ld (MEMV),hl
+        ld hl,@end              ; the workspace and the calculator stack:
+        ld (WORKSP),hl          ; past the program, up towards its stack
+        ld (STKBOT),hl          ; (a wrapper with its own area sets that)
+        ld (STKEND),hl
         ld hl,0
         ld a,SYS_SCR
         call SYS
@@ -902,6 +934,20 @@
 .k:     ld (@rdh),a
         ld a,e
         ld (@rterm),a
+        ld hl,TVFLAG            ; the positions: the lower screen's bottom
+        set TVF_LOW,(hl)        ; line, the upper screen's top left
+        ld bc,(CLINE-1)<<8|CCOL
+        call @rcset
+        ld (SPOSNL),bc
+        ld (DFCCL),hl
+        ld hl,TVFLAG
+        res TVF_LOW,(hl)
+        ld bc,CLINE<<8|CCOL
+        call @rcset
+        ld (SPOSN),bc
+        ld (DFCC),hl
+        ld a,S_SCR
+        call @r1601
         pop hl
         pop de
         pop bc

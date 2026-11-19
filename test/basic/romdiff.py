@@ -43,9 +43,10 @@ def build():
     d = os.path.join(ROOT, 'sdk', 'bin', 'py', 'libux')
     libs = [rld.read_archive(open(os.path.join(d, n), 'rb').read(), n)
             for n in ('librbc.ssa', 'libc48.ssa')]
-    names = sorted(s for m in libs[0] for s in m.defs() if s.startswith('@r'))
-    stub = '        section text\n        global start\nstart:\n' + ''.join(
-        '        dw %s\n' % n for n in names + ['@romfp'])
+    names = sorted(s for m in libs[0] for s in m.defs() if s.startswith('@r') and s != '@rsv')
+    stub = ('        section text\n        global start,@rsv\n'
+            '@rsv    equ 5C00h          ; the system variables where the ROM has them\n'
+            'start:\n') + ''.join('        dw %s\n' % n for n in names + ['@romfp'])
     image, bss, ent, gaddr, chosen = rld.link([rld.Obj(ras.assemble_text(stub, 'stub'), 'stub')],
                                               libs, org=ORG)
     return bytes(image), {n: ORG + a for n, (a, r) in gaddr.items()}
@@ -334,7 +335,8 @@ def print_tests(pair, rng, n, only, verbose):
         'CL-SET': lambda: (2, [65], [('@r0DD9', 0x0DD9, 0, rng.randrange(3, 25) << 8 | rng.randrange(2, 34), 0)]),
         'PR-STRING': lambda: (2, [], [('@r203C', 0x203C, 0, 20, 0x3D00 + rng.randrange(0, 600))]),
         'BORDER': lambda: (2, [65], [('@r2297', 0x2297, rng.randrange(0, 8), 0, 0)]),
-        'RANDOMIZE': lambda: (2, [], [('@r1E52', 0x1E52, 0, rng.choice([0, rng.randrange(65536)]), 0)]),
+        # (RANDOMIZE 0: the kernel's ticks for --ux, FRAMES for the ROM: not compared)
+        'RANDOMIZE': lambda: (2, [], [('@r1E52', 0x1E52, 0, rng.randrange(1, 65536), 0)]),
     }
     count = 0
     for name, gen in tests.items():

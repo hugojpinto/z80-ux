@@ -192,6 +192,7 @@ FL2_CAPS equ 3                  ; FLAGS2 bit 3: CAPS LOCK
 YMAX    equ 175                 ; the highest PLOT line (the lower screen's below)
 PIX_W   equ 256
 FONT_N  equ 96                  ; the characters CHARS holds, from ' '
+FONT_ROM equ 3D00h              ; the 48K ROM's font (' '), as BASIC PEEKs it
 
 ; The line being typed
 MODE    equ @rsv+41h            ; 1: E, 2: G (the cursor's letter)
@@ -214,3 +215,9 @@ SEMITONES equ 12                ; an octave
 SPK     equ 10h                 ; port KPORT: the speaker's bit,
 MIC     equ 08h                 ; ... the MIC's (kept set),
 A_BORD  equ 07h                 ; ... the border's colour
+
+; The system variables' block (5C00h .. 5CB5h on a Spectrum)
+SV_BASE equ 5C00h               ; where a Spectrum has them (the program's references)
+SVSIZE  equ 0B6h
+ATTR_INIT equ 38h               ; the colours at the start: paper 7, ink 0
+SYS_TICKS equ 38                ; the kernel's ticks so far (RANDOMIZE)
