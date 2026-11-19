@@ -320,6 +320,12 @@ hputc:  push hl
         jr z,.at
         cp 14h                  ; INVERSE n.
         jr z,.inv
+        cp 10h                  ; INK, PAPER, BRIGHT n: no colour on the
+        jr z,.inv               ; terminal - taken, and dropped
+        cp 11h
+        jr z,.inv
+        cp 13h
+        jr z,.inv
         cp 10
         jr z,.nl
         cp 9
@@ -377,8 +383,10 @@ hputc:  push hl
         jr .x
 .pend:  ld c,a
         ld a,(ttcc)
+        cp 16h
+        jr z,.pat
         cp 14h
-        jr nz,.pat
+        jr nz,.x                ; (INK, PAPER, BRIGHT)
         ld a,c                  ; INVERSE 0/1: bit 0.
         rrca
         ld a,'M'

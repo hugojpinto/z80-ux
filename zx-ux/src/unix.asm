@@ -671,6 +671,7 @@ systab:
         dw sysgetuid, sysstime, sysok, sysintr, sysfstat, sysok
         dw sysmdate, sysstty, sysgtty, sysok, syssleep, syskill
         dw sysgetpid, syszx, systicks, sysscreen, sysssxl
+        dw sysdisp              ; 41: the console, a display file (the platform's)
 
 ; ---------------------------------------------------------------------
 ; process system calls (u1/u2).
@@ -679,7 +680,7 @@ systab:
 sysrele:                        ; give up the processor.
         HAL_YIELD
         call preempt
-        jr sysok
+        jp sysok
 
 
 ; sysgetpid: 4 bytes. Tell the process its own number. ID check.

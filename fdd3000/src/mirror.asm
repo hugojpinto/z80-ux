@@ -479,3 +479,12 @@ mglyph: ds 4
 msum:   ds 24*4                 ; each row's pixel checksum (two words)
 mcbuf:  ds 24*64                ; what the terminal shows
 mhash:  ds 256,0                ; glyph hash -> character
+
+; sysdisp (41): the console - the terminal, 80 x 24 - and a display file
+; for a program that draws: the old display file at 4000h, mirrored.
+; HL = 0: describe; 1, 40h: claim.  -> D = page, E = 1 (a terminal),
+; L = columns, H = rows.  (platform/screen-kinds.md)
+sysdisp:
+        ld de,4001h
+        ld hl,24*256+80
+        jp sysok

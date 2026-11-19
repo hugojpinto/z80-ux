@@ -173,7 +173,7 @@ _zxpack equ 37              ; Call 37 packs a named file; zero asks for arena st
 _ticks  equ 38              ; Call 38 reads the 50 Hz frame count. Time still passes.
 _screen equ 39              ; Call 39 claims or frees the screen. Share the pixels.
 _ssxload equ 40             ; Call 40 takes length in BC, RAM in DE, args in HL. Bring all three.
-NSYS    equ 41
+NSYS    equ 42
 
 ; tty modes (stty word 3).
 TT_RAW  equ 020h

@@ -33,6 +33,12 @@ kputc:
         jr z,.ctl2
         cp 14h                  ; INVERSE n.
         jr z,.ctl1
+        cp 10h                  ; INK n, PAPER n, BRIGHT n (the Spectrum's
+        jr z,.ctl1              ; own codes: the attribute of what follows)
+        cp 11h
+        jr z,.ctl1
+        cp 13h
+        jr z,.ctl1
         cp 10
         jr z,.nl
         cp 9
@@ -70,10 +76,10 @@ kputc:
         and 7
         jr nz,.tab
         jr .x
-.bel:   ld hl,0300h             ; ROM BEEPER: ~ 560 Hz, 0.1 s.
+.bel:   ld hl,0300h             ; BEEPER: ~ 560 Hz, 0.1 s.
         ld de,056h
         push ix
-        call ROM_BEEPER
+        call snd_beep
         pop ix
         ei
         jr .x
@@ -90,31 +96,64 @@ kputc:
         jr .x
 .pend:  ld c,a
         ld a,(ttcc)
+        cp 16h
+        jr z,.pat
         cp 14h
-        jr nz,.pat
-        ld a,c                  ; INVERSE 0/1.
+        jr z,.pinv
+        ld hl,tattr             ; INK, PAPER, BRIGHT: the attribute
+        cp 11h
+        ld a,c
+        jr z,.ppap
+        jr c,.pink
+        res 6,(hl)              ; BRIGHT 0/1
+        rrca
+        jp nc,.x
+        set 6,(hl)
+        jp .x
+.pink:  and 7
+        ld c,a
+        ld a,(hl)
+        and 0F8h
+        or c
+        ld (hl),a
+        jp .x
+.ppap:  and 7
+        rlca
+        rlca
+        rlca
+        ld c,a
+        ld a,(hl)
+        and 0C7h
+        or c
+        ld (hl),a
+        jp .x
+.pinv:  ld a,c                  ; INVERSE 0/1.
         rrca
         sbc a,a
         and 0F0h
         ld (tinv),a
-        jr .x
+        jp .x
 .pat:   ld a,(ttp1)             ; AT: text rows and columns only.
         cp TROWS
-        jr nc,.x
+        jp nc,.x
         ld b,a
         ld a,c
         cp 64
-        jr nc,.x
+        jp nc,.x
         ld (tcol),a
         ld a,b
         ld (trow),a
-        jr .x
+        jp .x
 
 ; tput: 19 bytes. A = printable char; draw and advance, wrapping after column 63. No spare row.
 tput:   ld de,(trow)            ; E = row, D = column.
         ld hl,tinv
         ld b,(hl)
         call glyph
+        ld de,(trow)            ; its cell takes the attribute (a cell is
+        call tatt               ; two characters wide: they share it)
+        ld a,(tattr)
+        ld (hl),a
         ld hl,tcol
         inc (hl)
         ld a,(hl)
@@ -157,6 +196,42 @@ tscrl:  ld a,(ttop)
         inc a
         cp TROWS-1
         jr c,.r
+        push af                 ; the attributes go up with the pixels
+        call .atr
+        pop af
+        jr clrrow
+.atr:   ld a,(ttop)
+        ld e,a
+        ld d,0
+        call tatt               ; HL = the top row's attributes
+        ld a,(ttop)
+        neg
+        add a,TROWS-1           ; rows that move
+        ret z
+        ld d,h
+        ld e,l
+        ld b,0
+        ld c,a
+        ld hl,32
+        add hl,de
+        sla c                   ; x 32
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        ldir
+        ld h,d                  ; the new bottom row: plain
+        ld l,e
+        ld (hl),7
+        inc de
+        ld bc,31
+        ldir
+        ret
 ; clrrow: 18 bytes. A = row → clear its pixels. No rag required.
 clrrow: call rowadr
         ld c,8
@@ -241,8 +316,20 @@ glyph:  push af
 ; kcls: 24 bytes. Clear the console. Fresh slate, same tiny screen.
 kcls:   ld hl,4000h
         ld bc,1800h
-        call zero               ; Clear the bitmap, not the attribute bytes.
-        xor a                   ; Keep the screen colors already in RAM.
+        call zero               ; Clear the bitmap, and the console's
+        ld hl,5800h             ; attributes to white on black (INK and
+        ld bc,TROWS*32          ; PAPER may have coloured them)
+        ld a,7
+        ld (tattr),a
+.ka:    ld (hl),a
+        inc hl
+        dec bc
+        ld e,a
+        ld a,b
+        or c
+        ld a,e
+        jr nz,.ka
+        xor a
         ld (trow),a
         ld (tcol),a
         ld (cdrawn),a
@@ -515,3 +602,35 @@ s64tick:
         call nz,stdraw
         call cblnk
         ret
+
+; tatt: E = row, D = column -> HL = its attribute cell (5800h + 32 *
+; row + column / 2).
+tatt:   ld a,e
+        and 7
+        rrca
+        rrca
+        rrca
+        ld l,a
+        ld a,e
+        rrca
+        rrca
+        rrca
+        and 3
+        add a,58h
+        ld h,a
+        ld a,d
+        srl a
+        or l
+        ld l,a
+        ret
+
+tattr:  db 7                    ; INK, PAPER, BRIGHT of what kputc draws
+
+; sysdisp (41): the console, and a display file for a program that draws.
+; HL = 0: describe; HL = 1 or 40h: claim one (the screen: always 4000h
+; here).  -> D = the display file's page, E = 0 (a screen the kernel draws
+; on), L = columns, H = rows.  (platform/screen-kinds.md)
+sysdisp:
+        ld de,4000h
+        ld hl,24*256+64
+        jp sysok
