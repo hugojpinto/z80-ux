@@ -155,7 +155,7 @@ absolute address:
 | call numbers 0–40, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL |
 | **5BE4h** (`TTOP`) | programs that draw (`console.asm`) | the shared console rows; goes with a screen-page call |
 | **4000h** screen | programs that draw, built without `rcc --ux` (or the fixed kind) | `--ux` bitmap programs ask call 41 for the page; the FDD3000 refuses the others (`HAL_SCR4000 equ 0`) |
-| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | programs using floats (`float.asm`) | the ROM calculator: only with the 48 ROM (rom48) |
+| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | float programs built without `rcc --ux` (and `beep()`) | the ROM calculator; `--ux` programs use system call 42 instead (`float.md`): the ROM on a Spectrum, a loaded clean-room engine elsewhere |
 | port **FEh** keyboard rows | `sys.asm` (key reads) | the ULA's keyboard: only where the keyboard is the ULA's |
 
 **Everything else is per build**: the kernel's place (6000h), its
