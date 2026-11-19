@@ -502,10 +502,13 @@ sysdisp:
         jp z,syserr
         call dalloc
         jp c,syserr
-.d:     ld a,(dpage)
+.d:     call connar             ; (a narrow console: 32 columns)
+        ld a,(dpage)
         ld d,a
         ld e,1
         ld hl,24*256+80
+        jp z,sysok
+        ld l,32
         jp sysok
 
 ; dalloc: the display file, if there is none: 6,912 bytes on a page

@@ -28,29 +28,29 @@ kputc:
         ld hl,ttat
         inc (hl)
         dec (hl)
-        jr nz,.prm
+        jp nz,.prm
         cp 16h                  ; AT row,col.
-        jr z,.ctl2
+        jp z,.ctl2
         cp 14h                  ; INVERSE n.
-        jr z,.ctl1
+        jp z,.ctl1
         cp 10h                  ; INK n, PAPER n, BRIGHT n (the Spectrum's
-        jr z,.ctl1              ; own codes: the attribute of what follows)
+        jp z,.ctl1              ; own codes: the attribute of what follows)
         cp 11h
-        jr z,.ctl1
+        jp z,.ctl1
         cp 13h
-        jr z,.ctl1
+        jp z,.ctl1
         cp 10
-        jr z,.nl
+        jp z,.nl
         cp 9
-        jr z,.tab
+        jp z,.tab
         cp 7
-        jr z,.bel
+        jp z,.bel
         cp 8
-        jr z,.bs
+        jp z,.bs
         cp 12
-        jr z,.ff
+        jp z,.ff
         cp 7Fh+1                ; 20h-7Fh printable.
-        jr nc,.x
+        jp nc,.x
         cp 20h
         call nc,tput
 .x:     xor a
@@ -64,11 +64,15 @@ kputc:
         jr .xj0_56
 .nl:    call tnl
         jr .x
-.bs:    ld hl,tcol              ; backspace.
-        ld a,(hl)
-        or a
-        jr z,.x
-        dec (hl)
+.bs:    call connar             ; backspace (narrow: a column is two)
+        ld hl,tcol
+        ld b,1
+        jr z,.bs1
+        inc b
+.bs1:   ld a,(hl)
+        sub b
+        jr c,.x
+        ld (hl),a
         jr .x
 .tab:   ld a,' '
         call tput
@@ -136,9 +140,16 @@ kputc:
 .pat:   ld a,(ttp1)             ; AT: text rows and columns only.
         cp TROWS
         jp nc,.x
-        ld b,a
+        ld b,a                  ; B row, C column
+        push bc
+        call connar             ; (narrow: 32 columns, each two wide)
+        pop bc
         ld a,c
-        cp 64
+        jr z,.paw
+        cp 32
+        jp nc,.x
+        add a,a
+.paw:   cp 64
         jp nc,.x
         ld (tcol),a
         ld a,b
@@ -146,7 +157,12 @@ kputc:
         jp .x
 
 ; tput: 19 bytes. A = printable char; draw and advance, wrapping after column 63. No spare row.
-tput:   ld de,(trow)            ; E = row, D = column.
+; (A narrow console's: tput8.)
+tput:   push af
+        call connar
+        jr nz,tput8
+        pop af
+        ld de,(trow)            ; E = row, D = column.
         ld hl,tinv
         ld b,(hl)
         call glyph
@@ -159,6 +175,56 @@ tput:   ld de,(trow)            ; E = row, D = column.
         ld a,(hl)
         cp 64
         ret c
+        jr tnl
+; tput8: z80-ux: a narrow console's character (32 columns: platform/
+; screen-kinds.md): the platform's 8x8 font (HAL_FONT8) on a whole cell,
+; at an even column (after a wide one: the next), its own attribute.
+tput8:  ld hl,tcol
+        ld a,(hl)
+        inc a
+        and 0FEh
+        cp 64
+        jr c,.k
+        call tnl
+        xor a
+.k:     ld (tcol),a
+        ld de,(trow)
+        call scradr             ; HL = the cell's first byte
+        pop af
+        sub 20h
+        cp 60h                  ; not printable: a space
+        jr c,.g
+        xor a
+.g:     push hl
+        ld l,a
+        ld h,0
+        add hl,hl
+        add hl,hl
+        add hl,hl
+        ld de,HAL_FONT8
+        add hl,de
+        ex de,hl
+        pop hl
+        ld a,(tinv)             ; INVERSE: the whole byte
+        or a
+        jr z,.i
+        ld a,0FFh
+.i:     ld c,a
+        ld b,8
+.r:     ld a,(de)
+        xor c
+        ld (hl),a
+        inc de
+        inc h
+        djnz .r
+        ld de,(trow)
+        call tatt
+        ld a,(tattr)
+        ld (hl),a
+        ld hl,tcol              ; (past the last column: the next line when
+        inc (hl)                ; a character comes, as BASIC's PRINT does -
+        inc (hl)                ; not a scroll at the bottom now)
+        ret
 ; tnl: 14 bytes. Advance the text row, scrolling when needed. Twenty-three rows are the whole deal.
 tnl:    xor a
         ld (tcol),a
@@ -631,6 +697,9 @@ tattr:  db 7                    ; INK, PAPER, BRIGHT of what kputc draws
 ; here).  -> D = the display file's page, E = 0 (a screen the kernel draws
 ; on), L = columns, H = rows.  (platform/screen-kinds.md)
 sysdisp:
+        call connar             ; (a narrow console: 32 columns)
         ld de,4000h
         ld hl,24*256+64
+        jp z,sysok
+        ld l,32
         jp sysok

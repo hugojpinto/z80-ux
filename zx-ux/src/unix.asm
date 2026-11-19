@@ -792,6 +792,7 @@ sysfork:
         pop bc
 ; shared open files: bump reference counts.
         call fpfork             ; the float engine, if the parent has it (C: the child)
+        call confork            ; a narrow console too
         call fpdup
 ; build the child's context frame on this stack. The return address would like to survive.
         ld hl,forkret
@@ -864,6 +865,65 @@ forkcpy:
         ld a,(chslot)
         jp mem_swapout          ; the window image (platform).
 
+; conset .. confork: z80-ux: the processes whose console is 32 columns
+; (an SSX1 program of the console kind with flags bit 4: platform/
+; screen-kinds.md), a bit each in conar, as scrown.  The console draws
+; their characters twice as wide; call 41 says 32 columns to them.
+; conset: A = the flags of the program the running process loads.
+conset: push af
+        call conrel
+        pop af
+        and 1Eh                 ; declared (bit 3), console (bits 2-1: 01),
+        cp 1Ah                  ; 32 columns (bit 4)
+        ret nz
+        call conbit
+        ld hl,conar
+        or (hl)
+        ld (hl),a
+        ret
+; conrel: the running process's console wide again.  Uses AF, B, HL.
+conrel: call conbit
+        cpl
+        ld hl,conar
+        and (hl)
+        ld (hl),a
+        ret
+; connar: NZ if the running process's console is narrow.  Uses AF, B, HL.
+connar: call conbit
+        ld hl,conar
+        and (hl)
+        ret
+; confork: C = the child's slot: narrow if the parent is.  Keeps every
+; register (fork's fpdup goes on with them).
+confork:
+        push af
+        push hl
+        push bc
+        call connar
+        jr z,.x
+        ld b,c
+        inc b
+        xor a
+        scf
+.l:     rla
+        djnz .l
+        or (hl)
+        ld (hl),a
+.x:     pop bc
+        pop hl
+        pop af
+        ret
+; conbit: A = the running slot's bit (slot 0 = 1).  Uses B.
+conbit: ld a,(cur)
+        ld b,a
+        inc b
+        xor a
+        scf
+.l:     rla
+        djnz .l
+        ret
+conar:  db 0
+
 ; sysfp: z80-ux: the float engine's address (platform/float.md): HL = 0
 ; -> HL = where to call it.  The platform's fpget finds it (a ROM, a
 ; module it loads), fprel lets go of it when the process ends or execs,
@@ -876,6 +936,7 @@ sysfp:  call fpget
 release:
         call scrrel
         call fprel
+        call conrel
         ld a,(cur)
         ld c,a
         ld a,(wown)
@@ -1479,6 +1540,7 @@ exname: ld a,(u_intr)
         ld (u_intr),a
 .i0:    call scrrel             ; a screen it owned goes back.
         call fprel              ; so does the float engine
+        call conrel             ; and a narrow console
         ld hl,(u_tmp)
 .nm:    call basename           ; HL = a path: sys ssxload names the program.
         ld a,(cur)
@@ -1621,6 +1683,11 @@ sysssxl:
         call taprd
         ENDIF
         jr c,.bad
+        ld hl,(KC_F)            ; z80-ux: its console's width (flags, bit 4)
+        ld bc,4
+        add hl,bc
+        ld a,(hl)
+        call conset
         ld hl,(KC_F)            ; its header (before the image moves.
         ld bc,6                 ; over it).
         add hl,bc

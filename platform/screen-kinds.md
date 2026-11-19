@@ -45,6 +45,8 @@ flags bit 0   (as today)
       bits 2-1   00 stream   01 console   10 bitmap   11 bitmap, fixed at
                                                          4000h (the program
                                                          writes it itself)
+      bit 4      with the console kind: its console is 32 columns wide
+                 (rbc --ux, a BASIC program: see "A narrow console" below)
 ```
 
 *As built:* bit 3 was added so that a declared stream program (00) and an
@@ -160,6 +162,26 @@ Per platform:
   The page is any page (B1h, say), not 8K-aligned like 40h: the bitmap
   runtime adds it last when it builds an address (`@pxad`) and takes it
   off before reading a pixel address's third (`@pxat`).
+
+## A narrow console (flags bit 4)
+
+*As built.* A console-kind program may declare its console 32 columns
+wide (bit 4 with bits 3, 2-1 = 1, 01: flags 1Ah) - BASIC's screen.  The
+SSX1 loader (call 40, `sysssxl`) keeps the bit for the process (`conar`
+in `unix.asm`, a bit a slot as `scrown`; a child of fork has its
+parent's, exec and exit clear it); call 41 answers L = 32 to it.  Its
+output keeps the console's codes, in its own columns:
+
+- **spectrum48** (`screen64`): its characters are 8x8, from the ROM's
+  font (`HAL_FONT8`, 3D00h), each on a whole attribute cell (its colours
+  exactly, not shared with a neighbour), at physical column 2c; AT takes
+  columns 0-31; past the last column the next line comes with the next
+  character, as PRINT's (no scroll at the bottom before it).  Narrow and
+  wide output share the screen: the cursor is kept in 64 columns.
+- **fdd3000** (a terminal): nothing changes - column c is the terminal's
+  column c.
+
+Older kernels ignore the bit (64 columns, the 4x8 font, all else works).
 
 ## Keys behind a terminal
 
