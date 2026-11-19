@@ -82,8 +82,11 @@ def stack_estimate(g):
 
 
 # z80-ux (rcc --ux): what a program needs of the screen, from what it
-# references (platform/screen-kinds.md).  SSX1 flags bits 2-1.
+# references (platform/screen-kinds.md).  SSX1 flags: bit 3 set, the kind
+# in bits 2-1.
 KIND_STREAM, KIND_CONSOLE, KIND_BITMAP, KIND_FIXED = 0, 1, 2, 3
+KIND_DECLARED = 8           # flags bit 3: set - an older binary's flags are 0
+                            # and it draws at 4000h whatever bits 2-1 say
 KINDS = {'stream': KIND_STREAM, 'console': KIND_CONSOLE, 'bitmap': KIND_BITMAP,
          'fixed': KIND_FIXED}
 BITMAP_API = {'_plot', '_point', '___pixel', '@pixel', '@pxok', '_udg_define', '_udg_get',
@@ -146,7 +149,8 @@ def build(src, opts):
         if kind < KIND_BITMAP:              # its text through the terminal
             with open(os.path.join(SDK, 'libux', 'libtty.ssa'), 'rb') as stream:
                 arcs = [rld.read_archive(stream.read(), 'libtty.ssa')] + arcs
-        data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0, kind << 1)
+        data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0,
+                                                 KIND_DECLARED | kind << 1)
         opts['kind_found'] = kind
     h = rld.parse_ssx(data)
     need = max(len(h['image']) + h['bss'] + h['stack'], len(data))

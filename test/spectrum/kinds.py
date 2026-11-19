@@ -47,7 +47,8 @@ def build():
         if r.returncode:
             raise SystemExit('rcc %s: %s%s' % (name, r.stdout, r.stderr))
         data = open(dst, 'rb').read()
-        out[name] = (data, KIND[rld.parse_ssx(data)['flags'] >> 1])
+        f = rld.parse_ssx(data)['flags']
+        out[name] = (data, KIND[f >> 1 & 3] if f & 8 else 'undeclared')
     return out
 
 

@@ -40,10 +40,16 @@ graphical demos and games (`mandel`, `3dpaint`, `invaders`, `orcattack`,
 
 ```
 flags bit 0   (as today)
+      bit 3      1: the kind below is declared (rcc --ux); 0: an older
+                 binary, which claims the screen and draws at 4000h
       bits 2-1   00 stream   01 console   10 bitmap   11 bitmap, fixed at
                                                          4000h (the program
                                                          writes it itself)
 ```
+
+*As built:* bit 3 was added so that a declared stream program (00) and an
+older binary (flags 0, but drawing at 4000h) can be told apart - which a
+platform that uses 4000h-5AFFh for something else must do.
 
 - **Old binaries** have bits 2–1 = 00 but do claim the screen through
   `@scrinit`: the kernel keeps treating call 39 as it does now, so they
