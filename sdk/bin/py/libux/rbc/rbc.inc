@@ -107,6 +107,7 @@ FNUM    equ 5                   ; bytes in a number
 
 SYS     equ 6003h               ; the kernel's system calls
 SYS_FP  equ 42                  ; the float engine's address
+ENOMEM  equ 12                  ; the kernel's error: no memory
 SYS_SCR equ 41                  ; the screen, described
 
 ; The five-byte number: an exponent byte (bias N_BIAS; 0: a small integer:

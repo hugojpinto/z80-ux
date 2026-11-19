@@ -8,7 +8,7 @@
 ; A = the operation, HL = x, DE = y, BC = the result -> CF: none.  Its
 ; address from system call 42, asked once.  No ROM fallback (libux's
 ; @fcall has one, for kernels without call 42): a kernel without the
-; engine stops the program with report C.
+; engine stops the program with report C; no room to load it, report 4.
         section text
         global @rfcall
 
@@ -29,7 +29,10 @@
         pop bc
         ld (@rfpe),hl
         j nc,.k
-        ld a,R_NONS             ; no float engine
+        cp ENOMEM               ; no room for it: 4 Out of memory
+        ld a,R_OOM
+        jp z,@rerr
+        ld a,R_NONS             ; no float engine (a kernel without call 42)
         jp @rerr
 .k:     ld (.c+1),hl
         pop hl
