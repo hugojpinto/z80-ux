@@ -30,13 +30,14 @@ general:
   On the +2A/+3 (ROM3) and the TC2068 the stretch is not FFh; on the
   TC3256 only 7 of the 257 bytes are; on the FDD3000 there is no ROM.
 - Ch. 19, *ROM is a service*: IY = 5C3Ah around every ROM call — a rule
-  of machines with the Spectrum ROM (`HAL_ROM`), meaningless without it.
+  of machines with the 48 ROM (the rom48 driver), meaningless without it.
 - Ch. 23: "Four ticks make one normal scheduling quantum, which is about
   80 milliseconds" — 66 ms at the TS2068's 60 Hz.
 - Ch. 28: the console is the bit-mapped screen; ch. 2 *Two programs, one
   screen*; ch. 35 "the shared graphics screen cannot keep two drawing
-  applications in private windows" — a property of `CON_SCREEN`.
-- Ch. 6, 29: cassette as the storage and the program loader (`HAL_TAPE`).
+  applications in private windows" — a property of the screen console
+  (screen64).
+- Ch. 6, 29: cassette as the storage and the program loader (rom48's tape).
 - Ch. 35, *What the machine cannot do*: "a RAM file system, not disk
   persistence", "no MMU" — of the 48K; the FDD3000 has disks, the TC3256
   and 128K have paging.
@@ -59,9 +60,11 @@ Proposed as design rules, in the book's style of short imperatives:
    the seam is proven on the Spectrum by rebuilding the shipped tape
    exactly. A seam that changes Spectrum bytes is a change to ZX-UX, not a
    port.
-3. **Capabilities describe hardware or subsystems, never products.**
-   `HAL_ROM`, `HAL_TAPE`, `HAL_VFS` — not "FDD3000". Two machines with the
-   same facts share the same code.
+3. **Hardware is a choice of drivers; flags switch subsystems only.** A
+   platform says what it *is* by the drivers it includes (rom48,
+   screen64, a terminal, a disk driver); `HAL_VFS`, `HAL_SSXFILE` say which
+   parts of ZX-UX it carries. Machines with the same hardware share the
+   same drivers (the 48K, 128K, +3 and TC3256 all use rom48).
 4. **The ABI is what binaries pin, and only that is fixed**: the call
    entry 6003h, the call numbers and SSX1; for drawing programs 5BE4h and
    the screen; for float users, the ROM calculator's variables. SSX1
@@ -86,8 +89,8 @@ Proposed as design rules, in the book's style of short imperatives:
 | Part | What changes |
 |---|---|
 | **Foreword, ch. 1** | One paragraph: ZX-UX runs on a family of Z80 machines through a platform layer; the 48K Spectrum is the reference platform and the book's subject; others are described in their own platform notes. The "frozen" 6000h–7FFFh kernel and the fixed map are the reference platform's; binaries pin only 6003h and a few runtime addresses. |
-| **Ch. 2** *Two programs, one screen* | Mark as a `CON_SCREEN` behaviour. On a terminal console the shared rows exist only for programs that draw (the FDD3000's mirror). |
-| **Ch. 6** *Cassettes*, **ch. 29** | Scope to `HAL_TAPE`. A sidebar: on platforms with `HAL_SSXFILE`, an SSX1 program is a file, `/etc/ldx` reads it from a descriptor. |
+| **Ch. 2** *Two programs, one screen* | Mark as a behaviour of the screen console (screen64). On a terminal console the shared rows exist only for programs that draw (the FDD3000's mirror). |
+| **Ch. 6** *Cassettes*, **ch. 29** | Scope to the tape driver (rom48). A sidebar: on platforms with `HAL_SSXFILE`, an SSX1 program is a file, `/etc/ldx` reads it from a descriptor. |
 | **Ch. 7** *The software clock* | Ticks are `HAL_HZ`; mention a platform without a frame interrupt (the FDD3000's WD1770 clock, the soft clock). |
 | **Ch. 12, 33** (SDK, C48) | The runtime draws at 4000h; note the planned screen-page call (41) that lets a platform place the screen, and a terminal console for text programs (`fdd3000/docs/memory-plan.md`). |
 | **Ch. 19** *The machine beneath* | The pivot chapter. Keep the Spectrum's address space, ROM and heartbeat as *the reference platform*; add a section **"Platforms"**: capabilities, hooks, the machine layer, the one rule, the byte-identical proof. State that the IM 2 trick depends on two ROM bytes. |
@@ -96,14 +99,14 @@ Proposed as design rules, in the book's style of short imperatives:
 | **Ch. 23** *Clock and scheduler* | What the handler does is split into the machine's part (keys, vectors) and the kernel's (clock, accounting, quantum, signals) — the planned shared `ktick`. `HAL_IDLE`: `halt` needs an interrupt to come back; a platform without one polls. |
 | **Ch. 24, 25** *Memory, window, arena* | The memory map becomes per platform (table, Appendix C). The window/arena relation stays; note what paging platforms change (128K: one bank per process instead of copying the window; TC3256: windows in RAM-disk sectors). New fixed arena kind for loaded modules (K_FSM). |
 | **Ch. 26, 27** *File system, byte I/O* | With `HAL_VFS`: mounted file systems, i-numbers ≥ 1000h, the i-node cache, types built in or loaded; seek origins 3–5 in sectors. The RAM file system stays the root everywhere. |
-| **Ch. 28** *Devices, terminal, display, keyboard* | Two console models (`CON_SCREEN`, `CON_TERMINAL`); block devices with `HAL_BLKDEV`; the device-number space per platform. |
+| **Ch. 28** *Devices, terminal, display, keyboard* | Two console drivers (screen64, a terminal) behind one interface (`kputc`, `kcls`, `curon`, `curoff`, sys screen); block devices with `HAL_BLKDEV`; the device-number space per platform. |
 | **Ch. 34** *Testing* | The four kinds of checking gain a fifth axis: **per platform**. The Spectrum's gate (byte-identical) proves the seam; each other platform has its emulator tests (the FDD3000's `fdd3000/test`). |
 | **Ch. 35** *What the machine cannot do* | Split into "what the Spectrum cannot do" (as now) and "what a platform may add" (disks, paging, a terminal); the *what to examine before changing the kernel* list gains: "does it name a machine?", "does the Spectrum still build byte for byte?" |
 | **Appendix A, H** | Calls 21/22 (mount/umount) and reserved 41 (screen page), per platform. |
 | **Appendix C** | Constants and addresses per platform; capability table. |
 | **Appendix D, G** | `platform/` and the machine-layer files in the atlas. |
 | **Appendix I** | New rows below; some rows become conditional. |
-| **Appendix J** | The IY rule is `HAL_ROM`'s; note the machine layer's register contract at `HAL_ENTER`/`HAL_LEAVE`. |
+| **Appendix J** | The IY rule is rom48's; note the machine layer's register contract at `HAL_ENTER`/`HAL_LEAVE`. |
 | **New appendix** | *Platforms*: the capability and hook tables, the ABI pins, one page per platform (48K, FDD3000; future: TC3256, 128K, TC/TS2068 from `hardware-notes.md`). |
 
 ## 4. Appendix I: proposed rows
@@ -118,8 +121,8 @@ Proposed as design rules, in the book's style of short imperatives:
 | Mounted i-nodes | A mounted file's i-node lives in the i-node cache, is written back at every system call's end, and never has an arena block. | `vfs.asm`, `fs.asm` |
 | Loaded modules | A file system module is loaded only with this kernel's ABI checksum, into a fixed block outside a lent window, and freed with its last mount. | `fsmod.asm`, `fsmod.py` |
 
-Rows that become conditional: **Tape unwind** (where `HAL_TAPE`),
-**Interrupt registers** (the IY rule, where `HAL_ROM`), **SSX loan**
+Rows that become conditional: **Tape unwind** (with rom48's tape),
+**Interrupt registers** (the IY rule, with rom48), **SSX loan**
 (also when an SSX1 image comes from a file, `HAL_SSXFILE`).
 
 ## 5. What to keep exactly as it is

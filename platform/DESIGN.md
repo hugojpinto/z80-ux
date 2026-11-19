@@ -48,8 +48,8 @@ SDK runtime uses call 41.
 1. **Golden behaviour, Spectrum.** Sessions scripted on the SDK's
    headless Spectrum (`sdk/bin/py`), run against the shipped tape, recorded,
    and replayed against every build of this tree (`test/spectrum`).
-2. **Upstream reproducible.** `build.py spectrum` keeps rebuilding the
-   shipped tape — from upstream's sources once this tree diverges.
+2. **Upstream reproducible.** `build.py upstream` rebuilds upstream's
+   own sources (`UPSTREAM_REF`) and must equal the shipped tape.
 3. **FDD3000**: `fdd3000/test`, all of it, every step.
 4. **Sizes**: per-platform region budgets reported by the build.
 
@@ -60,7 +60,7 @@ SDK runtime uses call 41.
 2. `ktick`: the clock, CPU accounting, quantum and signals, once; the
    Spectrum's frame ISR and the FDD3000's `tint` call it. **Done.**
 3. rom48 and screen64 out of the kernel; console and sound interfaces;
-   the `ROM_*` addresses leave `const.inc`.
+   the `ROM_*` addresses leave `const.inc`. **Done.**
 4. A device table instead of `devread`/`devwrite` and `hdevok`.
 5. The platform as the top-level assembly; a memory map per platform (the
    FDD3000's larger arena: `fdd3000/docs/memory-plan.md` §11).

@@ -660,6 +660,26 @@ stick:  ld a,(scrown)           ; a program draws: show it (mirror.asm)
         pop bc
         ret
 
+; the kernel's console interface (dev.asm): the terminal
+; ---------------------------------------------------------------------
+;  FDD3000: the console is the Timex terminal (VT52) on the link, so
+;  kputc and kcls are hal.asm's hputc and hcls (AT and INVERSE become
+;  ESC Y and ESC L / M).  The terminal draws its own cursor.
+; ---------------------------------------------------------------------
+kputc   equ hputc
+curon   equ hret
+curoff  equ hret
+; kcls: 6 bytes. Clear the terminal; setdirty shares the tail.
+kcls:   call hcls
+        ld a,1
+.xj0_0: ld (stdirty),a
+        ret
+kclick  equ hret                ; no key click: port FEh is the drive latch
+; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
+nodev:  ld a,EIO
+        scf
+        ret
+
         include "fd.asm"        ; the floppy disk driver.
         include "vfs.asm"       ; mounted file systems ...
         include "fsmod.asm"     ; ... of types built in or loaded ...

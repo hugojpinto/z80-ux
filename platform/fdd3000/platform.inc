@@ -6,18 +6,6 @@
 ; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../../LICENSE.
 ; =====================================================================
 
-CON_SCREEN   equ 1
-CON_TERMINAL equ 2
-
-; --- the machine
-HAL_ROM      equ 0              ; no ROM once booted: 0000h-3FFFh is RAM
-HAL_FRAMEIRQ equ 0              ; no frame interrupt: the WD1770 clock (tmr.asm),
-                                ; else the soft clock (hal.asm)
-HAL_ULAFE    equ 0              ; port FEh is the drive latch
-HAL_TAPE     equ 0
-HAL_CONSOLE  equ CON_TERMINAL   ; hputc, hcls, ... (hal.asm); sys screen: the
-                                ; display mirror (mirror.asm)
-
 HAL_HZ       equ 50             ; ticks a second (the WD1770 clock, the soft clock)
 
 ; --- optional subsystems

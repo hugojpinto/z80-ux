@@ -44,7 +44,6 @@ STKRES  equ 384             ; Up to 384 bytes of stack per program, set by heade
 
 KV      equ 05B00h          ; The kernel uses the printer buffer. Sorry, printer.
 KSTACK  equ 05F00h          ; Kernel stack top. It only grows toward trouble.
-IM2I    equ 039h            ; The interrupt register points into ROM FFh bytes. Handy detour.
 TTYBUF  equ 05F01h          ; 80 bytes for a line. No rambling allowed.
 TTYBSZ  equ 80
 KARGS   equ 05F62h          ; 158 bytes for command arguments. Short speeches, please.
@@ -182,29 +181,5 @@ TT_ECHO equ 010h
 TT_FLUSH equ 080h          ; Flush old raw keys once. Yesterday can stay yesterday.
 
 ; ---------------------------------------------------------------- ROM
-ROM_KEYBOARD  equ 002BFh
-ROM_KEYINPUT  equ 010A8h
-ROM_CHANOPEN  equ 01601h
-ROM_CLS       equ 00D6Bh
-ROM_BEEPER    equ 003B5h
-ROM_BREAKKEY  equ 01F54h
-ROM_SABYTES   equ 004C2h
-ROM_LDBYTES   equ 00556h
-ROM_CHARSET   equ 03D00h
 
 ; ROM system variables. Our old neighbors still own their addresses.
-SV_KSTATE equ 05C00h
-SV_LASTK  equ 05C08h
-SV_FLAGS  equ 05C3Bh
-SV_TVFLAG equ 05C3Ch
-SV_ERRSP  equ 05C3Dh
-SV_MODE   equ 05C41h
-SV_BORDCR equ 05C48h
-SV_FLAGS2 equ 05C6Ah
-SV_DFSZ   equ 05C6Bh
-SV_FRAMES equ 05C78h
-SV_SPOSN  equ 05C88h
-SV_SCRCT  equ 05C8Ch
-SV_ATTRP  equ 05C8Dh
-SV_ATTRT  equ 05C8Fh
-SV_CHANS  equ 05C4Fh

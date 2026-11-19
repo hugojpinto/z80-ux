@@ -5,15 +5,8 @@
 ; ZX-UX.tzx (fdd3000/tools/build.py spectrum checks it).
 ; =====================================================================
 
-CON_SCREEN   equ 1              ; the kernel draws its console (64 x 24)
-CON_TERMINAL equ 2              ; the machine layer's terminal is the console
-
-; --- the machine
-HAL_ROM      equ 1              ; the Spectrum ROM is in: keyboard, BEEP, tape, RST 8
-HAL_FRAMEIRQ equ 1              ; 50 Hz frame interrupt, IM 2 through FFF4h (isr)
-HAL_ULAFE    equ 1              ; OUT (FEh) is the ULA: border, beeper, key click
-HAL_TAPE     equ 1              ; the cassette: /dev/tap, /dev/cassette, SSX1 from tape
-HAL_CONSOLE  equ CON_SCREEN
+        include "rom48.inc"     ; the 48 BASIC ROM's addresses (drivers/rom48)
+        DEFINE HAL_DRIVERS "drivers.asm"  ; rom48, screen64, the frame ISR
 
 HAL_HZ       equ 50             ; frame interrupts a second (ULA, PAL)
 
@@ -23,11 +16,12 @@ HAL_VFS      equ 0              ; mounts and file system types (21, 22)
 HAL_SSXFILE  equ 0              ; SSX1 programs from files
 HAL_BOOTMNT  equ 0              ; init mounts a system volume, runs its rc
 
-;       (HAL_LAYER, a DEFINE: a machine layer's source, assembled after the
-;       kernel image - none here: the ROM is the Spectrum's machine layer)
+;       (HAL_DRIVERS: the platform's drivers, assembled right after the
+;       kernel's 8K; HAL_LAYER: a machine layer at its own address)
 
 ; --- hooks: what the kernel does at these points on this machine
         MACRO HAL_INIT          ; boot: before the clock starts (vectors, IM)
+        call sp_init            ; IM 2, the ROM error trap, L mode (machine.asm)
         ENDM
         MACRO HAL_START         ; boot: start the clock, if the machine layer has one
         ENDM

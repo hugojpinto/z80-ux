@@ -42,6 +42,7 @@ ROOT = os.path.dirname(PORT)
 SRC = os.path.join(ROOT, 'zx-ux', 'src')
 UPSTREAM_REF = 'f302288'        # upstream's sources that make ZX-UX.tzx
 PLATFORMS = os.path.join(ROOT, 'platform')     # platform/<name>/platform.inc
+DRIVERS = os.path.join(ROOT, 'drivers')        # drivers/<name>/*.asm, *.inc
 PLATFORM = {'spectrum': 'spectrum48', 'fdd3000': 'fdd3000'}  # target -> name
 TAPE = os.path.join(ROOT, 'zx-ux', 'tzx', 'ZX-UX.tzx')
 BUILD = os.path.join(ROOT, 'build')
@@ -107,7 +108,11 @@ def stage(target):
         shutil.copytree(upstream_src(), src, ignore=shutil.ignore_patterns('rom', '*.doc'))
     else:
         shutil.copytree(SRC, src, ignore=shutil.ignore_patterns('rom', '*.doc'))
-        shutil.copy(os.path.join(PLATFORMS, PLATFORM[target], 'platform.inc'), src)
+        for d in [os.path.join(PLATFORMS, PLATFORM[target])] + \
+                 [os.path.join(DRIVERS, n) for n in sorted(os.listdir(DRIVERS))]:
+            for name in os.listdir(d):          # platform and driver sources
+                if name.endswith(('.asm', '.inc')):
+                    shutil.copy(os.path.join(d, name), src)
     if target == 'fdd3000':
         for name in os.listdir(os.path.join(PORT, 'src')):
             if name.endswith(('.asm', '.inc')):

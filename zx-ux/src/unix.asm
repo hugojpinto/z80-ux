@@ -79,18 +79,6 @@ panic:
 .h:     halt
         jr .h
 
-        IF HAL_ROM              ; RST 8 from a Spectrum ROM routine.
-; rom_error: 21 bytes. The ROM complained. We listen.
-rom_error:                      ; RST 8 from a ROM routine.
-        ld iy,05C3Ah
-        ld a,(tapbusy)
-        or a
-        jr z,.p
-        jp tapend               ; BREAK aborts tape I/O. Rewinding is somebody else's job.
-.p:     ld sp,KSTACK
-        ld hl,msg_romerr
-        jr panic
-        ENDIF
 
 ; ---------------------------------------------------------------------
 ; ISR - ULA 50Hz frame interrupt (u4 'clock' + u0 'kb_int'). No refunds for missed ticks.
@@ -248,98 +236,6 @@ ticksleep:
 ; Status line: process slots and clock, drawn with our 4x8 glyphs.
 ; The ROM can keep its character set.
 ; ---------------------------------------------------------------------
-        IF HAL_CONSOLE == CON_SCREEN ; the status line is drawn on the screen.
-; stdraw: 124 bytes. Paint status. The screen loves a little gossip.
-stdraw:
-        xor a
-        ld (stdirty),a
-        ld a,23
-        call clrrow
-        ld hl,03010h            ; red/yellow clock cells.
-        ld (05AFCh),hl
-        ld hl,02820h            ; green/cyan clock cells.
-        ld (05AFEh),hl
-        xor a
-        ld d,a                  ; column.
-        ld c,a                  ; slot: a 12 column cell each.
-.p:     push bc
-        ld a,c
-        ld l,a                  ; p_stat is page aligned (KV).
-        ld h,p_stat >> 8
-        ld e,(hl)
-        ld a,(cur)              ; the running process in inverse.
-        cp c
-        ld b,0
-        jr nz,.p0
-        ld b,0F0h
-.p0:    ld a,e
-        or a
-        jr z,.pn
-        cp SZOMB                ; Zombies stay off the status line.
-        jr z,.pn                ; Parents may still have to wait.
-        ld a,c
-        add a,'1'
-        call stc
-        ld a,e
-        ld e,':'
-        cp SRUN
-        jr z,.p1
-        ld e,'.'                ; SSLEEP.
-.p1:    ld a,e
-        call stc
-        ld a,c
-        call stname
-        ld c,8
-.n:     ld a,(hl)
-        inc hl
-        call stc
-        dec c
-        jr nz,.n
-.pn:    pop bc
-        ld a,c
-        inc a
-        ld c,a
-        add a,a
-        add a,c
-        add a,a
-        add a,a
-        ld d,a                  ; 12 * slot.
-        ld a,c
-        cp NPROC
-        jr c,.p
-        ld d,56                 ; time hh:mm:ss at column 56.
-        ld b,0
-        ld a,(tod_h)
-        call st2d
-        ld a,':'
-        call stc
-        ld a,(tod_m)
-        call st2d
-        ld a,':'
-        call stc
-        ld a,(tod_s)
-; st2d: 15 bytes. A = 0-99 → two digits on the status line at column D. Leading zero included.
-st2d:   ld e,'0'-1
-.d:     inc e
-        sub 10
-        jr nc,.d
-        add a,'0'+10
-        push af
-        ld a,e
-        call stc
-        pop af
-; stc: 13 bytes. A = glyph, B = inverse, D = column; print it and advance D. BC/E/HL stay put.
-stc:    push hl
-        push de
-        push bc
-        ld e,23
-        call glyph
-        pop bc
-        pop de
-        pop hl
-        inc d
-        ret
-        ENDIF
 
 ; ---------------------------------------------------------------------
 ; scheduler (u3 'swap', 'tswap'; u4 'sleep', 'wakeup').
@@ -1845,7 +1741,8 @@ ldir8:  ld bc,8
 setdirty:
 .xj1_0:
         ld a,1
-        jp kcls.xj0_0  
+        ld (stdirty),a
+        ret
 ; curbrk: 7 bytes. A = running slot, HL = p_brk (for getw2 / setw2). Know the boundary.
 curbrk: ld a,(cur)
         ld hl,p_brk
@@ -1908,77 +1805,13 @@ kend:
 ; ---------------------------------------------------------------------
 ; machine code after the kernel's 8K (platform/DESIGN.md: drivers).
 ; ---------------------------------------------------------------------
-        IF HAL_FRAMEIRQ         ; the frame ISR (else the machine layer keeps time).
-; isr: 207 bytes. The frame clock gets its turn.
-isr:
-        push af
-        push bc
-        push de
-        push hl
-        push ix
-        push iy
-        ld iy,05C3Ah            ; ROM KEYBOARD / KEY-INPUT need it.
-        exx
-        ex af,af'
-        push af
-        push bc
-        push de
-        push hl
-; keyboard - ROM KEYBOARD scans, KEY-INPUT decodes (modes, caps).
-        call ROM_KEYBOARD
-        ld a,(SV_TVFLAG)
-        and 0D7h                ; never let KEY-INPUT touch the editor.
-        ld (SV_TVFLAG),a
-        set 3,(iy+1)            ; L mode.
-        call ROM_KEYINPUT
-        call c,ttrawin
-; BREAK (CAPS SHIFT + SPACE) = interrupt (v1 DEL).
-        call ROM_BREAKKEY       ; NC = pressed.
-        sbc a,a                 ; FF released / 00 pressed.
-        inc a                   ; 00 released / 01 pressed.
-        ld hl,brkst
-        cp (hl)
-        ld (hl),a
-        jr z,.b2
-        or a
-        call nz,ttintr
-.b2:
-; status line, cursor (not while programs own the whole screen).
-        ld a,(ttop)             ; owners 1-0Fh, ttop 0 or 21.
-        ld hl,scrown
-        cp (hl)
-        jr c,.nost
-        ld a,(stdirty)
-        or a
-        call nz,stdraw
-        call cblnk
-.nost:
-        call ktick              ; the kernel's part of the tick.
-.x:
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ex af,af'
-        exx
-        pop iy
-        pop ix
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ei
-        reti
-        ENDIF
 
 ; console font: 96 glyphs of 4 x 8 pixels, two rows a byte (384 bytes,
 ; 4-aligned).  "SANYALnet-Labs-4x8-font-FINAL" from the ZX-UX c48 SDK.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs.
 ; SANYALnet Labs Non-Commercial License: see ../LICENSE.
-        IF HAL_CONSOLE == CON_SCREEN ; the kernel draws its own characters.
-        ALIGN 4
-FONT:   incbin "font4x8.bin", 8, 384
-FONTEND:
+        IFDEF HAL_DRIVERS
+        include HAL_DRIVERS     ; the platform's drivers (platform.inc).
         ENDIF
 ; =====================================================================
 ; user land (resident pure text).
@@ -2023,33 +1856,8 @@ boot:
         ld b,15                 ; calculator left values there.
         call zfill
         HAL_INIT                ; the machine: vectors, interrupt mode.
-        IF HAL_FRAMEIRQ
-; IM 2: vector FFFFh from the ROM, JR at FFFF → JP isr at FFF4.
-        ld a,0C3h
-        ld (TRAMP),a
-        ld hl,isr
-        ld (TRAMP+1),hl
-        ld a,018h
-        ld (0FFFFh),a
-        ld a,IM2I
-        ld i,a
-        im 2
-        ENDIF
-        IF HAL_ROM
-; catch ROM errors (RST 8) instead of returning to BASIC. No victory lap on the error path.
-        ld hl,rom_error
-        ld (kerrsp),hl
-        ld hl,kerrsp
-        ld (SV_ERRSP),hl
-        ENDIF
 ; screen (the loader set the border and colours).
         call kcls
-        IF HAL_ROM
-; keyboard: L mode (lower case), repeat rates.
-        set 3,(iy+1)            ; FLAGS: L mode.
-        xor a
-        ld (SV_MODE),a
-        ENDIF
         ld a,TT_ECHO
         ld (ttymode),a
 ; clock: default date.
@@ -2151,49 +1959,6 @@ toktab: db 0E2h,'~'             ; STOP (SS+A).
         db 0C9h,'!'             ; <>.
         db 0
 
-        IF HAL_TAPE             ; the cassette.
-; tclk: 67 bytes. Account for ROM tape pulses while interrupts were off; return CF. The clock missed the show.
-tclk:   ei                      ; its own time is counted by the ISR.
-        ld ix,100               ; frames: the pilot tone.
-        ld bc,(u_count)
-        ld a,c
-        sub 17                  ; a header is 17 bytes.
-        or b
-        jr nz,.d
-        ld ix,250
-.d:     ld hl,(u_base)          ; ... and the bits.
-        ld e,0                  ; units into the frame.
-.b:     ld a,b
-        or c
-        jr z,.t
-        dec bc
-        ld a,(hl)
-        inc hl
-        scf
-        adc a,a                 ; bit 7 into CF, a marker into bit 0.
-.i:     ld d,a
-        ld a,e
-        adc a,1                 ; one unit, two for a 1.
-        cp 41
-        jr c,.k
-        sub 41
-        inc ix
-.k:     ld e,a
-        ld a,d
-        add a,a                 ; the next bit; the marker leaves A = 0. The jump does not stop for
-                                ; directions.
-        jr nz,.i
-        jr .b
-.t:     di
-        call clk1               ; it leaves IX alone.
-        ei
-        dec ix
-        ld a,ixh
-        or ixl
-        jr nz,.t
-        scf
-        ret
-        ENDIF
 
 lowkend:
         ASSERT lowkend <= KSTACK - LOWSTK

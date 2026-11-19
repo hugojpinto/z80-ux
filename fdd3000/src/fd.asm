@@ -485,12 +485,15 @@ bhp:    ld a,b
         ld hl,bhdr
         jp addhla
 
-; bdirty: buffer B was written to.
+; bdirty: buffer B was written to.  NC: callers end on it (jp bdirty
+; in the file systems) - bhp's address arithmetic must not leave a carry
+; (it did when a buffer's header crossed a page: a spurious error).
 bdirty: call bhp
         inc hl
         inc hl
         inc hl
         ld (hl),1
+        or a
         ret
 
 ; bflsh1: buffer B to disk if dirty.  CF, A on an error (it is left

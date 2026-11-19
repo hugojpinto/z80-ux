@@ -22,7 +22,7 @@ anything else.
 ## The one rule, and its proof
 
 **Kernel code does not name a machine.** A kernel source line that exists
-for one machine sits behind a capability (`IF HAL_ROM`) or is a hook
+for one machine is in a driver or the machine layer, or is a hook
 (`HAL_IDLE`), and the machine's facts live in its `platform.inc`.
 
 The proof that the seam changed nothing: `build.py spectrum` rebuilds the
@@ -34,26 +34,38 @@ it, and every FDD3000 test passed unchanged.
 
 ## Capabilities
 
-Numbers (`equ`), tested with `IF`. *Machine* ones say what the hardware
-is; *subsystem* ones switch on optional parts of the kernel that any
-machine with the right hardware could use.
+Numbers (`equ`), tested with `IF`. Only **subsystems** are switched this
+way — parts of ZX-UX a platform includes or not. What the hardware *is*
+is not a flag: it is the platform's choice of drivers (below).
 
 | Name | Meaning | spectrum48 | fdd3000 |
 |---|---|---|---|
-| `HAL_ROM` | the 48K Spectrum ROM is paged in and used: keyboard scan (KEYBOARD, KEY-INPUT, BREAK-KEY), BEEPER, tape (SA/LD-BYTES), CLS, and its RST 8 errors (caught through ERR_SP → `rom_error`) | 1 | 0 |
-| `HAL_FRAMEIRQ` | the kernel's own frame ISR (`isr`): IM 2 with I = 39h, relying on the ROM's FFh bytes at 39FFh, trampoline at FFF4h; keys via the ROM. **Spectrum-specific**: a machine whose frame interrupt does not fit this says 0 and ticks through its machine layer (see *Time*) | 1 | 0 |
-| `HAL_ULAFE` | `OUT (FEh)` is the ULA (border, beeper, key click) | 1 | 0 (the drive latch) |
-| `HAL_TAPE` | the cassette: `/dev/tap`, `/dev/cassette`, SSX1 from tape, `tar` to tape, the tape clock (`tclk`) | 1 | 0 |
-| `HAL_CONSOLE` | `CON_SCREEN`: the kernel draws its 64×24 console with its font, status line, cursor (`stdraw`, `FONT`, `sysscreen`); `CON_TERMINAL`: the machine layer is the console (below) | `CON_SCREEN` | `CON_TERMINAL` |
-| `HAL_HZ` | ticks a second: the clock counts this many `clk1` calls to a second | 50 | 50 |
+| `HAL_HZ` | ticks a second: the clock counts this many `ktick` calls to a second | 50 | 50 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`); device read/write go to the layer | 0 | 1 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
 | `HAL_SSXFILE` | SSX1 programs from files: exec of an SSX1 file runs `/etc/ldx` on it | 0 | 1 |
 | `HAL_BOOTMNT` | `/etc/init` mounts `HAL_SYSDEV` on `HAL_SYSMNT` and runs its `etc/rc`; the shell also searches `HAL_SYSMNT/bin` | 0 | 1 |
 
-Defines (`DEFINE`, strings): `HAL_LAYER`, the machine layer's source,
-assembled after the kernel image (none on the Spectrum: its ROM is its
-machine layer); `HAL_SYSDEV`, `HAL_SYSMNT` (with `HAL_BOOTMNT`).
+Defines (`DEFINE`, strings): **`HAL_DRIVERS`**, the platform's driver
+file, assembled right after the kernel's 8K (`platform/spectrum48/
+drivers.asm`: `machine.asm`, `rom48.asm`, `screen64.asm`); **`HAL_LAYER`**,
+a machine layer assembled at its own address (`fdd3000/src/hal.asm`,
+1800h); `HAL_SYSDEV`, `HAL_SYSMNT` (with `HAL_BOOTMNT`).
+
+## Drivers
+
+`drivers/` holds implementations shared by platforms with the same
+hardware; a platform's driver file includes the ones it uses.
+
+- **`drivers/rom48`** — what ZX-UX asks of the 48 BASIC ROM (48K; the
+  128K's ROM1, the +2A/+3's ROM3 and the TC3256's BASIC page have the same
+  entry points): `rom48.inc` (ROM entry points, system variables, `IM2I`;
+  the kernel names no ROM address), `rom48.asm`: `rom_error` (RST 8),
+  the tape (`tapwr`, `taprd`, `tclk`), `kclick`, `snd_beep`.
+- **`drivers/screen64`** — the console as 64×24 4×8 characters on a
+  Spectrum display file: `kputc`, `kcls`, `curon`, `curoff`, `cblnk`,
+  the status line `stdraw`, the font; sys screen (`sysscreen`, `scrrel`,
+  `cstrip`).
 
 ## Hooks
 
@@ -73,32 +85,24 @@ that has nothing to do there.
 | `HAL_ITABALIGN` | before ITAB | — | `ALIGN 2` |
 | `HAL_BANNER` | the boot banner's first lines | shipped text | FDD3000 text + attribution |
 
-## What the machine layer provides
+## The interfaces the kernel calls
 
-When a capability hands work to the machine layer, these are the symbols
-the kernel expects from it (today all in `fdd3000/src`):
+Each platform provides these symbols, through its drivers or its machine
+layer:
 
-- **`HAL_CONSOLE = CON_TERMINAL`**: `hputc` (= `kputc`: A = character,
-  with the kernel's AT/INVERSE codes), `hcls`, `hret` (cursor on/off: the
-  terminal draws its own); `sysscreen`, `scrrel`, `cstrip` (sys screen 39
-  for programs that draw: the FDD3000's display mirror).
-- **Time**: the platform's interrupt handler does its machine's part of a
-  tick (keys, display) and calls the kernel's **`ktick`** (unix.asm) once
-  per tick, `HAL_HZ` a second, with every register saved and interrupts
-  off: the clock and sleepers, CPU accounting, a device's hold on the CPU,
-  the time slice (a program in user mode is switched there and then, a
-  system call at its way out), a signal for a program in user mode (which
-  may not return). The Spectrum's frame ISR (`HAL_FRAMEIRQ`), the
-  FDD3000's `tint` (the WD1770 clock) and its soft clock's `stick` all
-  call it.
-- **`HAL_BLKDEV`**: `fdread`, `fdwrite` (devread/devwrite), `hdevok`
-  (iget: is this device number ours), `hdopen` (open: probe a disk),
-  `hseek` (seek origins 3–5, in sectors), `fhclr`.
-- **`HAL_VFS`**: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`,
-  `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`,
-  `sysmnt`, `sysumnt`; the programs `/etc/mount`, `/etc/umount`,
-  `/etc/mkfs` (`t_fs.asm`, `t_mkfs.asm`).
-- **`HAL_SSXFILE`**: `hssx`, `ssxrd`, `LDXFD`; `/etc/ldx`'s file part.
+| Interface | Symbols | spectrum48 | fdd3000 |
+|---|---|---|---|
+| **Time** | its interrupt handler calls the kernel's `ktick` once per tick, every register saved, interrupts off; `ktick` keeps the clock and sleepers, CPU accounting, a device's hold on the CPU, the time slice (switch now in user mode, at the call's way out in the kernel), signals for a program in user mode (may not return) | `isr` (machine.asm): ROM keys, BREAK, status line | `tint` (WD1770), `stick` (soft clock) |
+| **Console** | `kputc` (A; the kernel's AT/INVERSE codes), `kcls`, `curon`, `curoff`; keys come back through the kernel's `ttrawin`, BREAK through `ttintr`; `stdirty` marks the status line | screen64 | the VT52 terminal (hal.asm) |
+| **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | the display mirror |
+| **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
+| **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |
+| **Devices** | `devread`/`devwrite`'s targets (step 4: a device table) | tape: `tapwr`, `taprd` | `fdread`, `fdwrite`, `hdevok`, `hdopen`, `hseek`, `fhclr` |
+| **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | fdd3000/src |
+
+The register conventions are the kernel's own (the routines' headers).
+One ROM convention is still in the kernel: `sysent` loads IY = 5C3Ah,
+which the 48 ROM's routines need; on other machines it is harmless.
 
 `fdd3000/src` mixes the FDD3000's own code (`hal.asm`, `fd.asm`,
 `tmr.asm`, `mirror.asm`, `boot.asm`) with subsystems that are not
@@ -121,7 +125,7 @@ absolute address:
 | call numbers 0–40, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL |
 | **5BE4h** (`TTOP`) | programs that draw (`console.asm`) | the shared console rows; goes with a screen-page call |
 | **4000h** screen | programs that draw | until the relocatable screen page (memory-plan, Idea B) |
-| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | programs using floats (`float.asm`) | the ROM calculator: only where `HAL_ROM` |
+| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | programs using floats (`float.asm`) | the ROM calculator: only with the 48 ROM (rom48) |
 | port **FEh** keyboard rows | `sys.asm` (key reads) | the ULA's keyboard: only where the keyboard is the ULA's |
 
 **Everything else is per build**: the kernel's place (6000h), its
@@ -141,9 +145,9 @@ Details and sources: `hardware-notes.md`. In short:
   first (does `rom_error` still get control?); the IM 2 vector at 39FFh
   holds only if the bus reads FFh at interrupt acknowledge; `ROM_CLS`
   runs patched code that reads 5FFAh–5FFFh (the kernel stack area).
-- **Native** (FIRMWARE: RAM at 0000h–3FFFh, like the FDD3000): `HAL_ROM`
-  0, `HAL_FRAMEIRQ` 0 (own IM 2 table at 8000h+, own tick), screen console
-  with its own keyboard scan (`CON_SCREEN` but no ROM: needs the
+- **Native** (FIRMWARE: RAM at 0000h–3FFFh, like the FDD3000): no rom48,
+  its own IM 2 table at 8000h+ and tick, screen64 with its own keyboard
+  scan (no ROM: needs the
   keyboard seam below), block devices: the FDD3000 over the link (port
   EFh, the shadow ROM's TOS services or a native driver) and the 208 KB
   RAM disk. Never place code at 0000h, 0008h, 0066h (fetches there trap).
@@ -154,7 +158,7 @@ Details and sources: `hardware-notes.md`. In short:
   mode (all use 6000h–7AFFh).
 
 ### ZX Spectrum 128K (+2, +2A/+3)
-- ROM1 (48 BASIC) / ROM3 has the same entry points: `HAL_ROM` 1.
+- ROM1 (48 BASIC) / ROM3 has the same entry points: rom48 serves it.
 - **The window F000h is inside the paged bank (C000h)**, so are the
   u-area and the IM 2 trampoline: the IM 2 table must move to RAM below
   C000h (also required on the +2A/+3, whose ROM3 breaks the 39FFh vector).
@@ -166,7 +170,7 @@ Details and sources: `hardware-notes.md`. In short:
   block device; spare banks as a RAM disk.
 
 ### Timex TC2068 / TS2068
-- **No Spectrum ROM** (different bytes at the entry points): `HAL_ROM` 0;
+- **No Spectrum ROM** (different bytes at the entry points): no rom48;
   keyboard, screen, tape, beeper drivers in the machine layer.
 - **No RAM at 0000h** on a stock machine: the machine layer must fit in
   4000h–FFFFh, so less arena than on the Spectrum.
@@ -180,12 +184,12 @@ Details and sources: `hardware-notes.md`. In short:
 What the future targets need that the code does not have yet, with the
 kernel sites:
 
-1. **Keyboard source** — `isr` calls `ROM_KEYBOARD`/`ROM_KEYINPUT`/
-   `ROM_BREAKKEY` (unix.asm, the frame ISR). A screen machine without the
-   ROM needs `HAL_KEYSCAN`.
-2. **Interrupt vectors** — the IM 2 setup at boot assumes the ROM's FFh
-   bytes; machines without them set `HAL_FRAMEIRQ` 0 today. Better: a
-   257-byte vector table in RAM, placed by the platform.
+1. **Keyboard source** — the Spectrum's `isr` (machine.asm) reads keys
+   through the ROM; a screen machine without the ROM (TC2068, TC3256
+   native) needs its own scan feeding `ttrawin`/`ttintr`.
+2. **Interrupt vectors** — the Spectrum's IM 2 setup (`sp_init`) relies on
+   the ROM's FFh bytes; a machine without them places a 257-byte vector
+   table in RAM in its own `HAL_INIT`.
 3. ~~A shared tick~~ — done: `ktick` (step 2 of `DESIGN.md`).
 4. **Window swap** — `swtch`/`savead` copy the window to and from the
    arena (K_SAVE). Bank switching (128K) or sector swap (TC3256) replace
