@@ -4,8 +4,9 @@
 The system disk's ZXFS is mounted on /mnt/a at boot; its /bin holds C48
 programs from examples/c48-bin, so the shell finds them by name.  Drive B
 gets a ZXFS with two more, built here with rcc --ux (colors: border() and
-colour; mandel: pixel graphics; both the bitmap kind), mounted on /mnt/b
-and run by path.  Checked:
+colour; mandel: pixel graphics; both the bitmap kind), and the shipped
+mandel (built for a display file at 4000h), mounted on /mnt/b and run by
+path.  Checked:
   - the C48 hello from the disk (the shell's plain hello is resident);
   - fortune, hangman, trek draw into the display file and are shown on
     the terminal through the mirror (mirror.asm);
@@ -13,6 +14,7 @@ and run by path.  Checked:
   - colors' OUT (FEh) (border, the FDD3000's drive latch) is defused at
     load (ssxfix) and the machine lives on; mandel's pixels show as #,
     from a display file the kernel put in the arena (sys 41);
+  - the shipped mandel is refused: 4000h holds resident programs here;
   - an executable file that is no SSX1 program is refused (ENOEXEC).
     python3 fdd3000/test/test_ssx.py
 """
@@ -49,6 +51,8 @@ def main():
                         os.path.join(ROOT, 'examples', 'c48-src', src)], check=True)
         with open(dst, 'rb') as f:
             fs.put('/' + name, f.read())
+    with open(os.path.join(ROOT, 'examples', 'c48-bin', 'ssx', 'mandel.ssx'), 'rb') as f:
+        fs.put('/mand0', f.read())
     m = fddrun.FDDUX([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK), to_model(b)])
     m.boot()
     m.run_for(25, quiet=3.0)
@@ -83,6 +87,7 @@ def main():
     m.link.keys.extend(b'\x03')
     m.run_for(4, quiet=2.0)
     run('\r')
+    run('/mnt/b/mand0\r', name='old')
     run('cp /etc/motd /tmp/x\r')
     run('chmod 36 /tmp/x\r')
     run('/tmp/x\r', name='noexec')
@@ -98,6 +103,7 @@ def main():
     expect('trek', 'SHORT RANGE SENSOR SCAN', 'no sensor scan')
     expect('colors', 'INK / PAPER / BRIGHT / BORDER', 'colors did not draw')
     expect('mandel', '####', 'no pixels as #')
+    expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
     expect('noexec', '/tmp/x', 'a non-SSX1 file was not refused')
     expect('end', 'still alive', 'the machine did not survive')
     if m.stopped is not None:

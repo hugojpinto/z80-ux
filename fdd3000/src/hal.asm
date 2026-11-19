@@ -738,7 +738,8 @@ lowend:
 ; ---------------------------------------------------------------------
 ; More resident programs (lowtext2.inc) where the Spectrum's display file
 ; was: a program that draws gets its display file from the arena, at the
-; page system call 41 gives it (mirror.asm dalloc).
+; page system call 41 gives it (mirror.asm dalloc); one built for 4000h is
+; refused (ssx.asm, HAL_SCR4000).
 ; ---------------------------------------------------------------------
 LOWTEXT2 equ 4000h
         org LOWTEXT2

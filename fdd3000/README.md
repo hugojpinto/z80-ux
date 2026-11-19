@@ -102,9 +102,9 @@ Memory of the FDD3000 while ZX-UX runs:
 A program that draws (the bitmap kind, `rcc --ux`) gets its display file
 from the arena when it claims the screen: 6,912 bytes on a page boundary,
 shared by every program drawing, given back when the last one is done
-(`mirror.asm` `dalloc`, system call 41 says where). SDK programs for the
-FDD3000 are built with `rcc --ux`; one that writes 4000h itself (the
-fixed kind: `invaders`, `orcattack`) would overwrite resident programs.
+(`mirror.asm` `dalloc`, system call 41 says where). An SSX1 program built
+for a display file at 4000h (no kind declared, or the fixed kind) is
+refused with "rebuild it with rcc --ux".
 
 ### File system types
 

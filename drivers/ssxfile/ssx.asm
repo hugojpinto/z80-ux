@@ -29,15 +29,15 @@ hssx:   ld a,(ix+0)
         and IEXEC
         jr z,.no
         push hl
-        ld hl,0                 ; its first 4 bytes
+        ld hl,0                 ; its first 5 bytes (the signature, flags)
         ld de,u_dirbuf
-        ld bc,4
+        ld bc,5
         xor a
         call iio
         pop hl
         jr c,.no
         ld a,(u_nread)
-        cp 4
+        cp 5
         jr nz,.no
         push hl
         ld hl,u_dirbuf
@@ -49,6 +49,14 @@ hssx:   ld a,(ix+0)
         inc hl
         inc de
         djnz .c
+        IF HAL_SCR4000 == 0
+        ld a,(u_dirbuf+4)       ; a program that needs 4000h (built before
+        and 0Eh                 ; rcc --ux - no kind declared - or of the
+        cp 08h+6                ; fixed kind): 4000h is not to be had here
+        jr z,.at
+        bit 3,a
+        jr z,.at
+        ENDIF
         ld a,LDXFD              ; LDXFD: closed, then the file on it
         call fclosea
         pop hl
@@ -68,6 +76,12 @@ hssx:   ld a,(ix+0)
 .nx:    pop hl
 .no:    or 1
         ret
+        IF HAL_SCR4000 == 0
+.at:    ld hl,s_at4000
+        call kputs
+        jr .nx
+s_at4000: db "this program draws at 4000h: rebuild it with rcc --ux",10,0
+        ENDIF
 s_ssx1: db "SSX1"
 
 ; ssxrd: ssxload, in place of the tape: u_count bytes of the file open on
