@@ -172,6 +172,11 @@
 .bad:   ld a,R_ARG
         jp @rerr
 
+VP_INT  equ 0                   ; VAL's parts of a number (@rvpt); bit 0:
+VP_FRAC equ 1                   ; spaces skipped in it
+VP_EXP  equ 2
+VP_ESGN equ 3
+
 ; VAL (B = V_VAL; VAL$ is not read): the string on top replaced by the
 ; number it writes.  @r35DC: B Integer out of range (the ROM's entry
 ; before VAL, which the runtime jumps to).
@@ -181,6 +186,8 @@
         cp V_VAL
         j nz,.nons
         call @r2BF1             ; DE = the text, BC = its length
+        ld a,VP_INT
+        ld (@rvpt),a            ; the integer part first
         ld hl,@rvbuf
         ld (hl),0               ; minus signs (bit 0)
         inc hl
@@ -195,8 +202,16 @@
         inc (hl)
         pop hl
         j .lead
-.num:   cp ' '                  ; the number: no spaces in it
-        j z,.trail
+.num:   cp ' '                  ; the number: spaces in it as the ROM reads
+        j nz,.nd                ; them - none in the digits before a point or
+        ld a,(@rvpt)            ; in an exponent's, any after a point or an E
+        rra                     ; (or the E's sign)
+        j nc,.trail
+        call .next
+        j nc,.num
+        j .end
+.nd:    call .part
+
         push de
         push hl
         ld de,@rvbuf+1+VALMAX
@@ -236,6 +251,36 @@
         call @rfcall
 .pos:   ld hl,@rvnum
         j @r33B4
+; .part: the part of the number the character A starts, in @rvpt: a point
+; starts the fraction, an E the exponent's sign, a digit after that its
+; digits.  Keeps the registers.
+.part:  push bc
+        push af
+        ld b,a
+        ld a,(@rvpt)
+        ld c,a
+        ld a,b
+        cp '.'
+        j nz,.pe
+        ld c,VP_FRAC
+.pe:    and ~20h & 0FFh
+        cp 'E'
+        j nz,.pd
+        ld c,VP_ESGN
+.pd:    ld a,b
+        cp '0'
+        j c,.ps
+        cp '9'+1
+        j nc,.ps
+        ld a,c
+        cp VP_ESGN
+        j nz,.ps
+        ld c,VP_EXP
+.ps:    ld a,c
+        ld (@rvpt),a
+        pop af
+        pop bc
+        ret
 ; .next: the text's next character -> A; CF: none left
 .next:  ld a,b
         or c
@@ -269,3 +314,4 @@
 @rxl:   ds 2
 @rvbuf: ds 1+VALMAX+1
 @rvnum: ds FNUM
+@rvpt:  ds 1                    ; the part of the number read (VP_*)
