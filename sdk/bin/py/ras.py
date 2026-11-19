@@ -595,6 +595,8 @@ class Asm:
                         raise AsmError('equ without a name')
                     v = self.expr(ops[0], pc, False)
                     self.syms[label] = v
+                    if final and v.base and v.base[0] == 'ext':
+                        self.externs.add(v.base[1])     # NAME equ import+n: an import too
                     continue
                 if label:
                     if label in newsyms:

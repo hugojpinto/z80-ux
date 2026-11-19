@@ -109,7 +109,9 @@ def run(data, name, frames, steps, entry):
         if job.ended is not None:
             break
         s.kb.add(zxux.parse_keys(KEYS[i % len(KEYS)]))
-    last = job.exit_picture[0] if job.exit_picture else bytes(m.mem[0x4000:0x5B00])
+    last = bytearray(job.exit_picture[0] if job.exit_picture else m.mem[0x4000:0x5B00])
+    if any(r.startswith('1.init') for r in s.text().split('\n')[23:24]):
+        mask_status(last)               # the kernel's status line, as it ended
     return shots, before, job.ended, bytes(last), s.text()
 
 
@@ -147,7 +149,7 @@ def main():
     subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'py', 'libux', 'build.py')],
                    check=True, capture_output=True)
     os.makedirs(OUT, exist_ok=True)
-    same = differ = skipped = timing = 0
+    same = differ = skipped = timing = big = 0
     srcs = sources(names)
     if part:
         srcs = srcs[part[0] - 1::part[1]]
@@ -173,6 +175,10 @@ def main():
                 entry = ('offset', off)
         a, na, ea, fa, ta = run(rom, name, frames, 4, 0x0010)
         b, nb, eb, fb, tb = run(ux, name, frames, 4, entry)
+        if 'not enough memory' in tb and 'not enough memory' not in ta:
+            big += 1
+            print('%-28s too big for the Spectrum with its clean-room routines' % name)
+            continue
         bad = late = None
         for k in sorted(set(a) & set(b)):
             if a[k] is None or b[k] is None:
@@ -206,8 +212,8 @@ def main():
             if verbose:
                 print('%-28s same (%d pictures, %s)' % (name, len(set(a) & set(b)),
                                                       'ended' if ea is not None else 'running'))
-    print('uxsame: %d the same (%d only before keys), %d differ, %d not compiled by rbc'
-          % (same, timing, differ, skipped))
+    print('uxsame: %d the same (%d only before keys), %d differ, %d too big here, '
+          '%d not compiled by rbc' % (same, timing, differ, big, skipped))
     return 1 if differ else 0
 
 
