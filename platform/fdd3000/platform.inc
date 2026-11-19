@@ -16,10 +16,7 @@ mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
 HAL_SSXFILE  equ 1              ; ssx.asm, /etc/ldx's file part
-HAL_BOOTMNT  equ 1
-HAL_SCR4000  equ 0              ; 4000h-5AFFh holds resident programs: an SSX1
-                                ; program that needs its display file there
-                                ; (undeclared, or the fixed kind) is refused              ; init: HAL_SYSDEV on HAL_SYSMNT, its etc/rc
+HAL_BOOTMNT  equ 1              ; init: HAL_SYSDEV on HAL_SYSMNT, its etc/rc
         DEFINE HAL_LAYER "hal.asm"  ; the machine layer, assembled with the kernel
         DEFINE HAL_SYSDEV "/dev/fd0"
         DEFINE HAL_SYSMNT "/mnt/a"

@@ -48,7 +48,7 @@ def build():
             raise SystemExit('rcc %s: %s%s' % (name, r.stdout, r.stderr))
         data = open(dst, 'rb').read()
         f = rld.parse_ssx(data)['flags']
-        out[name] = (data, KIND[f >> 1 & 3] if f & 8 else 'undeclared')
+        out[name] = (data, KIND[f >> 1 & 3])
     return out
 
 

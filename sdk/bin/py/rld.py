@@ -226,7 +226,7 @@ def parse_ssx(data):
     if len(data) < SSX_HDR or data[:4] != b'SSX1':
         raise LinkError('not an SSX1 file')
     flags, hsz, isz, bss, stack, heap, ent, nrel, ck = struct.unpack_from('<BBHHHHHHH', data, 4)
-    if hsz != SSX_HDR or flags & ~15:      # bit 3: a kind declared, bits 2-1: it (z80-ux)
+    if hsz != SSX_HDR or flags & ~7:       # bits 2-1: the screen kind (z80-ux)
         raise LinkError('bad SSX1 header')
     image = data[SSX_HDR:SSX_HDR + isz]
     p = SSX_HDR + isz

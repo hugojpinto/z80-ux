@@ -40,16 +40,10 @@ graphical demos and games (`mandel`, `3dpaint`, `invaders`, `orcattack`,
 
 ```
 flags bit 0   (as today)
-      bit 3      1: the kind below is declared (rcc --ux); 0: an older
-                 binary, which claims the screen and draws at 4000h
       bits 2-1   00 stream   01 console   10 bitmap   11 bitmap, fixed at
                                                          4000h (the program
                                                          writes it itself)
 ```
-
-*As built:* bit 3 was added so that a declared stream program (00) and an
-older binary (flags 0, but drawing at 4000h) can be told apart - which a
-platform that uses 4000h-5AFFh for something else must do.
 
 - **Old binaries** have bits 2–1 = 00 but do claim the screen through
   `@scrinit`: the kernel keeps treating call 39 as it does now, so they
@@ -57,7 +51,8 @@ platform that uses 4000h-5AFFh for something else must do.
   unknown, and the kernel finds out at call 39 as today.
 - **The SDK's loader check** (`rld.py`: `flags & ~1` is rejected) accepts
   bits 1–2. The kernel ignores the flags byte today; it starts reading
-  bits 2–1 in `sysssxl`.
+  bits 2–1 in `sysssxl`. *As built:* it still does not read them: the
+  display file is allocated at the claim (call 39), not at load.
 
 ## 2. The linker decides (`rld`)
 
@@ -153,10 +148,10 @@ Per platform:
   display file always comes from the arena (kind `K_DISP` 7, fixed,
   6,912 + 255 bytes for the page alignment), allocated by the claim (call
   39, or 41 with HL = 1), one for all programs that draw, freed when the
-  last owner lets go. HL = 40h is refused (EBUSY). The runtime claims with
-  39 first, then asks 41 for the page, so the file cannot be freed between
-  the two. A program that needs 4000h (flags bit 3 clear, or the fixed
-  kind) is refused at load by the SSX1 loader (`HAL_SCR4000 equ 0`).
+  last owner lets go. The runtime claims with 39 first, then asks 41 for
+  the page, so the file cannot be freed between the two. No FDD3000
+  binaries predate `rcc --ux`, so the kernel does not check the kind: a
+  fixed-kind program would write over the resident programs at 4000h.
   With no bitmap program running, the pool holds other fixed blocks
   (memory-plan Idea C) - and once no program draws at 4000h by default,
   the resident text can move low (§11): ~28 KB of arena.

@@ -489,17 +489,13 @@ mcbuf:  ds 24*64                ; what the terminal shows
 mhash:  ds 256,0                ; glyph hash -> character
 
 ; sysdisp (41): the console - the terminal, 80 x 24 - and a display file
-; for a program that draws: the old display file at 4000h, mirrored.
-; HL = 0: describe; 1, 40h: claim.  -> D = page, E = 1 (a terminal),
+; for a program that draws, in the arena (dalloc), mirrored.
+; HL = 0: describe; else claim.  -> D = page (0: none), E = 1 (a terminal),
 ; L = columns, H = rows.  (platform/screen-kinds.md)
 sysdisp:
         ld a,h
         or l
         jr z,.d
-        ld a,l
-        cp 40h                  ; exactly 4000h: resident programs live there
-        ld a,EBUSY
-        jp z,syserr
         call dalloc
         jp c,syserr
 .d:     ld a,(dpage)
