@@ -38,8 +38,9 @@ screen, has no display file, and shares the console as any console
 program.  The upper screen is the console's rows 0-21, the lower one
 its row 22.  FLASH and OVER have no console code; UDGs and block graphics
 show as `#`.  The others are of the **bitmap** kind: their own display
-file (call 41), PRINT drawn into it as the ROM does, the mirror showing
-it behind a terminal.  `rbc --ux --bitmap` makes any program bitmap.
+file (call 41), PRINT drawn into it as the ROM does - where there is a
+screen; a machine whose console is a terminal (the FDD3000) refuses them
+at load.  `rbc --ux --bitmap` makes any program bitmap.
 
 ## Tested
 

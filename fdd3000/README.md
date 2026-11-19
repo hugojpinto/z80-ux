@@ -26,11 +26,13 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
   there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
 - **SDK programs** (SSX1: C48, BASIC, Pascal, FORTRAN, Forth) run from any
   file with execute permission; the system disk's `/bin` (`/mnt/a/bin`, in
-  the shell's path) carries twelve C48 ones (`trek`, `advent`, `rogue`,
-  `hangman`...), built with `rcc --ux`: the text ones write to the
-  terminal (redirection works, no display file), the two that draw
-  (`hanoi`, `queens8`) have one, shown on the terminal through a mirror
-  that reads it back as text (`../platform/screen-kinds.md`).
+  the shell's path) carries ten C48 ones (`trek`, `advent`, `rogue`,
+  `hangman`...), built with `rcc --ux`: they write to the terminal
+  (redirection works). The console is a terminal, so there is no screen:
+  a program that draws (the bitmap or fixed kind, or an older undeclared
+  one) is refused at load - "this program draws: it needs a screen"
+  (`../platform/screen-kinds.md`). BASIC programs with no pixels run as
+  32-column console programs (`rbc --ux`: `../platform/basic.md`).
 
 ## Build and run
 
@@ -58,12 +60,13 @@ boot ROM — with a model of the terminal's end of the link):
 python3 fdd3000/test/test_fd.py      # the driver: three drives, sector-exact
 python3 fdd3000/test/test_zfs.py     # ZXFS through the shell, checked on the host
 python3 fdd3000/test/test_boot.py    # init's mount and rc, across reboots
-python3 fdd3000/test/test_ssx.py     # SDK programs from disk, the mirror
+python3 fdd3000/test/test_ssx.py     # SDK programs from disk; drawing ones refused
 python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no system calls
 python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the disk side
 python3 fdd3000/test/test_fsmod.py   # file system types loaded at mount time
 python3 fdd3000/test/test_tfs.py     # TOS disks: a real one read, a blank one written
-python3 fdd3000/test/test_kinds.py   # SDK programs by screen kind: terminal, redirection, mirror
+python3 fdd3000/test/test_kinds.py   # SDK programs by screen kind: terminal, redirection
+python3 fdd3000/test/test_basic.py   # BASIC (rbc --ux) on the terminal
 python3 test/spectrum/golden.py check   # the Spectrum build behaves as the shipped tape
 python3 test/spectrum/kinds.py       # the screen kinds on the Spectrum
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
@@ -82,7 +85,7 @@ images on the host (its docstring is the format's specification).
 | `../drivers/vfs/vfs.asm`, `fsmod.asm`; `../drivers/zxfs/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS (shared subsystems: `../platform/README.md`) |
 | `../drivers/tos/tfs.asm` | TOS's disks: a file system module (`/etc/fs/tos`) |
 | `../drivers/ssxfile/ssx.asm`, `src/t_dd.asm`, `../drivers/vfs/t_fs.asm`, `../drivers/zxfs/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
-| `src/mirror.asm` | the display file read back to the terminal |
+| `src/screen.asm` | no screen: system calls 39 and 41 say so (a terminal, no display file) |
 | `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
 | `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `tosfs.py` (TOS disks), `dsk.py` |
 
@@ -94,17 +97,14 @@ Memory of the FDD3000 while ZX-UX runs:
 | 0068h–03FFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
 | 0400h–0FFFh | resident programs placed low: `vi`, `zxpack`, `dd` (build.py `LOWTEXT`) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer |
+| 1800h–3EFFh | the hardware layer (1800h–31EBh used: about 3.3 KB free) |
 | 3F00h–3FFFh | the boot sector (free once the system runs) |
 | 4000h–5AFFh | resident programs: `cat`/`ls`/`cp`... (t_file), t_misc, `tar`, `ps`/`kill`, `tap`, `ldx` (build.py `LOWTEXT`, lowtext2.inc) |
 | 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena (20,614 bytes free at boot), window at F000h |
 
-A program that draws (the bitmap kind, `rcc --ux`) gets its display file
-from the arena when it claims the screen: 6,912 bytes on a page boundary,
-shared by every program drawing, given back when the last one is done
-(`mirror.asm` `dalloc`, system call 41 says where). An SSX1 program built
-for a display file at 4000h (no kind declared, or the fixed kind) is
-refused with "rebuild it with rcc --ux".
+No program draws: one that would (the bitmap or fixed kind, or an older
+one with no kind declared) is refused at load (`ssx.asm`, `HAL_SCREEN`),
+and system call 39 refuses a claim of the screen.
 
 ### File system types
 
@@ -173,7 +173,7 @@ python3 fdd3000/tools/fsmod.py SOURCE.asm NAME OUT    # after build.py
   three drives, and checks at boot — a *Step* command (`2Ah`: no track
   update, no spin-up, no verify, 20 ms) raises INTRQ after 20 ms and the
   interrupt handler starts the next: a **50 Hz tick**, the Spectrum's. It
-  runs the clock, accounts CPU, polls keys, refreshes the display mirror,
+  runs the clock, accounts CPU, polls keys,
   preempts at the end of the time slice and delivers ^C — so a program that
   never makes a system call cannot starve the rest (`test/test_tmr.py`).
   The disk driver stops it around its own commands; the soft clock (each
@@ -218,7 +218,7 @@ says so here.
 |---|---|
 | Only SRUN slots run; each has a restorable context | the WD1770 tick switches from user mode as the frame ISR did; in the kernel it only sets `runrun` |
 | One window owner; one SSX loan | unchanged |
-| No allocation inside `swtch` | the tick, the idle loop, the mirror and the keys allocate nothing |
+| No allocation inside `swtch` | the tick, the idle loop and the keys allocate nothing |
 | Movable arena pointers repaired, reloaded | mounted i-nodes and the buffer cache live outside the arena; `ssxload` reads into the fixed IMAGE |
 | A missing component leaves no usable parent | `vfscross` never writes `u_pdir` |
 | Unlink + open references: freed at the last close | through the kernel's own `isopen` / `fclosea`; `itrunc` keeps HL for it |
@@ -235,9 +235,9 @@ says so here.
 - **The 50 Hz heartbeat** (ch. 19, 23) comes from the WD1770 (`tmr.asm`),
   or, with a fourth drive, from the soft clock; preemption, BREAK and the
   clock behave as the book describes once the tick runs.
-- **The console** (ch. 28) is the VT52 terminal; the display file stays
-  RAM that programs draw into, read back by the mirror. The "two programs,
-  one screen" console rows (ch. 2) are kept.
+- **The console** (ch. 28) is the VT52 terminal; there is no screen, so
+  programs that draw are refused and the "two programs, one screen"
+  console rows (ch. 2) never come up.
 - **ROM is a service** (ch. 19) — there is none: ROM calls stop the program
   (BEEP rings the terminal's bell); `OUT (FEh)` and C48 `beep()`'s HALT
   are defused at load.

@@ -55,11 +55,12 @@ Unmount a disk before you take it out of its drive.
 SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 
 # SDK programs on the system disk's /bin (/mnt/a/bin once mounted), built
-# from their sources with rcc --ux: each declares its screen kind, and the
-# text ones write to the terminal (platform/screen-kinds.md)
+# from their sources with rcc --ux: each declares its screen kind - here
+# only the stream and console kinds, which write to the terminal; one that
+# draws would be refused (platform/screen-kinds.md)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
-                   'advent', 'wump', 'trek', 'rogue', 'snake', 'hanoi', 'queens8']
-UX_SOURCES = {'hello': 'examples', 'hanoi': 'demos', 'queens8': 'demos'}  # else games
+                   'advent', 'wump', 'trek', 'rogue', 'snake']
+UX_SOURCES = {'hello': 'examples'}  # else games
 
 
 def ux_program(b, name, out):
@@ -77,7 +78,11 @@ def ux_program(b, name, out):
         if r.returncode:
             raise b.BuildError('rcc --ux %s: %s%s' % (name, r.stdout, r.stderr))
     with open(dst, 'rb') as f:
-        return f.read()
+        data = f.read()
+    flags = data[4]
+    if flags & 0x0C != 0x08:            # declared, stream or console
+        raise b.BuildError('%s draws: no screen on the FDD3000 (flags %02Xh)' % (name, flags))
+    return data
 
 # File system modules on the system disk's /etc/fs (mount -t NAME)
 FS_MODULES = [('tos', 'drivers/tos/tfs.asm')]   # TOS's disks

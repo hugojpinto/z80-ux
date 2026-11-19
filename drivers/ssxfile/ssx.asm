@@ -49,6 +49,12 @@ hssx:   ld a,(ix+0)
         inc hl
         inc de
         djnz .c
+        IF HAL_SCREEN == 0
+        ld a,(u_dirbuf+4)       ; no screen here: only a program declared of
+        and 0Ch                 ; the stream or console kind (bit 3 set,
+        cp 08h                  ; bit 2 clear: kinds 00, 01) - not one that
+        jr nz,.at               ; draws, nor an older, undeclared one
+        ELSE
         IF HAL_SCR4000 == 0
         ld a,(u_dirbuf+4)       ; a program that needs 4000h (built before
         and 0Eh                 ; rcc --ux - no kind declared - or of the
@@ -56,6 +62,7 @@ hssx:   ld a,(ix+0)
         jr z,.at
         bit 3,a
         jr z,.at
+        ENDIF
         ENDIF
         ld a,LDXFD              ; LDXFD: closed, then the file on it
         call fclosea
@@ -76,11 +83,18 @@ hssx:   ld a,(ix+0)
 .nx:    pop hl
 .no:    or 1
         ret
+        IF HAL_SCREEN == 0
+.at:    ld hl,s_draws
+        call kputs
+        jr .nx
+s_draws: db "this program draws: it needs a screen",10,0
+        ELSE
         IF HAL_SCR4000 == 0
 .at:    ld hl,s_at4000
         call kputs
         jr .nx
 s_at4000: db "this program draws at 4000h: rebuild it with rcc --ux",10,0
+        ENDIF
         ENDIF
 s_ssx1: db "SSX1"
 

@@ -101,7 +101,6 @@ hinit:  ld hl,0
         ld (03B6h),hl
         ld (03F8h),a            ; BEEP (C48's float.asm jumps there)
         ld (03F9h),hl
-        call mhinit             ; the display mirror's glyph table
         im 1
         ld a,LATIDLE
         out (LATCH),a
@@ -499,37 +498,9 @@ hc22:   ld a,'Y'
         add a,32
         jp hout
 
-; cstrip: Z: console output may go to the terminal.  NZ: the running
-; process owns the screen (its console text is not shown).  When another
-; process owns it, the console gets rows 21-22 (ttop = 21): programs draw
-; above them (C48 reads ttop), the mirror reads only above them.
-cstrip: call mbit
-        ld hl,scrown
-        and (hl)
-        ret nz
-        or (hl)
-        ret z
-        ld a,(ttop)
-        or a
-        jr nz,.z
-        ld a,21
-        ld (ttop),a
-        ld hl,clbuf
-        ld b,64
-.b:     ld (hl),' '
-        inc hl
-        djnz .b
-        xor a
-        ld (tcol),a
-        ld a,'Y'                ; rows 21 and 22 cleared
-        call hesc
-        ld a,21+32
-        call hout
-        ld a,32
-        call hout
-        ld a,'J'
-        call hesc
-.z:     xor a
+; cstrip: Z: console output may go to the terminal - always: no process
+; owns a screen here (screen.asm).
+cstrip: xor a
         ret
 
 ; hcls: clear the terminal, home the cursor.
@@ -598,7 +569,7 @@ keytab: db 0Dh,0Dh, 0Ah,0Dh, 08h,0Ch, 7Fh,0Ch, 1Bh,07h, 04h,07h, 0
 ; Time.  No interrupt counts the frames, so the kernel counts them: a
 ; system call, a character to the terminal and a turn of the idle loop
 ; each add what they cost (estimated, in 16 T units); every TICK units
-; are a 50 Hz frame, and stick does a tick (the kernel's ktick, and the mirror).
+; are a 50 Hz frame, and stick does a tick (the kernel's ktick).
 ; ---------------------------------------------------------------------
 ; kpoll: at every system call (sysent; A = the call, arguments in HL, DE,
 ; BC).  Keeps HL, DE, BC.
@@ -606,9 +577,6 @@ kpoll:  push hl
         push de
         push bc
         call hkeys
-        ld a,(scrown)           ; a program draws: a row of it at every
-        or a                    ; system call, as well as at the ticks -
-        call nz,mpoll           ; one that computes makes few of those
         ld hl,SYSCOST
         call htime
         pop bc
@@ -624,11 +592,7 @@ kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
         jr z,.soft
         ei
         halt
-        call hkeys
-        ld a,(scrown)           ; (the tick does not draw in the kernel:
-        or a                    ; the idle loop does, between its turns
-        ret z                   ; on the link)
-        jp mtick
+        jp hkeys
 .soft:  ld hl,ZCOST
         call htime
         ld a,(fticks)
@@ -679,13 +643,10 @@ htime:  ld a,(tmron)            ; the WD1770 clock counts: no estimates
         ret
 
 ; stick: one tick of the soft clock (htime), always in the kernel (kpoll
-; runs after kmode): the machine's part - the display mirror - and the
-; kernel's ktick, which in kernel mode never switches or delivers a signal
-; there and then: the slice ends at the system call's way out (runrun).
-stick:  ld a,(scrown)           ; a program draws: show it (mirror.asm)
-        or a
-        call nz,mtick
-        push bc
+; runs after kmode): the kernel's ktick, which in kernel mode never
+; switches or delivers a signal there and then: the slice ends at the
+; system call's way out (runrun).
+stick:  push bc
         call ktick
         pop bc
         ret
@@ -723,7 +684,7 @@ nodev:  ld a,EIO
         include "fsmod.asm"     ; ... of types built in or loaded ...
         include "zfs.asm"       ; ... ZXFS, built in.
         include "ssx.asm"       ; SSX1 programs from files.
-        include "mirror.asm"    ; the display file, mirrored to the terminal.
+        include "screen.asm"    ; no screen: a terminal (programs that draw: refused).
         include "tmr.asm"       ; a 50 Hz clock from the WD1770.
         include "fpload.asm"    ; the float engine, a module (sys 42).
 
@@ -761,9 +722,7 @@ lowend:
 
 ; ---------------------------------------------------------------------
 ; More resident programs (lowtext2.inc) where the Spectrum's display file
-; was: a program that draws gets its display file from the arena, at the
-; page system call 41 gives it (mirror.asm dalloc); one built for 4000h is
-; refused (ssx.asm, HAL_SCR4000).
+; was: no program draws here (screen.asm; ssx.asm refuses those that do).
 ; ---------------------------------------------------------------------
 LOWTEXT2 equ 4000h
         org LOWTEXT2

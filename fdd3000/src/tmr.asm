@@ -27,8 +27,8 @@
 ;  tsusp / tresume); meanwhile the soft clock (hal.asm htime) counts, as it
 ;  does when the clock does not run at all.
 ;
-;  tint does the machine's part of a tick - keys from the link, the
-;  display mirror - and calls the kernel's ktick for the rest (the clock,
+;  tint does the machine's part of a tick - keys from the link - and
+;  calls the kernel's ktick for the rest (the clock,
 ;  accounting, the time slice, signals), as the Spectrum's frame ISR does.
 ; =====================================================================
 
@@ -105,9 +105,6 @@ tint:   in a,(FDCST)            ; INTRQ down
         or a
         jr nz,.kern
         call hkeys              ; a program ran: keys, BREAK
-        ld a,(scrown)
-        or a
-        call nz,mtick           ; its screen
         jr .k
 .kern:  ld a,(lbusy)            ; the kernel ran: keys, if the link is free
         or a                    ; (as the Spectrum's ISR read the keyboard

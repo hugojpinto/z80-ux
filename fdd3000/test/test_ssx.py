@@ -2,22 +2,17 @@
 """SDK programs (SSX1 files) run from disk, on the emulated FDD3000.
 
 The system disk's ZXFS is mounted on /mnt/a at boot; its /bin holds C48
-programs from examples/c48-bin, so the shell finds them by name.  Drive B
-gets a ZXFS with two more, built here with rcc --ux (colors: border() and
-colour; mandel: pixel graphics; both the bitmap kind), and the shipped
-mandel (built for a display file at 4000h), mounted on /mnt/b and run by
-path.  Checked:
+programs (rcc --ux, the stream and console kinds), so the shell finds
+them by name.  Drive B gets a ZXFS with more, built here with rcc --ux,
+and the shipped mandel (built for a display file at 4000h), mounted on
+/mnt/b and run by path.  Checked:
   - the C48 hello from the disk (the shell's plain hello is resident);
-  - fortune, hangman, trek draw into the display file and are shown on
-    the terminal through the mirror (mirror.asm);
-  - hangman takes keys; q quits back to the shell;
-  - colors' OUT (FEh) (border, the FDD3000's drive latch) is defused at
-    load (ssxfix) and the machine lives on; mandel's pixels show as #,
-    from a display file the kernel put in the arena (sys 41);
-  - colors' beeps (ROM BEEP, 03F8h) ring the terminal's bell (hbeep), at
-    most one every fifth of a second;
-  - the arena is whole while mandel draws into its display file;
-  - the shipped mandel is refused: 4000h holds resident programs here;
+  - fortune, hangman, trek write to the terminal; hangman takes keys;
+  - colors and mandel (the bitmap kind) and the shipped mandel are
+    refused at load: the FDD3000's console is a terminal, it has no screen
+    to draw on (screen.asm, ssx.asm); the machine lives on;
+  - bell (test/kinds/bell.c): beep() rings the terminal's bell (hbeep),
+    at most one every fifth of a second;
   - float (test/kinds/float.c): system call 42 loads the clean-room float
     engine (/mnt/a/lib/fp, drivers/fp) into the arena; the results are
     the Spectrum ROM's; the engine is freed when float ends;
@@ -55,6 +50,7 @@ def main():
     out = os.path.join(ROOT, 'build', 'ux')
     os.makedirs(out, exist_ok=True)
     for name, src in (('colors', 'examples/colors.c'), ('mandel', 'demos/mandel.c'),
+                      ('bell', '../../test/kinds/bell.c'),
                       ('keys', '../../test/kinds/keys.c'),
                       ('float', '../../test/kinds/float.c')):
         dst = os.path.join(out, name + '.ssx')
@@ -86,24 +82,11 @@ def main():
     run('q', settle=4.0)
     run('\r')
     run('/etc/mount /dev/fd1 /mnt/b\r')
+    run('/mnt/b/colors\r', name='colors')
+    run('/mnt/b/mandel\r', name='mandel')
     bel0 = m.link.out.count(7)
-    run('/mnt/b/colors\r', settle=8.0, name='colors')
+    run('/mnt/b/bell\r', settle=6.0, name='bell')
     bells = m.link.out.count(7) - bel0
-    m.link.keys.extend(b'q')
-    m.run_for(6, quiet=3.0)
-    m.link.keys.extend(b'\x03')
-    m.run_for(4, quiet=2.0)
-    run('\r')
-    m.type('/mnt/b/mandel\r', settle=3.0)
-    m.run_for(45)                       # it computes before it draws
-    screens['mandel'] = fddrun.vt52(m.screen())
-    sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
-    bad = fddrun.arena_ok(m.m, sym)       # its display file is in the arena
-    if bad:
-        fails.append('the arena while mandel draws: %s' % bad)
-    m.link.keys.extend(b'\x03')
-    m.run_for(4, quiet=2.0)
-    run('\r')
     run('/mnt/b/mand0\r', name='old')
     sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
     run('/mnt/b/float\r', settle=10.0, name='float')
@@ -127,11 +110,12 @@ def main():
     expect('fortune', 'C48 FORTUNE', 'the mirror shows no title')
     expect('hangman', 'Last: e', 'the key did not reach it')
     expect('trek', 'SHORT RANGE SENSOR SCAN', 'no sensor scan')
-    expect('colors', 'INK / PAPER / BRIGHT / BORDER', 'colors did not draw')
+    expect('colors', 'this program draws: it needs a screen', 'colors was not refused')
+    expect('mandel', 'this program draws: it needs a screen', 'mandel was not refused')
+    expect('bell', 'bell ok', 'bell did not finish')
     if not 1 <= bells <= 3:
-        fails.append('colors: its three beeps rang the bell %d times (1-3)' % bells)
-    expect('mandel', '####', 'no pixels as #')
-    expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
+        fails.append('bell: its three beeps rang the bell %d times (1-3)' % bells)
+    expect('old', 'this program draws: it needs a screen', 'a program built for 4000h was not refused')
     expect('float', '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3',
            'the float engine did not give the ROM\'s results')
     expect('float', '1.4142136 0.33333333 1E+10 -.05 65535 -1250 6.2831853',

@@ -100,10 +100,10 @@ that has nothing to do there.
 |---|---|---|---|
 | `HAL_INIT` | boot, before the interrupt setup | — | `call hinit` (vectors, trap zone, IM 1, latch) |
 | `HAL_START` | boot, before the first process | — | `call tinit` (the WD1770 clock, if drive D is absent) |
-| `HAL_IDLE` | `swtch`: nothing runnable | `halt` | `call kidle` (poll, tick, mirror) |
+| `HAL_IDLE` | `swtch`: nothing runnable | `halt` | `call kidle` (poll, tick) |
 | `HAL_ENTER` | `sysent`, after `kmode` | — | `call kpoll` (keys, BREAK, soft clock) |
 | `HAL_LEAVE` | `sysx`, on the way out | — | `call vsync` (mounted i-nodes, disk flush) |
-| `HAL_YIELD` | `sysrele` | — | `call myield` (mirror catch-up) |
+| `HAL_YIELD` | `sysrele` | — | — |
 | `HAL_ZPOLL` | the packer's checkpoint (`zpoll`) | — | `call hzpoll` |
 | `HAL_SSXFIX` | `sysssxl`, after relocation | — | `call ssxfix` (defuse `OUT (FEh)`, beep's `HALT`) |
 | `HAL_ITABALIGN` | before ITAB | — | `ALIGN 2` |
@@ -119,7 +119,7 @@ layer:
 | **Keys** | a key for the kernel: `ttrawin` (A = the key); BREAK: `ttintr` — from the tick | `r48keys` (rom48: KEYBOARD, KEY-INPUT, BREAK-KEY) | `hkeys` (the link) |
 | **Time** | its interrupt handler calls the kernel's `ktick` once per tick, every register saved, interrupts off; `ktick` keeps the clock and sleepers, CPU accounting, a device's hold on the CPU, the time slice (switch now in user mode, at the call's way out in the kernel), signals for a program in user mode (may not return) | `isr` (machine.asm): `r48keys`, `s64tick` (status line, cursor), `ktick` | `tint` (WD1770), `stick` (soft clock) |
 | **Console** | `kputc` (A; the kernel's AT/INVERSE codes), `kcls`, `curon`, `curoff`; keys come back through the kernel's `ttrawin`, BREAK through `ttintr`; `stdirty` marks the status line | screen64 | the VT52 terminal (hal.asm) |
-| **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | the display mirror |
+| **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | none: `screen.asm` refuses (a terminal) |
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
 | **Memory** | `mem_swapout` (A = slot: the window as it is becomes that slot's image), `mem_swapin` (A = slot: its image into the window) — the scheduler's lazy hand-over, fork, exec | `equ wsave`, `wload`: a copy to and from the slot's SAVE block in the arena | the same |
 | **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |

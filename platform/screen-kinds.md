@@ -28,7 +28,7 @@ larger memory map (`fdd3000/docs/memory-plan.md` §11).
 |---|---|---|---|
 | **stream** | `putchar`, `puts`, `printf` (output as a stream) | nothing | `write(1, ...)`: the console, a file, a pipe |
 | **console** | the above plus `print_at`, `cls`, `cursor_at`, `inverse`, `ink`, `paper`, `bright` | nothing in the program | the kernel's console, through `write(1)` with its control codes (below): screen64 on screen machines, the terminal on the FDD3000 |
-| **bitmap** | `plot`, `point`, `draw`, UDGs, `over`, `flash`, attribute reads, `screen()`, its own writes to the display file | a display file, 6,912 bytes | the program, directly; the FDD3000's mirror shows it |
+| **bitmap** | `plot`, `point`, `draw`, UDGs, `over`, `flash`, attribute reads, `screen()`, its own writes to the display file | a display file, 6,912 bytes | the program, directly (a machine with no screen - the FDD3000 - refuses it) |
 
 A program is the most demanding kind any routine it links needs. Most of
 the examples are stream or console (`trek`, `advent`, `rogue`, `hangman`,
@@ -150,6 +150,15 @@ Per platform:
 - **fdd3000**: the display file comes from the low pool (3F00h–5AFFh, at
   4000h when free), else the arena (page-aligned, 27 pages, fixed block),
   freed at exit; 80×24, a terminal. The mirror reads the owner's page.
+
+  *As built, since 2026-11-19:* **no screen.** The console is a terminal;
+  a program that draws (the bitmap or fixed kind, or an older undeclared
+  one) is refused at load ("this program draws: it needs a screen":
+  `ssx.asm`, `HAL_SCREEN equ 0`), call 39 refuses a claim, call 41 answers
+  D = 0 (no display file), E = 1, 80 (or 32) x 24. The mirror and the
+  display file in the arena are gone (`fdd3000/src/screen.asm`): about
+  3.1 KB of the HAL, the arena's 6.9 KB never taken. The paragraph below
+  is how it was.
 
   *As built:* no low pool - 4000h–5AFFh holds resident programs, so the
   display file always comes from the arena (kind `K_DISP` 7, fixed,

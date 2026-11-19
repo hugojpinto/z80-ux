@@ -19,7 +19,8 @@ HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
 HAL_SSXFILE  equ 1              ; ssx.asm, /etc/ldx's file part
 HAL_BOOTMNT  equ 1              ; init: HAL_SYSDEV on HAL_SYSMNT, its etc/rc
-HAL_SCR4000  equ 0              ; 4000h-5AFFh holds resident programs: an SSX1
+HAL_SCR4000  equ 0
+HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are refused              ; 4000h-5AFFh holds resident programs: an SSX1
                                 ; program that cannot move its display file
                                 ; (upstream's: no kind declared; the fixed
                                 ; kind) is refused.  rcc --ux bitmap programs
@@ -46,8 +47,7 @@ HAL_SCR4000  equ 0              ; 4000h-5AFFh holds resident programs: an SSX1
         call vsync              ; changed mounted i-nodes to the disk.
         ENDM
         MACRO HAL_YIELD
-        call myield             ; a drawing program yields: show its screen.
-        ENDM
+        ENDM                    ; (nothing to show: no screen)
         MACRO HAL_ZPOLL
         call hzpoll             ; no interrupt brings keys or ticks: fetch them.
         ENDM

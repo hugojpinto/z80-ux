@@ -348,6 +348,14 @@ FDD3000 the disk is there anyway; the shell already searches `/mnt/a/bin`.
 
 ---
 
+## 12. Added 2026-11-19 (later): no screen
+
+The console is a terminal, so programs that draw are refused at load and
+the mirror is gone (`screen.asm`): the HAL is 1800h-31EBh (was -3E3Eh),
+about 3.3 KB free below 3F00h; no display file is ever taken from the
+arena. The rows above that mention the mirror, its FONT or a display
+file for SDK programs describe the earlier build.
+
 ## 11. Added 2026-11-19: a memory map per platform ("defragmenting")
 
 Found while cutting the platform seam (`platform/README.md`): **SSX1

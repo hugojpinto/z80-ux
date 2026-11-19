@@ -13,7 +13,8 @@ gets a ZXFS with:
   - monsters (a game): PRINT, then INPUT typed at the terminal, its
     answer printed;
 both of the console kind (no pixels: their text through the kernel's
-console, 32 columns - the terminal here; no display file allocated);
+console, 32 columns - the terminal here); and minelay, which draws (the
+bitmap kind): refused, there is no screen here;
 mounted on /mnt/b and run by path.  The terminal (the mirror of their
 display files) must show their text; the arena is whole after; the
 machine lives on.
@@ -36,6 +37,7 @@ BASIC = os.path.join(ROOT, 'examples', 'basic-src')
 PROGRAMS = {
     'simpson': 'numerical-analysis/16-simpson/SIMPSON.bas',
     'monsters': 'www.thespectrumshow.net/39-compspacegames-SpaceGames-07/MONSTERS.bas',
+    'minelay': '60-programs/01-minelay/01-minelay.bas',
 }
 
 
@@ -67,8 +69,6 @@ def main():
     run('root\r')
     run('/etc/mount /dev/fd1 /mnt/b\r')
     run('/mnt/b/simpson\r', settle=40.0, name='simpson')
-    if m.m[sym0['dpage']]:
-        fails.append('simpson (the console kind) got a display file')
     run('\r')
     run('/mnt/b/monsters\r', settle=20.0, name='monsters')
     run('R\r', settle=10.0, name='monsters2')
@@ -79,6 +79,7 @@ def main():
     bad = fddrun.arena_ok(m.m, sym)
     if bad:
         fails.append('the arena after them: %s' % bad)
+    run('/mnt/b/minelay\r', name='minelay')
     run('echo still alive\r', name='end')
 
     def expect(name, text, why):
@@ -91,6 +92,7 @@ def main():
     expect('monsters', 'WHICH WEAPON ? (R,S OR T)', 'no question')
     if not any(t in screens.get('monsters2', '') for t in ("NO USE", "KILLED IT")):
         fails.append('monsters: the answer typed got no reply')
+    expect('minelay', 'this program draws: it needs a screen', 'minelay (it draws) was not refused')
     expect('end', 'still alive', 'the machine did not survive')
     if m.stopped is not None:
         fails.append('the FDD3000 halted at %04X' % m.stopped)
