@@ -215,9 +215,11 @@ kernel sites:
    port binds them to its banks (a switch is `OUT (7FFDh)`; fork copies to
    the child's bank) and can then stop reserving window room in each SAVE
    block (`savefit`); the TC3256 copies to and from RAM-disk sectors.
-5. **Screen page** — sys 41 and a relocatable screen in the SDK runtime
-   (`fdd3000/docs/memory-plan.md`, Idea B); the 128K's bank 7 and the SCLD
-   second screen fit the same call.
+5. **Screen page, terminal console for SDK programs** — designed in
+   `screen-kinds.md`: programs declare stream, console or bitmap (set by
+   the linker in the SSX1 flags), call 41 describes the console and
+   places a display file anywhere, the console protocol gains INK, PAPER,
+   BRIGHT. To implement (it touches the SDK).
 6. **Memory layout per platform** — `KBASE`, `KV`, `WINDOW`, `CORE` and
    the 8 KB kernel bound are Spectrum facts in `const.inc`; let a platform
    set them, keeping the pins (6003h, 5BE4h). On the FDD3000 that puts the
