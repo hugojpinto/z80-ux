@@ -23,8 +23,8 @@ drivers/             shared implementations behind one interface each:
   vt52link/          the FDD3000's terminal over the link
   vfs/ zxfs/ tos/    mounts and file systems, over a block interface
   ssxfile/           SSX1 programs from files
-                     (the FDD3000's own drivers - WD1770, link, mirror,
-                     clock - are its machine layer, fdd3000/src)
+                     (the FDD3000's own drivers - WD1770, link, clock,
+                     no screen - are its machine layer, fdd3000/src)
 platform/<machine>/  memory map, boot, vectors and tick source, paging, the
                      choice of drivers; its system.asm is the top-level
                      assembly: it places and includes everything

@@ -152,9 +152,11 @@ absolute address:
 | Pin | Who | Note |
 |---|---|---|
 | **6003h** | every program (`SYS`) | the system-call entry: a `jp` there is enough |
-| call numbers 0–40, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL |
+| call numbers 0–42, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL; 41 the screen (`screen-kinds.md`), 42 the float engine (`float.md`) |
+| SSX1 flags | `rcc --ux`, `rbc --ux` | bit 3 a kind declared, bits 2–1 the kind (stream, console, bitmap, fixed), bit 4 a 32-column console; a platform with no screen (`HAL_SCREEN equ 0`: the FDD3000) loads only the stream and console kinds |
+| stty mode bits | INKEY$ (`rbc --ux`) | `TT_RAW` 20h, `TT_ECHO` 10h, `TT_NOWAIT` 40h (z80-ux: raw, no key waiting: a read takes nothing) |
 | **5BE4h** (`TTOP`) | programs that draw (`console.asm`) | the shared console rows; goes with a screen-page call |
-| **4000h** screen | programs that draw, built without `rcc --ux` (or the fixed kind) | `--ux` bitmap programs ask call 41 for the page; the FDD3000 refuses the others (`HAL_SCR4000 equ 0`) |
+| **4000h** screen | programs that draw, built without `rcc --ux` (or the fixed kind) | `--ux` bitmap programs ask call 41 for the page; the FDD3000 has no screen and refuses every program that draws (`HAL_SCREEN equ 0`) |
 | **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | float programs built without `rcc --ux` (and `beep()`) | the ROM calculator; `--ux` programs use system call 42 instead (`float.md`): the ROM on a Spectrum, a loaded clean-room engine elsewhere |
 | port **FEh** keyboard rows | `sys.asm` (key reads) | the ULA's keyboard: only where the keyboard is the ULA's |
 

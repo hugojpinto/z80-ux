@@ -89,7 +89,7 @@ Proposed as design rules, in the book's style of short imperatives:
 | Part | What changes |
 |---|---|
 | **Foreword, ch. 1** | One paragraph: ZX-UX runs on a family of Z80 machines through a platform layer; the 48K Spectrum is the reference platform and the book's subject; others are described in their own platform notes. The "frozen" 6000h–7FFFh kernel and the fixed map are the reference platform's; binaries pin only 6003h and a few runtime addresses. |
-| **Ch. 2** *Two programs, one screen* | Mark as a behaviour of the screen console (screen64). On a terminal console the shared rows exist only for programs that draw (the FDD3000's mirror). |
+| **Ch. 2** *Two programs, one screen* | Mark as a behaviour of the screen console (screen64). On a terminal console there are none: programs that draw are refused there (the FDD3000). |
 | **Ch. 6** *Cassettes*, **ch. 29** | Scope to the tape driver (rom48). A sidebar: on platforms with `HAL_SSXFILE`, an SSX1 program is a file, `/etc/ldx` reads it from a descriptor. |
 | **Ch. 7** *The software clock* | Ticks are `HAL_HZ`; mention a platform without a frame interrupt (the FDD3000's WD1770 clock, the soft clock). |
 | **Ch. 12, 33** (SDK, C48) | The runtime draws at 4000h; note the planned screen-page call (41) that lets a platform place the screen, and a terminal console for text programs (`fdd3000/docs/memory-plan.md`). |
