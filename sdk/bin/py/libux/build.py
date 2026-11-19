@@ -45,11 +45,12 @@ OVERRIDE = ('crt0.asm', 'console.asm', 'sys.asm', 'float.asm')
 EXTRA = ('fstr.asm',)       # libux's own: numbers to text and back
 
 
-def members(paths):
+def members(paths, prefix='', extra=()):
+    """paths' members (each file's text after prefix); extra: (name, text)."""
     objs, seen = [], {}
-    for f in paths:
+    for f, text in [(f, prefix + open(f).read()) for f in paths] + list(extra):
         base = os.path.basename(f)[:-4]
-        for mname, src, labels in libbuild.split(open(f).read(), base):
+        for mname, src, labels in libbuild.split(text, base):
             for l in labels:
                 if l in seen:
                     raise SystemExit('build: %s defined in %s and %s' % (l, seen[l], mname))
@@ -59,6 +60,92 @@ def members(paths):
             except ras.AsmError as e:
                 raise SystemExit('build: %s: %s\n%s' % (mname, e, src))
     return objs
+
+
+def consts_asm():
+    """The numbers the calculator stacks (1, 1/2, pi/2), written in the
+    five-byte format by the float engine's own encoder (drivers/fp/mkfpk.py)."""
+    from fractions import Fraction
+    spec = importlib.util.spec_from_file_location(
+        'mkfpk', os.path.join(os.path.dirname(os.path.dirname(SDK)), '..', 'drivers', 'fp', 'mkfpk.py'))
+    mk = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mk)
+    out = ['        section text', '        global @cone,@chalf,@cpi2']
+    for name, v in (('@cone', 1), ('@chalf', Fraction(1, 2)), ('@cpi2', mk.PI / 2)):
+        out.append('%-7s db %s' % (name + ':', ','.join(str(b) for b in mk.five(v))))
+    return '\n'.join(out) + '\n'
+
+
+def tokens_asm():
+    """@rtok: a keyword printed by PRINT, its words from the BASIC compiler's
+    token table (rbc/bas2tap.py), the last letter of each with bit 7 set."""
+    sys.path.insert(0, os.path.join(SDK, 'rbc'))
+    from rbc.bas2tap import TOKENS
+    rows = []
+    for code in range(0xA5, 0x100):
+        w = TOKENS[code].encode('ascii')
+        rows.append('        db %s     ; %02Xh %s' % (
+            ','.join(str(b) for b in w[:-1] + bytes([w[-1] | 0x80])), code, TOKENS[code]))
+    return TOKEN_CODE + '\n'.join(rows) + '\n'
+
+
+TOKEN_CODE = """
+        section text
+        global @rtok
+; @rtok: keyword A (C_TOKEN and up) on the screen, as PRINT spaces it: a
+; leading space for statements and operators that begin with a letter
+; (none after a space), a trailing one after words from C_TOKFN on that
+; end in a letter or '$'.
+@rtok:  ld b,a
+        sub C_TOKEN
+        ld hl,@rtokt
+        ld c,a
+.sk:    ld a,c
+        or a
+        j z,.fnd
+.w:     bit 7,(hl)
+        inc hl
+        j z,.w
+        dec c
+        j .sk
+.fnd:   ld a,b
+        cp C_TOKST
+        j c,.word
+        ld a,(hl)
+        cp 'A'
+        j c,.word
+        ld a,(FLAGS)
+        bit FL_SP,a
+        j nz,.word
+        push bc
+        push hl
+        ld a,' '
+        call @rpo
+        pop hl
+        pop bc
+.word:  ld a,(hl)
+        and 7Fh
+        ld c,a
+        push bc
+        push hl
+        call @rpo
+        pop hl
+        pop bc
+        bit 7,(hl)
+        inc hl
+        j z,.word
+        ld a,b
+        cp C_TOKFN
+        ret c
+        ld a,c
+        cp '$'
+        j z,.tr
+        cp 'A'
+        ret c
+.tr:    ld a,' '
+        j @rpo
+@rtokt:
+"""
 
 
 def main():
@@ -80,7 +167,9 @@ def main():
     tty = members([os.path.join(HERE, 'tty.asm')])
     with open(os.path.join(HERE, 'libtty.ssa'), 'wb') as f:
         f.write(rld.write_archive(tty))
-    rbc = members(sorted(glob.glob(os.path.join(HERE, 'rbc', '*.asm'))))
+    inc = open(os.path.join(HERE, 'rbc', 'rbc.inc')).read()
+    rbc = members(sorted(glob.glob(os.path.join(HERE, 'rbc', '*.asm'))), inc,
+                  [('tokens.asm', inc + tokens_asm()), ('consts.asm', consts_asm())])
     with open(os.path.join(HERE, 'librbc.ssa'), 'wb') as f:
         f.write(rld.write_archive(rbc))
     sys.path.insert(0, os.path.join(SDK, 'rbc'))

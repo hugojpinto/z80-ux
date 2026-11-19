@@ -13,15 +13,6 @@
 ; is the platform's float engine (@rfcall, system call 42: platform/
 ; float.md).  Checked against the ROM's own routines, on the same inputs,
 ; by test/basic/romdiff.py.
-ERRNR   equ @rsv+3Ah
-ERRSP   equ @rsv+3Dh
-CHADD   equ @rsv+5Dh
-XPTR    equ @rsv+5Fh
-WORKSP  equ @rsv+61h
-STKBOT  equ @rsv+63h
-STKEND  equ @rsv+65h
-MEMV    equ @rsv+68h
-MEMBOT  equ @rsv+92h
         section text
         global @r08,@rerr,@r16BF,@r16C5,@rt5,@rroom
         global @r33B4,@r35BF,@r2BF1,@r2AB6,@r2D2B,@r2D7F,@r2DA2,@r3297
@@ -53,13 +44,13 @@ MEMBOT  equ @rsv+92h
 
 ; @rt5: room for one more number on the calculator stack, or report 4.
 ; @rroom: room for BC bytes.  Both keep DE, HL.
-@rt5:   ld bc,5
+@rt5:   ld bc,FNUM
 @rroom: push de
         push hl
         ld hl,(STKEND)
         add hl,bc
         j c,.full
-        ld de,80
+        ld de,ROOM
         add hl,de
         j c,.full
         sbc hl,sp
@@ -67,7 +58,7 @@ MEMBOT  equ @rsv+92h
         pop hl
         pop de
         ret
-.full:  ld a,3                  ; 4 Out of memory
+.full:  ld a,R_OOM
         jp @rerr
 
 ; STACK-NUM: the number at HL onto the stack -> HL past it, DE = STKEND.
@@ -161,7 +152,7 @@ MEMBOT  equ @rsv+92h
         ld b,h                  ; x + 1/2
         ld c,l
         ld de,@chalf
-        ld a,1
+        ld a,F_ADD
         call @rfcall
         pop hl
         call @rint              ; INT
@@ -174,17 +165,17 @@ MEMBOT  equ @rsv+92h
         ld b,d
         ld c,e
         ld de,(STKEND)
-        ld hl,-5
+        ld hl,-FNUM
         add hl,de
         ld a,(@rt1)
         or a
         ld a,(@rt1+1)
         j z,.fit
-        and 80h
+        and N_SIGN
         scf
         ld a,c
         ret
-.fit:   and 80h
+.fit:   and N_SIGN
         ld a,c
         ret
 
@@ -206,7 +197,7 @@ MEMBOT  equ @rsv+92h
         or e
         ld b,a
         j z,.st                 ; 0 (and -65536): all zero
-        ld b,90h
+        ld b,N_INT16
 .sh:    bit 7,d
         j nz,.st
         ex de,hl
@@ -218,10 +209,10 @@ MEMBOT  equ @rsv+92h
         ld (hl),b               ; exponent, then the mantissa with the sign
         inc hl
         ld a,d
-        and 7Fh
+        and ~N_SIGN & 0FFh
         bit 7,c
         j z,.p
-        or 80h
+        or N_SIGN
 .p:     ld (hl),a
         inc hl
         ld (hl),e
@@ -235,7 +226,7 @@ MEMBOT  equ @rsv+92h
         ret
 
 ; exchange: the five bytes at HL and at DE swapped -> HL, DE past them.
-@r343C: ld b,5
+@r343C: ld b,FNUM
 .l:     ld a,(de)
         ld c,(hl)
         ld (hl),a
@@ -308,24 +299,24 @@ MEMBOT  equ @rsv+92h
 ; The arithmetic: HL = x (the result's place), DE = y -> DE = HL + 5 (the
 ; new STKEND); 6 Number too big (A Invalid argument for x^y with x < 0)
 ; when there is no result.
-@r3014: ld a,1                  ; addition
+@r3014: ld a,F_ADD
         j @rdy
-@r300F: ld a,2                  ; subtract
+@r300F: ld a,F_SUB
         j @rdy
-@r30CA: ld a,3                  ; multiply
+@r30CA: ld a,F_MUL
         j @rdy
 @r3851: call @r35BF             ; to-power: the stack's top two (a calculator
         ld (STKEND),hl          ; routine: no HL, DE) -> HL = the result on
         ld d,h                  ; top, DE = STKEND
         ld e,l
-        ld bc,-5
+        ld bc,-FNUM
         add hl,bc
-        ld a,5
+        ld a,F_POW
         call @rdy
         j @r35BF
-@r31AD: ld a,5                  ; 6 Number too big
+@r31AD: ld a,R_BIG
         jp @rerr
-@r31AF: ld a,4                  ; division
+@r31AF: ld a,F_DIV
 @rdy:   push hl
         push af
         ld b,h
@@ -334,48 +325,48 @@ MEMBOT  equ @rsv+92h
         pop bc
         pop hl
         j c,.no
-        ld de,5
+        ld de,FNUM
         ex de,hl
         add hl,de
         ex de,hl
         ret
 .no:    ld a,b
-        cp 5
-        ld a,5
+        cp F_POW
+        ld a,R_BIG
         jp nz,@rerr
         inc hl
         bit 7,(hl)              ; x^y, x < 0: A Invalid argument
         jp z,@rerr
-        ld a,9
+        ld a,R_ARG
         jp @rerr
 
 ; The functions of one number: the number at HL replaced.  Keeps HL, DE.
-@r346E: ld a,7                  ; negate
+@r346E: ld a,F_NEG
         j @rmo
-@r346A: ld a,6                  ; abs
+@r346A: ld a,F_ABS
         j @rmo
-@r3214: ld a,8                  ; truncate
+@r3214: ld a,F_TRUNC
         j @rmo
 ; ... and those that are calculator routines in the ROM: the number on top
 ; of the stack, whatever HL -> HL = it, DE = STKEND.
-@r36C4: ld a,9                  ; exp
+@r36C4: ld a,F_EXP
         j @rso
-@r37B5: ld a,11                 ; sin
+@r37B5: ld a,F_SIN
         j @rso
-@r37AA: ld a,12                 ; cos
+@r37AA: ld a,F_COS
 @rso:   push af
         call @r35BF
         pop af
         j @rmo
-@r3713: ld a,10                 ; ln
+@r3713: ld a,F_LN
         j @rsa
-@r384A: ld a,17                 ; sqr
+@r384A: ld a,F_SQR
 @rsa:   push af
         call @r35BF
         pop af
-@rma:   ld c,9                  ; no result: A Invalid argument
+@rma:   ld c,R_ARG              ; no result
         j @rmc
-@rmo:   ld c,5                  ; no result: 6 Number too big
+@rmo:   ld c,R_BIG              ; no result
 @rmc:   push hl
         push de
         push bc
@@ -396,13 +387,13 @@ MEMBOT  equ @rsv+92h
 @rint:  push hl
         push de
         ld de,@rt1              ; the number, kept
-        ld bc,5
+        ld bc,FNUM
         push hl
         ldir
         pop hl
         ld b,h
         ld c,l
-        ld a,8                  ; truncated
+        ld a,F_TRUNC
         call @rfcall
         ld a,(@rt1+1)
         ld e,a
@@ -421,7 +412,7 @@ MEMBOT  equ @rsv+92h
         ld hl,@rt1
         ld b,h
         ld c,l
-        ld a,2                  ; x - trunc(x) into @rt1
+        ld a,F_SUB              ; x - trunc(x) into @rt1
         call @rfcall
         ld hl,@rt1
         call @r34E9
@@ -433,24 +424,23 @@ MEMBOT  equ @rsv+92h
         ld b,h
         ld c,l
         ld de,@cone
-        ld a,2
+        ld a,F_SUB
         call @rfcall
 .done:  pop de
         pop hl
         ret
 
-; RST 28h: the calculator, for the operations the runtime asks of it:
-; 02 delete, 03 subtract, 04 multiply, 09-0E compare (<=, >=, <>, >, <,
-; =: which one is B's, as in the ROM), 0F addition, 24 atn, 31 duplicate, 32 n-mod-m, 34 stk-data, A1
-; stk-one, A3 stk-pi/2, 38 end-calc (-> HL = the top number, DE = STKEND).
+; RST 28h: the calculator, for the operations the runtime asks of it (the
+; K_ names in rbc.inc; a comparison is B's, as in the ROM); end-calc -> HL
+; = the top number, DE = STKEND.
 @r28:   ld a,b
         ld (@rbreg),a           ; the comparisons' operation: B, as the runtime gives it
         pop hl
 .l:     ld a,(hl)
         inc hl
-        cp 38h
+        cp K_END
         j z,.end
-        cp 34h
+        cp K_DATA
         j z,.dat
         push hl
         call .op
@@ -460,46 +450,45 @@ MEMBOT  equ @rsv+92h
         jp @r35BF
 .dat:   call .data
         j .l
-.op:    cp 0A1h
+.op:    cp K_ONE
         j nz,.n1
         ld hl,@cone
         jp @r33B4
-.n1:    cp 0A3h
+.n1:    cp K_PI2
         j nz,.n2
         ld hl,@cpi2
         jp @r33B4
-.n2:    cp 31h
+.n2:    cp K_DUP
         j nz,.n3
         call @r35BF
         jp @r33B4
-.n3:    cp 02h
+.n3:    cp K_DEL
         j nz,.n4
         call @r35BF
         ld (STKEND),hl
         ret
-.n4:    cp 24h
+.n4:    cp K_ATN
         j nz,.n5
         call @r35BF
-        ld a,16                 ; atn
+        ld a,F_ATN
         j @rmo
-.n5:    cp 32h
+.n5:    cp K_MOD
         j z,.mod
         push af                 ; the operations of two
         call .p2
         pop af
-        cp 03h
+        cp K_SUB
         j z,.sub
-        cp 04h
+        cp K_MUL
         j z,.mul
-        cp 0Fh
+        cp K_ADD
         j z,.add
-        cp 0Fh
         j nc,.bad
-        cp 09h
+        cp K_CMP
         j c,.bad
         ld a,(@rbreg)           ; compare (09-0E): which comparison is B's
-        sub 09h
-        cp 6
+        sub K_CMP
+        cp K_CMPN
         j nc,.bad
         push hl
         ld hl,.cmpt
@@ -513,15 +502,15 @@ MEMBOT  equ @rsv+92h
         push af
         call @r300F
         ld (STKEND),de
-        ld c,1                  ; 0
+        ld c,CMP_Z
         call @r34E9
         j c,.cs
-        ld c,4                  ; positive
+        ld c,CMP_P
         inc hl
         bit 7,(hl)
         dec hl
         j z,.cs
-        ld c,2                  ; negative
+        ld c,CMP_N
 .cs:    pop af
         and c
         add a,0FFh              ; CF: true
@@ -535,14 +524,14 @@ MEMBOT  equ @rsv+92h
 .add:   call @r3014
         ld (STKEND),de
         ret
-.bad:   ld a,0Bh                ; C Nonsense in BASIC: not an operation of ours
+.bad:   ld a,R_NONS             ; not an operation of ours
         jp @rerr
 ; n-mod-m: n, m -> n - m*INT(n/m), INT(n/m)
 .mod:   call .p2
         push hl
         push de
         ld bc,@rt2              ; q = INT(n/m)
-        ld a,4
+        ld a,F_DIV
         call @rfcall
         j c,.ovf
         ld hl,@rt2
@@ -551,7 +540,7 @@ MEMBOT  equ @rsv+92h
         push de
         ld hl,@rt2
         ld bc,@rt1
-        ld a,3
+        ld a,F_MUL
         call @rfcall
         pop de
         pop hl
@@ -559,40 +548,40 @@ MEMBOT  equ @rsv+92h
         ld de,@rt1              ; n = n - q*m
         ld b,h
         ld c,l
-        ld a,2
+        ld a,F_SUB
         call @rfcall
         pop de                  ; m = q
         ld hl,@rt2
-        ld bc,5
+        ld bc,FNUM
         ldir
         ret
-.ovf:   ld a,5
+.ovf:   ld a,R_BIG
         jp @rerr
 .p2:    call @r35BF             ; HL = x, DE = y
         ld d,h
         ld e,l
-        ld bc,-5
+        ld bc,-FNUM
         add hl,bc
         ret
 ; stk-data: the number written after it (HL) onto the stack -> HL past it
 .data:  ld a,(hl)
         inc hl
         ld b,a
+        and K_DLEN
         rlca
         rlca
-        and 3
         inc a
         ld c,a                  ; mantissa bytes
         ld a,b
-        and 3Fh
+        and K_DEXP
         j nz,.e
         ld a,(hl)
         inc hl
-.e:     add a,50h
+.e:     add a,K_DBIAS
         ld de,@rt1
         ld (de),a
         inc de
-        ld b,4
+        ld b,FNUM-1
 .m:     ld a,c
         or a
         j z,.z
@@ -609,13 +598,10 @@ MEMBOT  equ @rsv+92h
         call @r33B4
         pop hl
         ret
-.cmpt:  db 3,5,6,4,2,1          ; <= >= <> > < =: 1 zero, 2 negative, 4 positive
+.cmpt:  db CMP_Z|CMP_N,CMP_Z|CMP_P,CMP_N|CMP_P,CMP_P,CMP_N,CMP_Z   ; <= >= <> > < =
 
-@cone:  db 0,0,1,0,0
-@chalf: db 80h,0,0,0,0
-@cpi2:  db 81h,49h,0Fh,0DAh,0A2h
 
         section bss
-@rt1:   ds 5
-@rt2:   ds 5
+@rt1:   ds FNUM
+@rt2:   ds FNUM
 @rbreg: ds 1

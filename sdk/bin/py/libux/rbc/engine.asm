@@ -9,7 +9,6 @@
 ; address from system call 42, asked once.  No ROM fallback (libux's
 ; @fcall has one, for kernels without call 42): a kernel without the
 ; engine stops the program with report C.
-SYS     equ 6003h
         section text
         global @rfcall
 
@@ -24,13 +23,13 @@ SYS     equ 6003h
         j nz,.k
         push bc
         push de
-        ld a,42
+        ld a,SYS_FP
         call SYS
         pop de
         pop bc
         ld (@rfpe),hl
         j nc,.k
-        ld a,0Bh                ; C Nonsense in BASIC: no float engine
+        ld a,R_NONS             ; no float engine
         jp @rerr
 .k:     ld (.c+1),hl
         pop hl

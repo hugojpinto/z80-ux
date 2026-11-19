@@ -85,7 +85,8 @@ def main(argv=None):
                 use_fit=not args.ux)
             if args.ux:
                 from . import ux
-                asm, ssx, uxr = ux.link(asm, args.stack)
+                asm, ssx, uxr = ux.link(asm, args.stack,
+                                        tokens=ux.needs_tokens(inp.read_text(encoding='ascii')))
                 if uxr['rom'] and not args.rom_ok:
                     raise ValueError('still the ROM for %s (--rom-ok: a Spectrum only)'
                                      % ' '.join(uxr['rom']))

@@ -140,14 +140,39 @@ def archives():
     return out
 
 
-def link(text, stack, kind=KIND_FIXED):
+CLAIMED = '    ld a,39\n    call $6003\n'      # the wrapper's claim of the screen (call 39)
+NO_TOKENS = """        section text
+        global @rtok
+@rtok:  ld a,'?'
+        jp @rpo
+"""
+TOKEN_ESCAPE = re.compile(r'\{([0-9A-Fa-f]{2})\}')
+
+
+def needs_tokens(basic):
+    """Can the program print a keyword's code (A5h-FFh)?  Through CHR$, or a
+    string written with one ({C4}).  Else @rtok prints '?' (libux's keyword
+    printer, ~0.5 KB, is not linked)."""
+    from .bas2tap import TOKENS
+    return 'CHR$' in basic.upper() or any(
+        int(m.group(1), 16) >= min(c for c in TOKENS if c >= 0xA5)
+        for m in TOKEN_ESCAPE.finditer(basic))
+
+
+def link(text, stack, kind=KIND_FIXED, tokens=True):
     """The --ux program -> (source, ssx, report)."""
+    if CLAIMED not in text:
+        raise UxError('the wrapper does not claim the screen (call 39)')
+    text = text.replace(CLAIMED, CLAIMED + '    call @rinit\n', 1)   # then the page: call 41
     src, used = rewrite(text)
     obj, src = _assemble(src, 'rbc-ux.s')
     libs = archives()
     rom_members = {id(m) for m in libs[2]}
+    objs = [rld.Obj(obj, 'rbc-ux.sso')]
+    if not tokens:
+        objs.append(rld.Obj(ras.assemble_text(NO_TOKENS, 'notokens'), 'notokens.sso'))
     try:
-        ssx, bss, ent, gaddr, chosen = rld.link([rld.Obj(obj, 'rbc-ux.sso')], libs,
+        ssx, bss, ent, gaddr, chosen = rld.link(objs, libs,
                                                 entry='start', stack=stack, flags=kind)
     except rld.LinkError as e:
         raise UxError('link: %s' % e) from e

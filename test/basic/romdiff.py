@@ -99,6 +99,64 @@ class Pair:
                     mem=r(SV['MEM']), m=m)
 
 
+_BOOT = []
+
+
+def booted():
+    """RAM (4000h-FFFFh) as the ROM leaves it at its first key wait, then
+    its own CLS: channels, streams, positions, colours."""
+    if not _BOOT:
+        zx = zxcore.Spectrum(read_port=lambda p: 0xFF)
+        zx.set(pc=0, sp=0xFFFF)
+        if not zx.run((0x15D4,), zx.t + 200_000_000):
+            raise RuntimeError('the ROM did not start')
+        zx.set(iy=0x5C3A, sp=SP - 2, iff1=False, iff2=False)
+        zx.mem[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+        zx.set(pc=0x0D6B)
+        zx.run((TRAP,), zx.t + 50_000_000)
+        zx.mem[0x5C8C] = 255                     # SCR_CT, as rbc keeps it
+        _BOOT.append(bytes(zx.mem[0x4000:]))
+    return _BOOT[0]
+
+
+PRINTVARS = [('S_POSN', 0x5C88, 2), ('DF_CC', 0x5C84, 2), ('S_POSNL', 0x5C8A, 2),
+             ('DFCCL', 0x5C86, 2), ('DF_SZ', 0x5C6B, 1), ('ATTR_P', 0x5C8D, 2),
+             ('ATTR_T', 0x5C8F, 2), ('P_FLAG', 0x5C91, 1), ('ERR_NR', 0x5C3A, 1),
+             ('BORDCR', 0x5C48, 1), ('SEED', 0x5C76, 2)]
+
+
+def stream(rng, n):
+    out = []
+    while len(out) < n:
+        k = rng.random()
+        if k < 0.55:
+            out.append(rng.randrange(32, 128))
+        elif k < 0.63:
+            out.append(13)
+        elif k < 0.68:
+            out.append(6)
+        elif k < 0.72:
+            out += [0x16, rng.randrange(0, 22), rng.randrange(0, 32)]
+        elif k < 0.75:
+            out += [0x17, rng.randrange(0, 64), 0]
+        elif k < 0.82:
+            c = rng.randrange(0x10, 0x16)
+            v = rng.choice([0, 1, 8, 9, 2, 7] if c < 0x12 else [0, 1, 8] if c < 0x14 else [0, 1])
+            out += [c, v]
+        elif k < 0.86:
+            if out and 32 <= out[-1] < 128:     # (not from the top left: the ROM draws
+                out.append(8)                   # "line -1" into the attributes)
+        elif k < 0.88:
+            out.append(9)
+        elif k < 0.94:
+            out.append(rng.randrange(0x80, 0xA5))
+        elif k < 0.96:
+            out.append(rng.randrange(0xA5, 0x100))
+        else:
+            out.append(rng.choice([0, 1, 7, 10, 11, 12, 14, 15, 0x18, 0x1F]))
+    return out
+
+
 def rnum(rng):
     k = rng.random()
     if k < 0.3:
@@ -195,6 +253,104 @@ def compare(name, outs, flags, a, b):
     return bad
 
 
+def print_case(pair, rng, stream_no, chars, pre=(), post=()):
+    """chars printed on stream stream_no on both; -> (rom, ux) states."""
+    out = []
+    for which, zx in (('rom', pair.rom), ('ux', pair.ux)):
+        zx.mem[0x4000:] = booted()
+        if which == 'ux':
+            zx.mem[ORG:ORG + len(pair.image)] = pair.image
+            e = pair.sym['@romfp']
+            zx.mem[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+        sym = (lambda n, a: a) if which == 'rom' else (lambda n, a: pair.sym[n])
+        code = []
+
+        def calls(ops):
+            out = []
+            for name, addr, a, bc, de in ops:     # (routine, A, BC, DE)
+                t = sym(name, addr)
+                out += [0x3E, a, 0x01, bc & 255, bc >> 8, 0x11, de & 255, de >> 8,
+                        0xCD, t & 255, t >> 8]
+            return out
+        code += calls(pre)
+        if stream_no is not None:
+            t = sym('@r1601', 0x1601)
+            code += [0x3E, stream_no & 255, 0xCD, t & 255, t >> 8]
+        p10 = sym('@r10', 0x10)
+        for c in chars:
+            code += [0x3E, c] + ([0xD7] if which == 'rom' else [0xCD, p10 & 255, p10 >> 8])
+        code += calls(post) + [0xC3, TRAP & 255, TRAP >> 8]
+        zx.mem[0xC000:0xC000 + len(code)] = bytes(code)
+        m = zx.mem
+        m[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+        m[0x5C3D:0x5C3F] = bytes([(SP - 2) & 255, (SP - 2) >> 8])
+        m[0x5C3A] = 0xFF
+        zx.set(iy=0x5C3A, sp=SP - 2, iff1=False, iff2=False, a=0, bc=0, de=0, hl=0, pc=0xC000)
+        if not zx.run((TRAP,), zx.t + 200_000_000):
+            raise RuntimeError('%s: the stream did not end' % which)
+        out.append(zx)
+    return out
+
+
+def print_compare(a, b):
+    bad = []
+    if a.mem[0x5C3A] != 0xFF or b.mem[0x5C3A] != 0xFF:
+        if a.mem[0x5C3A] != b.mem[0x5C3A]:
+            return ['ERR_NR: ROM %02X, ours %02X' % (a.mem[0x5C3A], b.mem[0x5C3A])]
+    for i in range(0x4000, 0x5B00):
+        if a.mem[i] != b.mem[i]:
+            if i < 0x5800:
+                o = i - 0x4000
+                line = (o >> 5 & 0xC0) | (o >> 2 & 0x38) | (o >> 8 & 7)
+                bad.append('pixels line %d col %d: ROM %02X, ours %02X' % (line, o & 31, a.mem[i], b.mem[i]))
+            else:
+                o = i - 0x5800
+                bad.append('attribute %d,%d: ROM %02X, ours %02X' % (o >> 5, o & 31, a.mem[i], b.mem[i]))
+            break
+    for name, addr, n in PRINTVARS:
+        x, y = bytes(a.mem[addr:addr + n]), bytes(b.mem[addr:addr + n])
+        if x != y:
+            bad.append('%s: ROM %s, ours %s' % (name, x.hex(), y.hex()))
+    if (a.mem[0x5C3C] ^ b.mem[0x5C3C]) & 1:
+        bad.append('TV_FLAG bit 0: ROM %02X, ours %02X' % (a.mem[0x5C3C], b.mem[0x5C3C]))
+    return bad
+
+
+def print_tests(pair, rng, n, only, verbose):
+    fails = {}
+    tests = {
+        'PRINT:S': lambda: (2, stream(rng, rng.randrange(1, 400)), ()),
+        'PRINT:K': lambda: (0, [c for c in stream(rng, rng.randrange(1, 60)) if c != 0x16], ()),
+        'CLS': lambda: (2, stream(rng, 100), ()),
+        'CO-TEMP': lambda: (2, [65], [('@r2211', 0x2211, rng.randrange(0x10, 0x16),
+                                       0, rng.choice([0, 1, 2, 7, 8, 9, 10]) << 8)]),
+        'CL-SET': lambda: (2, [65], [('@r0DD9', 0x0DD9, 0, rng.randrange(3, 25) << 8 | rng.randrange(2, 34), 0)]),
+        'PR-STRING': lambda: (2, [], [('@r203C', 0x203C, 0, 20, 0x3D00 + rng.randrange(0, 600))]),
+        'BORDER': lambda: (2, [65], [('@r2297', 0x2297, rng.randrange(0, 8), 0, 0)]),
+        'RANDOMIZE': lambda: (2, [], [('@r1E52', 0x1E52, 0, rng.choice([0, rng.randrange(65536)]), 0)]),
+    }
+    count = 0
+    for name, gen in tests.items():
+        if only and not any(o in name for o in only):
+            continue
+        count += 1
+        for i in range(n // 4 or 1):
+            st, chars, pre = gen()
+            post = ()
+            if name == 'CLS':                   # after a stream (CLS sets SCR_CT to 1:
+                post = [('@r0D6B', 0x0D6B, 0, 0, 0)]    # "scroll?" would follow)
+            a, b = print_case(pair, rng, st, chars, pre, post)
+            bad = print_compare(a, b)
+            if bad:
+                fails.setdefault(name, []).append('%s: %s' % (
+                    ' '.join('%02X' % c for c in chars[:80]), '; '.join(bad[:4])))
+        if verbose or name in fails:
+            print('%-12s %s' % (name, 'FAIL (%d)' % len(fails[name]) if name in fails else 'ok'))
+            for f in fails.get(name, [])[:3]:
+                print('    ' + f)
+    return count, len(fails)
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -261,8 +417,11 @@ def main():
             print('%-12s %s' % (name, status))
             for f in fails.get(name, [])[:3]:
                 print('    ' + f)
-    print('romdiff: %d routines, %d differ: %s' % (tested, len(fails), 'FAIL' if fails else 'ok'))
-    return 1 if fails else 0
+    pt, pf = print_tests(pair, rng, n, only, verbose)
+    tested += pt
+    nf = len(fails) + pf
+    print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
+    return 1 if nf else 0
 
 
 if __name__ == '__main__':

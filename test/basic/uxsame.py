@@ -65,6 +65,7 @@ def newest_lib():
     return _NEWEST[0]
 
 
+SYSCALL = 0x6003
 START = bytes.fromhex('2101003e27cd0360')    # the wrapper's first instructions: ld hl,1 / ld a,39 / call 6003h
 CDRAWN = 0x5C92 + 12                        # dev.asm: the console's cursor is on the screen
 EVERY = 40                                  # a picture at every 40th character printed
@@ -92,16 +93,25 @@ def run(data, name, frames, steps, entry):
         return False
     if not isinstance(entry, tuple):
         m.hooks[entry] = hit
+    else:                               # at its first system call (39, the
+        sys_hook = m.hooks[SYSCALL]     # wrapper's claim): it is loaded there
+        offset = entry[1]
+
+        def first_call(mm):
+            if m.hooks.get(SYSCALL) is first_call and mm.cpu.a == 39:
+                sp = mm.cpu.sp
+                ret = mm.mem[sp] | mm.mem[sp + 1] << 8
+                base = ret - len(START)
+                if bytes(mm.mem[base:ret]) == START:
+                    m.hooks[base + offset] = hit
+                    m.hooks[SYSCALL] = sys_hook
+            return sys_hook(mm)
+        m.hooks[SYSCALL] = first_call
     before = None
     for i in range(steps):
         for _ in range(frames):
             m.mem[0x5C78:0x5C7B] = b'\0\0\0'     # FRAMES: RANDOMIZE's seed, the same
             s.step()
-            if isinstance(entry, tuple) and job.started is not None:
-                base = bytes(m.mem).find(START, 0x5B00)      # where it was loaded
-                if base >= 0:
-                    entry = base + entry[1]
-                    m.hooks[entry] = hit
             if job.ended is not None:
                 break
         if before is None:
