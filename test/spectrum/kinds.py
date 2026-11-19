@@ -15,7 +15,8 @@ the shipped one), on the SDK's headless Spectrum:
   - keys (test/kinds/keys.c): kbd_down sees A held (the keyboard rows:
     the Spectrum's console is a screen, not a terminal);
   - float (test/kinds/float.c): floats through system call 42 (the
-    kernel's adapter on the ROM's calculator: platform/float.md);
+    kernel's adapter on the ROM's calculator: platform/float.md), and as
+    text (ftoa, atof);
   - mandel on the shipped ZX-UX.tzx, a kernel with no system call 41:
     the runtime falls back to 4000h and it draws all the same; float
     there: no call 42, the runtime's own ROM adapter.
@@ -39,6 +40,7 @@ SRC = {'hello': 'examples/c48-src/examples/hello.c',
        'keys': 'test/kinds/keys.c',
        'float': 'test/kinds/float.c'}
 FLOATS = '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3'
+FTEXT = '1.4142136 0.33333333 1E+10 -.05 65535 -1250 6.2831853'
 KIND = ['stream', 'console', 'bitmap', 'fixed']
 
 
@@ -148,7 +150,8 @@ def main():
     s.wait_prompt()
     job = run(s, progs['float'][0], 'float', 3000)
     settle(s)
-    check(FLOATS in s.text() and 'float ok' in s.text(), 'float: %r' % s.text()[-300:])
+    check(FLOATS in s.text() and FTEXT in s.text() and 'float ok' in s.text(),
+          'float: %r' % s.text()[-300:])
 
     # the shipped kernel: no call 41
     t = golden.session('shipped')
@@ -160,7 +163,8 @@ def main():
     t.wait_prompt()
     run(t, progs['float'][0], 'float', 3000)
     settle(t)
-    check(FLOATS in t.text() and 'float ok' in t.text(), 'float, shipped kernel: %r' % t.text()[-300:])
+    check(FLOATS in t.text() and FTEXT in t.text() and 'float ok' in t.text(),
+          'float, shipped kernel: %r' % t.text()[-300:])
 
     for f in fails:
         print('FAIL:', f)

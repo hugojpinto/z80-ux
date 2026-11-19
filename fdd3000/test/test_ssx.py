@@ -134,6 +134,8 @@ def main():
     expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
     expect('float', '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3',
            'the float engine did not give the ROM\'s results')
+    expect('float', '1.4142136 0.33333333 1E+10 -.05 65535 -1250 6.2831853',
+           'ftoa/atof did not give the numbers as text')
     expect('float', 'float ok', 'float did not finish')
     expect('keys', 'a:0 m:0', 'a key was seen down behind the terminal')
     expect('noexec', '/tmp/x', 'a non-SSX1 file was not refused')

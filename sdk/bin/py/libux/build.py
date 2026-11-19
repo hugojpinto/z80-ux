@@ -12,7 +12,8 @@
                        @scrstart), console.asm (the display file where
                        system call 41 puts it) and sys.asm (no keyboard
                        rows behind a terminal) and float.asm (the
-                       platform's float engine: sys 42) in place of lib's
+                       platform's float engine: sys 42) in place of lib's,
+                       and fstr.asm (numbers to text and back: ftoa, atof)
     libux/libtty.ssa   libux/tty.asm: the stream and console kinds' text
                        through the terminal (platform/screen-kinds.md)
 
@@ -37,6 +38,7 @@ libbuild = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(libbuild)
 
 OVERRIDE = ('crt0.asm', 'console.asm', 'sys.asm', 'float.asm')
+EXTRA = ('fstr.asm',)       # libux's own: numbers to text and back
 
 
 def members(paths):
@@ -62,6 +64,7 @@ def main():
         if name == 'forth_rt.asm':
             continue
         paths.append(os.path.join(HERE, name) if name in OVERRIDE else f)
+    paths += [os.path.join(HERE, name) for name in EXTRA]
     objs = members(paths)
     from rcc import bcops
     objs.append(('vmtab.sso', ras.assemble_text(bcops.vm_table(), 'vmtab')))

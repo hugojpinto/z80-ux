@@ -87,6 +87,28 @@ numerical methods — none of the ROM's code or coefficients:
 Speed is about the ROM's: 3–40k T-states for arithmetic, 0.25–0.67M for
 the functions.
 
+## Numbers as text: in the program
+
+`libux/fstr.asm` (C48 `ftoa`, `atof`; the BASIC compiler's PRINT, STR$
+and VAL next). Library members, linked only into programs that use them:
+nothing on the platform. Clean room, with exact integer arithmetic on a
+208-bit number, so the engine's rounding never reaches the digits:
+
+- `@fstr`: a number to text as the Spectrum's PRINT writes it: 8
+  significant digits, correctly rounded, trailing zeros dropped; `0.5`,
+  `.05`, `.00001`, then `1E-6`; up to `99999999`, then `1E+8`. Whole
+  numbers in the small-integer form go straight to their digits.
+- `@fval`: text to a number: digits, a point, digits, `E`, a sign,
+  digits; 9 significant digits read; rounded to nearest; whole numbers
+  below 65,536 in the small-integer form.
+
+Tested (`test/fp/strtest.py`) against the exact value and the 48K ROM's
+own PRINT-FP (`test/fp/romtext.py`): the same text on every number,
+except where the ROM's eighth digit is itself wrong (about 1 in 1,000).
+1,468 bytes for both with their working space (`ftoa` alone needs
+`@fstr`); 36k T-states for a typical number, under 2k for a whole one up
+to 65,535, 180k at worst (`1E+38`).
+
 ## Who uses it
 
 `libc48` (`libux/float.asm`): C48, and the Pascal and Fortran compilers,
