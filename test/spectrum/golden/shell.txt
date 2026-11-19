@@ -1,0 +1,222 @@
+=== shell: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== shell: echo a; echo b
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+#
+=== shell: echo /bin/c*
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+#
+=== shell: echo one > /tmp/x
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+#
+=== shell: echo two >> /tmp/x
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+#
+=== shell: cat < /tmp/x
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+#
+=== shell: echo echo from a script > /tmp/s
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+# echo echo from a script > /tmp/s
+#
+=== shell: sh /tmp/s
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+# echo echo from a script > /tmp/s
+# sh /tmp/s
+from a script
+#
+=== shell: nosuch
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+# echo echo from a script > /tmp/s
+# sh /tmp/s
+from a script
+# nosuch
+nosuch: not found
+#
+=== shell: cat /tmp/x /tmp/s
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo a; echo b
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+# echo echo from a script > /tmp/s
+# sh /tmp/s
+from a script
+# nosuch
+nosuch: not found
+# cat /tmp/x /tmp/s
+one
+two
+echo from a script
+#
+=== shell: more /etc/motd
+a
+b
+# echo /bin/c*
+/bin/cat /bin/chmod /bin/clock /bin/cls /bin/cmp /bin/cp
+# echo one > /tmp/x
+# echo two >> /tmp/x
+# cat < /tmp/x
+one
+two
+# echo echo from a script > /tmp/s
+# sh /tmp/s
+from a script
+# nosuch
+nosuch: not found
+# cat /tmp/x /tmp/s
+one
+two
+echo from a script
+# more /etc/motd
+
+  Welcome to ZX-UX UNIX v1.
+
+#

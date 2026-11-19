@@ -1,0 +1,282 @@
+=== procs: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== procs: sleep 2 &
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+#
+=== procs: ps
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+#
+=== procs: date
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+#
+=== procs: sleep 3
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+#
+=== procs: ps
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+#
+=== procs: forktest
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+#
+=== procs: keys 'clock\n'
+
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+=== procs: keys '{BREAK}'
+  Welcome to ZX-UX UNIX v1.
+
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+#
+=== procs: echo after clock
+# sleep 2 &
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+# echo after clock
+after clock
+#
+=== procs: keys 'cat\n'
+3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+# echo after clock
+after clock
+# cat
+=== procs: keys '{BREAK}'
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+# echo after clock
+after clock
+# cat
+
+#
+=== procs: echo after break
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    3     2 S  0:00 sleep
+    4     2 R  0:00 ps
+# date
+Fri Apr 23 hh:mm:ss 1982
+# sleep 3
+# ps
+  PID  PPID S TIME CMD
+    1     0 S  0:00 init
+    2     1 S  0:00 sh
+    7     2 R  0:00 ps
+# forktest
+forktest: 24 P, 24 c
+# clock
+hh:mm:ss
+# echo after clock
+after clock
+# cat
+
+# echo after break
+after break
+#

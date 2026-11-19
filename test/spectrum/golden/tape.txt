@@ -1,0 +1,111 @@
+=== tape: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== tape: echo on the tape > /tmp/td
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+#
+=== tape: tar cvf /dev/cassette/x /tmp/td
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+# tar cvf /dev/cassette/x /tmp/td
+-    12 /tmp/td
+#
+=== tape: tape: 4 blocks rewound
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+# tar cvf /dev/cassette/x /tmp/td
+-    12 /tmp/td
+#
+=== tape: rm /tmp/td
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+# tar cvf /dev/cassette/x /tmp/td
+-    12 /tmp/td
+# rm /tmp/td
+#
+=== tape: tar xvf /dev/cassette/x
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+# tar cvf /dev/cassette/x /tmp/td
+-    12 /tmp/td
+# rm /tmp/td
+# tar xvf /dev/cassette/x
+Extracting: /tmp/td
+-    12 /tmp/td
+#
+=== tape: cat /tmp/td
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# echo on the tape > /tmp/td
+# tar cvf /dev/cassette/x /tmp/td
+-    12 /tmp/td
+# rm /tmp/td
+# tar xvf /dev/cassette/x
+Extracting: /tmp/td
+-    12 /tmp/td
+# cat /tmp/td
+on the tape
+#

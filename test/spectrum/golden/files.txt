@@ -1,0 +1,678 @@
+=== files: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== files: ls /
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# ls /
+bin
+dev
+etc
+tmp
+usr
+#
+=== files: ls /bin
+hello
+ln
+login
+ls
+mkdir
+more
+mv
+od
+ps
+pwd
+rm
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+#
+=== files: ls -l /etc
+mv
+od
+ps
+pwd
+rm
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+#
+=== files: mkdir /tmp/d
+od
+ps
+pwd
+rm
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+#
+=== files: echo hello > /tmp/d/f
+ps
+pwd
+rm
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+#
+=== files: cat /tmp/d/f
+rm
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+#
+=== files: cp /tmp/d/f /tmp/d/g
+rmdir
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+#
+=== files: mv /tmp/d/g /tmp/d/h
+sh
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+#
+=== files: ln /tmp/d/h /tmp/d/i
+sleep
+stat
+sum
+tap
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+#
+=== files: ls -l /tmp/d
+tar
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+#
+=== files: cmp /tmp/d/f /tmp/d/h
+top
+vi
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+#
+=== files: wc /tmp/d/f
+wc
+zxpack
+# ls -l /etc
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+#
+=== files: od /tmp/d/f
+txrwr- 1   131 Apr 23 09:00 getty
+txrwr- 1   531 Apr 23 09:00 glob
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+#
+=== files: sum /tmp/d/f
+txrwr- 1   141 Apr 23 09:00 init
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+#
+=== files: chmod 4 /tmp/d/f
+txrwr- 1   367 Apr 23 09:00 ldx
+s-rwr- 1    30 Apr 23 00:00 motd
+# mkdir /tmp/d
+# echo hello > /tmp/d/f
+# cat /tmp/d/f
+hello
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+#
+=== files: stat /tmp/d/f
+# cp /tmp/d/f /tmp/d/g
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+#
+=== files: rm /tmp/d/i
+# mv /tmp/d/g /tmp/d/h
+# ln /tmp/d/h /tmp/d/i
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+#
+=== files: rmdir /tmp/d
+# ls -l /tmp/d
+s-rwr- 1     6 Apr 23 09:00 f
+s-rwr- 2     6 Apr 23 09:00 h
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+#
+=== files: du /tmp
+s-rwr- 2     6 Apr 23 09:00 i
+# cmp /tmp/d/f /tmp/d/h
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+#
+=== files: df
+# wc /tmp/d/f
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+#
+=== files: cd /tmp/d
+    1     1     6 /tmp/d/f
+# od /tmp/d/f
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+#
+=== files: pwd
+000000 062550 066154 005157
+000006
+# sum /tmp/d/f
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+#
+=== files: ls
+  542   1
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+#
+=== files: cd /
+# chmod 4 /tmp/d/f
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+# cd /
+#
+=== files: rm /tmp/d/f /tmp/d/h
+# stat /tmp/d/f
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+# cd /
+# rm /tmp/d/f /tmp/d/h
+#
+=== files: rmdir /tmp/d
+/tmp/d/f:
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+# cd /
+# rm /tmp/d/f /tmp/d/h
+# rmdir /tmp/d
+#
+=== files: ls /tmp
+ i-number 53
+ s--w-- 1 6 bytes
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+# cd /
+# rm /tmp/d/f /tmp/d/h
+# rmdir /tmp/d
+# ls /tmp
+#
+=== files: cat /nosuch
+ mod Fri Apr 23 hh:mm:ss 1982
+ cre Fri Apr 23 hh:mm:ss 1982
+# rm /tmp/d/i
+# rmdir /tmp/d
+/tmp/d: not empty
+# du /tmp
+    3 /tmp/d
+    4 /tmp
+# df
+N bytes free, 10 i-nodes free
+# cd /tmp/d
+# pwd
+/tmp/d
+# ls
+f
+h
+# cd /
+# rm /tmp/d/f /tmp/d/h
+# rmdir /tmp/d
+# ls /tmp
+# cat /nosuch
+/nosuch: can't open
+#

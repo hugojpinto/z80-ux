@@ -1,0 +1,108 @@
+=== ssx: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== ssx: run hello
+
+
+
+
+
+
+
+
+
+                      hello from c48
+
+              zx-ux portable host sdk
+
+
+
+
+
+
+
+
+
+
+#
+=== ssx: echo back
+
+
+
+
+
+
+
+                      hello from c48
+
+              zx-ux portable host sdk
+
+
+
+
+
+
+
+
+
+
+# echo back
+back
+#
+=== ssx: run arith
+
+Solve the problem or press q.
+
+
+
+        35  /   5   =
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#
+=== ssx: echo again
+
+
+
+        35  /   5   =
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# echo again
+again
+#

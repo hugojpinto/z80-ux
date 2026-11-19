@@ -1,0 +1,142 @@
+=== pack: boot
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+#
+=== pack: cp /usr/doc/tar /tmp/t
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+#
+=== pack: ls -l /tmp
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+# ls -l /tmp
+s-rwr- 1  1567 Apr 23 09:00 t
+#
+=== pack: zxpack /tmp/t
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+# ls -l /tmp
+s-rwr- 1  1567 Apr 23 09:00 t
+# zxpack /tmp/t
+/tmp/t: 1567 -> 701 bytes
+#
+=== pack: ls -l /tmp
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+# ls -l /tmp
+s-rwr- 1  1567 Apr 23 09:00 t
+# zxpack /tmp/t
+/tmp/t: 1567 -> 701 bytes
+# ls -l /tmp
+z-rwr- 1  1567 Apr 23 09:00 t
+#
+=== pack: cmp /usr/doc/tar /tmp/t
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+# ls -l /tmp
+s-rwr- 1  1567 Apr 23 09:00 t
+# zxpack /tmp/t
+/tmp/t: 1567 -> 701 bytes
+# ls -l /tmp
+z-rwr- 1  1567 Apr 23 09:00 t
+# cmp /usr/doc/tar /tmp/t
+#
+=== pack: df
+
+ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz
+ 2026 SANYALnet Labs
+ZX-UX v1 kernel NB free=NB procs=4 ok
+
+  ZX-UX  v1 (tty)
+login: root
+
+  Welcome to ZX-UX UNIX v1.
+
+# cp /usr/doc/tar /tmp/t
+# ls -l /tmp
+s-rwr- 1  1567 Apr 23 09:00 t
+# zxpack /tmp/t
+/tmp/t: 1567 -> 701 bytes
+# ls -l /tmp
+z-rwr- 1  1567 Apr 23 09:00 t
+# cmp /usr/doc/tar /tmp/t
+# df
+N bytes free, 12 i-nodes free
+#
+=== pack: more /usr/doc/more
+# cmp /usr/doc/tar /tmp/t
+# df
+N bytes free, 12 i-nodes free
+# more /usr/doc/more
+MORE(1)                                             ZX-UX
+
+NAME
+    more - show text one screen at a time
+
+USE
+    more file ...
+    more < file
+
+WHAT IT DOES
+    more shows 22 lines, then waits at --More--.
+    SPACE   show the next screen.
+    ENTER   show one more line.
+    q       quit.  EDIT and BREAK also quit.
+
+    Keys come from /dev/tty, so the text may come from a file.
+    With several files, each one starts with "::: name".
+    Long lines wrap at 64 columns and count as several lines.
+#
