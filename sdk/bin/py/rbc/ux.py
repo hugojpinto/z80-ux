@@ -86,6 +86,84 @@ def _val(t):
     return int(t)
 
 
+CALL_LBL = re.compile(r'^\s+call\s+([A-Za-z_]\w*)\s*(?:;.*)?$')
+DB = re.compile(r'^\s+db\s+(.*?)\s*(?:;.*)?$', re.I)
+LABEL_LINE = re.compile(r'^([A-Za-z_]\w*):\s*$')
+RT_KEY = re.compile(r'^(?:source|original_rt)_([0-9a-f]{4})$')
+
+
+def _db_bytes(line):
+    m = DB.match(line)
+    return [_val(x.strip()) for x in m.group(1).split(',')] if m else None
+
+
+def inline_data(text):
+    """The runtime's own calls of routines that take data written after the
+    call (a number to stack: 5 bytes; a string: its length, then it) are
+    followed, in the checked source, by those bytes disassembled as
+    instructions - which must not be rewritten.  -> the text with them as
+    db, label by label (each label kept at its place)."""
+    lines = text.split('\n')
+    kinds = {}                          # the routine's address -> 5 or 'len'
+    for i in range(len(lines) - 1):
+        m = CALL_LBL.match(lines[i])
+        k = m and RT_KEY.match(m.group(1))
+        if not k or not DB.match(lines[i + 1]):
+            continue
+        data = []
+        j = i + 1
+        while j < len(lines) and DB.match(lines[j]):
+            data += _db_bytes(lines[j])
+            j += 1
+        kind = 5 if len(data) == 5 else 'len' if len(data) >= 2 and data[0] + 256 * data[1] + 2 == len(data) else None
+        if kinds.get(k.group(1), kind) != kind:
+            kind = None
+        kinds[k.group(1)] = kind
+    kinds = {a: k for a, k in kinds.items() if k}
+    if not kinds:
+        return text
+    asm = ras.Asm('rbc-original.s')
+    asm.load(text)
+    asm.assemble()
+    code = asm.out['text']
+
+    def off(label):
+        v = asm.syms.get(label)
+        return v.v if v is not None and v.base == ('sec', 'text') else None
+    out = []
+    i = 0
+    while i < len(lines):
+        out.append(lines[i])
+        m = CALL_LBL.match(lines[i])
+        k = m and RT_KEY.match(m.group(1))
+        if (k and k.group(1) in kinds and i + 1 < len(lines) and not DB.match(lines[i + 1])
+                and LABEL_LINE.match(lines[i + 1]) and m.group(1).startswith('original_rt_')):
+            start = off(LABEL_LINE.match(lines[i + 1]).group(1))
+            n = kinds[k.group(1)]
+            n = 5 if n == 5 else 2 + code[start] + 256 * code[start + 1]
+            end = start + n
+            j = i + 1
+            labels = []                 # the labels in the data, and their places
+            while j < len(lines):
+                lm = LABEL_LINE.match(lines[j])
+                if lm:
+                    o = off(lm.group(1))
+                    if o is not None and o >= end:
+                        break
+                    labels.append((lm.group(1), o))
+                elif lines[j].strip() and not lines[j].lstrip().startswith(';'):
+                    pass                # an instruction of the data: dropped
+                j += 1
+            for (name, o), nxt in zip(labels, [o for _, o in labels[1:]] + [end]):
+                out.append(name + ':')
+                if nxt > o:
+                    out.append('    db ' + ','.join(str(b) for b in code[o:nxt]))
+            i = j
+            continue
+        i += 1
+    return '\n'.join(out)
+
+
 def rewrite(text):
     """The ROM's addresses as symbols -> (text, {symbol: address})."""
     out, used = [], {}
@@ -164,7 +242,7 @@ def link(text, stack, kind=KIND_FIXED, tokens=True):
     if CLAIMED not in text:
         raise UxError('the wrapper does not claim the screen (call 39)')
     text = text.replace(CLAIMED, CLAIMED + '    call @rinit\n', 1)   # then the page: call 41
-    src, used = rewrite(text)
+    src, used = rewrite(inline_data(text))
     obj, src = _assemble(src, 'rbc-ux.s')
     libs = archives()
     rom_members = {id(m) for m in libs[2]}
