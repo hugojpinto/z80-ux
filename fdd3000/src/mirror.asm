@@ -11,7 +11,7 @@
 ;  RAM left to them - and a VT52 terminal on the link.  So while a
 ;  program owns the screen, the kernel reads it back:
 ;
-;    every tick (ktick) MROWS character rows are looked at: a row whose
+;    every tick (tint, or stick on the soft clock) MROWS character rows are looked at: a row whose
 ;    pixels' checksum has changed is read cell by cell, each cell's 8
 ;    rows of 4 pixels matched against the font (straight or inverse:
 ;    hash, then a search), and the cells that differ from what the
@@ -122,8 +122,8 @@ mdone:  ld a,1
         ld (trow),a
         ret
 
-; mtick: from ktick while the screen is owned: MROWS rows.
-; (Sending takes time, time runs ktick: not into here again meanwhile.)
+; mtick: from a tick while the screen is owned: MROWS rows.
+; (Sending takes time, time runs stick: not into here again meanwhile.)
 mtick:  ld a,(mbusy)
         or a
         ret nz

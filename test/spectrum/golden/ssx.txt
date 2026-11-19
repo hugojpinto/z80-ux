@@ -58,51 +58,19 @@ login: root
 # echo back
 back
 #
-=== ssx: run arith
-
-Solve the problem or press q.
-
-
-
-        35  /   5   =
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+=== ssx: run mandel, BREAK
 #
-=== ssx: echo again
-
-
-
-        35  /   5   =
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# echo again
-again
+=== ssx: cls
+#
+=== ssx: echo after mandel
+# echo after mandel
+after mandel
+#
+=== ssx: run spin, BREAK
+#
+=== ssx: cls
+#
+=== ssx: echo after spin
+# echo after spin
+after spin
 #

@@ -42,7 +42,9 @@ SSX = os.path.join(ROOT, 'examples', 'c48-bin', 'ssx')
 # syntax) then that many frames, no prompt awaited; ('tape',) - what was
 # saved goes back in the cassette, rewound; ('run', program, frames) - an
 # SSX1 program from examples/c48-bin/ssx, launched from the cassette, run
-# for that many frames, then BREAK if it is still running.
+# for that many frames, then BREAK if it is still running (a fourth item:
+# only the prompt line is recorded, the picture depends on timing; a cls
+# after it keeps what is left of it out of the next screens).
 SESSIONS = [
     ('files', [
         'ls /', 'ls /bin', 'ls -l /etc', 'mkdir /tmp/d', 'echo hello > /tmp/d/f',
@@ -76,7 +78,13 @@ SESSIONS = [
         'rm /tmp/td', 'tar xvf /dev/cassette/x', 'cat /tmp/td',
     ]),
     ('ssx', [
-        ('run', 'hello', 300), 'echo back', ('run', 'arith', 200), 'echo again',
+        ('run', 'hello', 300), 'echo back',
+        # BREAK a program that computes in user mode: the frame interrupt
+        # delivers it (cat, above, is stopped inside a system call)
+        ('run', 'mandel', 150, 'break'), 'cls', 'echo after mandel',
+        # spin: one instruction, JR $; it never calls the kernel, so only
+        # the frame interrupt can preempt it and deliver BREAK
+        ('run', 'spin', 100, 'break'), 'cls', 'echo after spin',
     ]),
 ]
 
@@ -98,6 +106,15 @@ def mask(text):
     # with the code; what it printed may not: count the letters
     return FORK.sub(lambda m: 'forktest: %d P, %d c' % (m.group().count('P'),
                                                          m.group().count('c')), text)
+
+
+def spin_ssx():
+    """An SSX1 program of one instruction, JR $: no system call, ever."""
+    import struct
+    import rld
+    image = b'\x18\xfe'
+    hdr = b'SSX1' + struct.pack('<BBHHHHHH', 0, rld.SSX_HDR, len(image), 0, 64, 0, 0, 0)
+    return hdr + struct.pack('<H', rld.fletcher16(hdr + image)) + image
 
 
 # ---------------------------------------------------------------------
@@ -160,8 +177,12 @@ def run_session(name, steps, image):
             s.m.saved = []
             label = 'tape: %d blocks rewound' % len(s.m.cassette)
         elif step[0] == 'run':
-            with open(os.path.join(SSX, step[1] + '.ssx'), 'rb') as f:
-                job = s.launch(f.read(), step[1])
+            if step[1] == 'spin':
+                ssx = spin_ssx()
+            else:
+                with open(os.path.join(SSX, step[1] + '.ssx'), 'rb') as f:
+                    ssx = f.read()
+            job = s.launch(ssx, step[1])
             for _ in range(step[2]):
                 s.step()
                 if job.ended is not None:
@@ -170,6 +191,11 @@ def run_session(name, steps, image):
                 s.kb.add(zxux.parse_keys('{BREAK}'))
             s.wait_prompt(6000)
             label = 'run %s' % step[1]
+            if len(step) > 3:           # what it drew depends on timing:
+                label += ', BREAK'      # only that BREAK brought the prompt back
+                out.append('=== %s: %s' % (name, label))
+                out.append(s.last_line())
+                continue
         out.append('=== %s: %s' % (name, label))
         out.append(screen(s))
     return mask('\n'.join(out)) + '\n'

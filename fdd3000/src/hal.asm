@@ -568,7 +568,7 @@ keytab: db 0Dh,0Dh, 0Ah,0Dh, 08h,0Ch, 7Fh,0Ch, 1Bh,07h, 04h,07h, 0
 ; Time.  No interrupt counts the frames, so the kernel counts them: a
 ; system call, a character to the terminal and a turn of the idle loop
 ; each add what they cost (estimated, in 16 T units); every TICK units
-; are a 50 Hz frame, and ktick does what the Spectrum's ISR did in one.
+; are a 50 Hz frame, and stick does a tick (the kernel's ktick, and the mirror).
 ; ---------------------------------------------------------------------
 ; kpoll: at every system call (sysent; A = the call, arguments in HL, DE,
 ; BC).  Keeps HL, DE, BC.
@@ -630,7 +630,7 @@ hzpoll: push bc
         pop bc
         ret
 
-; htime: HL units of time passed.  Uses A, DE, HL (and what ktick uses).
+; htime: HL units of time passed.  Uses A, DE, HL (and what stick uses).
 htime:  ld a,(tmron)            ; the WD1770 clock counts: no estimates
         or a
         ret nz
@@ -641,48 +641,23 @@ htime:  ld a,(tmron)            ; the WD1770 clock counts: no estimates
         sbc hl,de
         jr c,.r
         push hl
-        call ktick
+        call stick
         pop hl
         jr .l
 .r:     add hl,de
         ld (tacc),hl
         ret
 
-; ktick: one 50 Hz frame: the clock and the sleepers (clk1), CPU
-; accounting for ps and top, and the time slice.  The ISR switched
-; processes itself; here the switch waits for the system call's way out
-; (runrun -> sysx -> preempt).
-ktick:  push bc
-        call clk1
-        ld a,(scrown)           ; a program draws: show it (mirror.asm)
+; stick: one tick of the soft clock (htime), always in the kernel (kpoll
+; runs after kmode): the machine's part - the display mirror - and the
+; kernel's ktick, which in kernel mode never switches or delivers a signal
+; there and then: the slice ends at the system call's way out (runrun).
+stick:  ld a,(scrown)           ; a program draws: show it (mirror.asm)
         or a
         call nz,mtick
+        push bc
+        call ktick
         pop bc
-        ld a,(idling)
-        or a
-        jr nz,.idl
-        ld a,(cur)
-        ld hl,p_cpu
-        add a,a
-        call addhla
-        inc (hl)
-        jr nz,.q
-        inc hl
-        inc (hl)
-.q:     ld hl,quant
-        ld a,(hl)
-        or a
-        jr z,.q1
-        dec (hl)
-        ret nz
-.q1:    call othrun
-        ret nz
-        ld a,1
-        ld (runrun),a
-        ret
-.idl:   ld hl,(idlet)
-        inc hl
-        ld (idlet),hl
         ret
 
         include "fd.asm"        ; the floppy disk driver.

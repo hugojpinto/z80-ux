@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """Build ZX-UX from zx-ux/src for the 48K Spectrum and for the FDD3000.
 
-    python3 fdd3000/tools/build.py              both targets
-    python3 fdd3000/tools/build.py spectrum     the gate only
+    python3 fdd3000/tools/build.py              all three targets
+    python3 fdd3000/tools/build.py upstream     the reproduction gate only
+    python3 fdd3000/tools/build.py spectrum     this tree, for the Spectrum
     python3 fdd3000/tools/build.py fdd3000      the disk only
 
-spectrum  Rebuilds the kernel ("lowk", "unix") and the root file system
-          ("fs") and checks all three byte for byte against the shipped
-          system tape, zx-ux/tzx/ZX-UX.tzx.  Every FDD3000 change to the
-          shared sources sits behind a platform capability or hook, so this
-          gate proves the Spectrum system is untouched.  (The upstream repository ships no
+upstream  Rebuilds upstream's own, untouched sources (zx-ux/src as of
+          UPSTREAM_REF, exported from git) and checks the kernel ("lowk",
+          "unix") and the root file system ("fs") byte for byte against the
+          shipped system tape, zx-ux/tzx/ZX-UX.tzx.  (Upstream ships no
           kernel builder; the generated includes are reconstructed here.)
+
+spectrum  This tree's kernel for platform/spectrum48.  It is no longer the
+          shipped tape byte for byte (platform/DESIGN.md); its behaviour is
+          checked by test/spectrum/golden.py.  The build says whether it
+          still equals the tape.
 
 Each target's machine is described by platform/<name>/platform.inc
 (capabilities and hooks; platform/README.md), staged as platform.inc.
@@ -35,6 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = os.path.dirname(HERE)
 ROOT = os.path.dirname(PORT)
 SRC = os.path.join(ROOT, 'zx-ux', 'src')
+UPSTREAM_REF = 'f302288'        # upstream's sources that make ZX-UX.tzx
 PLATFORMS = os.path.join(ROOT, 'platform')     # platform/<name>/platform.inc
 PLATFORM = {'spectrum': 'spectrum48', 'fdd3000': 'fdd3000'}  # target -> name
 TAPE = os.path.join(ROOT, 'zx-ux', 'tzx', 'ZX-UX.tzx')
@@ -76,6 +82,20 @@ def programs(target='spectrum'):
     return out
 
 
+def upstream_src():
+    """Upstream's zx-ux/src at UPSTREAM_REF, exported from git."""
+    out = os.path.join(BUILD, 'upstream-tree')
+    if os.path.isdir(out):
+        shutil.rmtree(out)
+    os.makedirs(out)
+    arch = subprocess.run(['git', '-C', ROOT, 'archive', UPSTREAM_REF, 'zx-ux/src'],
+                          capture_output=True)
+    if arch.returncode:
+        raise BuildError('git archive %s: %s' % (UPSTREAM_REF, arch.stderr.decode()))
+    subprocess.run(['tar', '-x', '-C', out], input=arch.stdout, check=True)
+    return os.path.join(out, 'zx-ux', 'src')
+
+
 def stage(target):
     """A private copy of the sources with the generated includes."""
     top = os.path.join(BUILD, target)
@@ -83,8 +103,11 @@ def stage(target):
     if os.path.isdir(top):
         shutil.rmtree(top)
     os.makedirs(os.path.join(top, 'out'))
-    shutil.copytree(SRC, src, ignore=shutil.ignore_patterns('rom', '*.doc'))
-    shutil.copy(os.path.join(PLATFORMS, PLATFORM[target], 'platform.inc'), src)
+    if target == 'upstream':
+        shutil.copytree(upstream_src(), src, ignore=shutil.ignore_patterns('rom', '*.doc'))
+    else:
+        shutil.copytree(SRC, src, ignore=shutil.ignore_patterns('rom', '*.doc'))
+        shutil.copy(os.path.join(PLATFORMS, PLATFORM[target], 'platform.inc'), src)
     if target == 'fdd3000':
         for name in os.listdir(os.path.join(PORT, 'src')):
             if name.endswith(('.asm', '.inc')):
@@ -169,7 +192,7 @@ def root_fs(target):
     for i, (path, _label, _mode) in enumerate(programs(target)):
         d, name = path.rsplit('/', 1)
         fs.link(bin_ if d == '/bin' else etc, name, zxfs.TXINO + i)
-    if target == 'spectrum':
+    if target in ('spectrum', 'upstream'):
         devices = [('tty', 1), ('mem', 2), ('tap', 5), ('cassette', 5)]
     else:
         devices = [('tty', 1), ('mem', 2), ('fd0', 8), ('fd1', 9),
@@ -213,8 +236,8 @@ def kernel(target, defines=()):
     return top, src, sym, img, free
 
 
-def build_spectrum():
-    top, src, sym, img, free = kernel('spectrum')
+def compare_tape(target):
+    top, src, sym, img, free = kernel(target)
     ref = shipped()
     ok = True
     for name, data in (('lowk', read(os.path.join(src, 'lowk.bin'))),
@@ -222,10 +245,22 @@ def build_spectrum():
                        ('fs', img)):
         same = data == ref[name]
         ok &= same
-        print('spectrum: %-4s %5d bytes  %s' % (name, len(data),
-              'identical to ZX-UX.tzx' if same else 'DIFFERS from ZX-UX.tzx'))
+        print('%-9s %-4s %5d bytes  %s' % (target + ':', name, len(data),
+              'identical to ZX-UX.tzx' if same else 'differs from ZX-UX.tzx'))
+    return ok, sym, free
+
+
+def build_upstream():
+    ok, _, _ = compare_tape('upstream')
     if not ok:
-        raise BuildError('the Spectrum build no longer matches the shipped tape')
+        raise BuildError('upstream\'s sources no longer rebuild the shipped tape')
+
+
+def build_spectrum():
+    ok, sym, free = compare_tape('spectrum')
+    print('spectrum: kernel %d bytes, %d bytes free in the arena%s'
+          % (sym['kend'] - sym['KBASE'], free,
+             '' if ok else ' (behaviour: test/spectrum/golden.py)'))
 
 
 def build_fdd3000():
@@ -234,10 +269,11 @@ def build_fdd3000():
 
 
 def main():
-    targets = sys.argv[1:] or ['spectrum', 'fdd3000']
+    targets = sys.argv[1:] or ['upstream', 'spectrum', 'fdd3000']
     try:
         for t in targets:
-            {'spectrum': build_spectrum, 'fdd3000': build_fdd3000}[t]()
+            {'upstream': build_upstream, 'spectrum': build_spectrum,
+             'fdd3000': build_fdd3000}[t]()
     except BuildError as e:
         print('build: %s' % e, file=sys.stderr)
         return 1

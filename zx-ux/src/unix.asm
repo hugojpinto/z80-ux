@@ -95,52 +95,15 @@ rom_error:                      ; RST 8 from a ROM routine.
 ; ---------------------------------------------------------------------
 ; ISR - ULA 50Hz frame interrupt (u4 'clock' + u0 'kb_int'). No refunds for missed ticks.
 ; ---------------------------------------------------------------------
-        IF HAL_FRAMEIRQ         ; the frame ISR (else the machine layer keeps time).
-; isr: 207 bytes. The frame clock gets its turn.
-isr:
-        push af
-        push bc
-        push de
-        push hl
-        push ix
-        push iy
-        ld iy,05C3Ah            ; ROM KEYBOARD / KEY-INPUT need it.
-        exx
-        ex af,af'
-        push af
-        push bc
-        push de
-        push hl
-        call clk1               ; a frame of time.
-; keyboard - ROM KEYBOARD scans, KEY-INPUT decodes (modes, caps).
-        call ROM_KEYBOARD
-        ld a,(SV_TVFLAG)
-        and 0D7h                ; never let KEY-INPUT touch the editor.
-        ld (SV_TVFLAG),a
-        set 3,(iy+1)            ; L mode.
-        call ROM_KEYINPUT
-        call c,ttrawin
-; BREAK (CAPS SHIFT + SPACE) = interrupt (v1 DEL).
-        call ROM_BREAKKEY       ; NC = pressed.
-        sbc a,a                 ; FF released / 00 pressed.
-        inc a                   ; 00 released / 01 pressed.
-        ld hl,brkst
-        cp (hl)
-        ld (hl),a
-        jr z,.b2
-        or a
-        call nz,ttintr
-.b2:
-; status line, cursor (not while programs own the whole screen).
-        ld a,(ttop)             ; owners 1-0Fh, ttop 0 or 21.
-        ld hl,scrown
-        cp (hl)
-        jr c,.nost
-        ld a,(stdirty)
-        or a
-        call nz,stdraw
-        call cblnk
-.nost:
+
+; ktick: the kernel's part of a tick, called by the platform's interrupt
+; handler once per tick (HAL_HZ a second) with every register saved and
+; interrupts off, after its own part (keys, display).  The clock and the
+; sleepers; CPU accounting; a device's hold on the CPU (tapq); the time
+; slice: a program in user mode is switched now, a system call at its way
+; out (runrun); a signal for a program in user mode, now - which kills it
+; and does not return.
+ktick:  call clk1               ; a tick of time.
 ; CPU accounting (ps / top).
         ld a,(idling)
         or a
@@ -205,23 +168,8 @@ isr:
         jr z,.x
 .kill:  ; kill it: become kernel and exit. The jump does not stop for directions.
         call kmode
-        jp sigck.xj0_11  
-.x:
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ex af,af'
-        exx
-        pop iy
-        pop ix
-        pop hl
-        pop de
-        pop bc
-        pop af
-        ei
-        reti
-        ENDIF
+        jp sigck.xj0_11
+.x:     ret
 
 ; clk1: 20 bytes. Count a frame and update sleepers, time and ticks. No days off for the clock.
 clk1:   call ticksleep
@@ -1956,6 +1904,72 @@ div32:
 
 kend:
         ASSERT kend - KBASE <= 8192     ; the 8K kernel.
+
+; ---------------------------------------------------------------------
+; machine code after the kernel's 8K (platform/DESIGN.md: drivers).
+; ---------------------------------------------------------------------
+        IF HAL_FRAMEIRQ         ; the frame ISR (else the machine layer keeps time).
+; isr: 207 bytes. The frame clock gets its turn.
+isr:
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+        ld iy,05C3Ah            ; ROM KEYBOARD / KEY-INPUT need it.
+        exx
+        ex af,af'
+        push af
+        push bc
+        push de
+        push hl
+; keyboard - ROM KEYBOARD scans, KEY-INPUT decodes (modes, caps).
+        call ROM_KEYBOARD
+        ld a,(SV_TVFLAG)
+        and 0D7h                ; never let KEY-INPUT touch the editor.
+        ld (SV_TVFLAG),a
+        set 3,(iy+1)            ; L mode.
+        call ROM_KEYINPUT
+        call c,ttrawin
+; BREAK (CAPS SHIFT + SPACE) = interrupt (v1 DEL).
+        call ROM_BREAKKEY       ; NC = pressed.
+        sbc a,a                 ; FF released / 00 pressed.
+        inc a                   ; 00 released / 01 pressed.
+        ld hl,brkst
+        cp (hl)
+        ld (hl),a
+        jr z,.b2
+        or a
+        call nz,ttintr
+.b2:
+; status line, cursor (not while programs own the whole screen).
+        ld a,(ttop)             ; owners 1-0Fh, ttop 0 or 21.
+        ld hl,scrown
+        cp (hl)
+        jr c,.nost
+        ld a,(stdirty)
+        or a
+        call nz,stdraw
+        call cblnk
+.nost:
+        call ktick              ; the kernel's part of the tick.
+.x:
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ex af,af'
+        exx
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ei
+        reti
+        ENDIF
 
 ; console font: 96 glyphs of 4 x 8 pixels, two rows a byte (384 bytes,
 ; 4-aligned).  "SANYALnet-Labs-4x8-font-FINAL" from the ZX-UX c48 SDK.

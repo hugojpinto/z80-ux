@@ -27,11 +27,9 @@
 ;  tsusp / tresume); meanwhile the soft clock (hal.asm htime) counts, as it
 ;  does when the clock does not run at all.
 ;
-;  ttick does what the Spectrum's frame ISR did: the clock and the
-;  sleepers, CPU accounting, and - when it interrupts a program, not the
-;  kernel - keys, the display mirror, the time slice (it switches
-;  processes itself) and BREAK.  In the kernel the slice ends at the
-;  system call's way out (runrun), as before.
+;  tint does the machine's part of a tick - keys from the link, the
+;  display mirror - and calls the kernel's ktick for the rest (the clock,
+;  accounting, the time slice, signals), as the Spectrum's frame ISR does.
 ; =====================================================================
 
 TDRV    equ 3                   ; drive D: the timer's
@@ -103,68 +101,18 @@ tint:   in a,(FDCST)            ; INTRQ down
         push bc
         push de
         push hl
-        call clk1               ; a frame of time; sleepers wake
-        ld a,(idling)           ; CPU accounting (ps, top)
-        or a
-        jr nz,.idl
-        ld a,(cur)
-        ld hl,p_cpu
-        add a,a
-        call addhla
-        inc (hl)
-        jr nz,.cpu
-        inc hl
-        inc (hl)
-        jr .cpu
-.idl:   ld hl,(idlet)
-        inc hl
-        ld (idlet),hl
-.cpu:   ld a,(inkern)
+        ld a,(inkern)           ; the machine's part: keys, the screen
         or a
         jr nz,.kern
-; a program was running: what the frame ISR did for one
-        call hkeys              ; keys, BREAK
+        call hkeys              ; a program ran: keys, BREAK
         ld a,(scrown)
         or a
         call nz,mtick           ; its screen
-        ld hl,quant             ; the time slice
-        ld a,(hl)
-        or a
-        jr z,.q1
-        dec (hl)
-        jr nz,.sig
-.q1:    call othrun
-        call z,swtch            ; preempt the program
-.sig:   ld a,(cur)              ; a signal for it (BREAK, kill): now
-        ld hl,p_sig
-        call addhla
-        ld a,(hl)
-        or a
-        jr z,.x
-        ld (hl),0
-        cp 2
-        jr z,.kill
-        ld a,(u_intr)
-        or a
-        jr z,.x
-.kill:  call kmode
-        jp sigck.xj0_11
-; the kernel was running: keys, if the link is free (as the Spectrum's
-; ISR read the keyboard whatever ran); the slice ends at its system call's
-; way out
-.kern:  ld a,(lbusy)
-        or a
-        call z,hkeys
-        ld hl,quant
-        ld a,(hl)
-        or a
-        jr z,.k1
-        dec (hl)
-        jr nz,.x
-.k1:    call othrun
-        jr nz,.x
-        ld a,1
-        ld (runrun),a
+        jr .k
+.kern:  ld a,(lbusy)            ; the kernel ran: keys, if the link is free
+        or a                    ; (as the Spectrum's ISR read the keyboard
+        call z,hkeys            ; whatever ran)
+.k:     call ktick              ; the kernel's part (unix.asm)
 .x:     pop hl
         pop de
         pop bc

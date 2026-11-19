@@ -82,12 +82,15 @@ the kernel expects from it (today all in `fdd3000/src`):
   with the kernel's AT/INVERSE codes), `hcls`, `hret` (cursor on/off: the
   terminal draws its own); `sysscreen`, `scrrel`, `cstrip` (sys screen 39
   for programs that draw: the FDD3000's display mirror).
-- **`HAL_FRAMEIRQ = 0`** (time): something must call `clk1` `HAL_HZ` times a
-  second, account CPU, run the time slice and deliver signals, as `isr`
-  does on the Spectrum. On the FDD3000: `tint` (tmr.asm) on the WD1770's
-  interrupt, else `kpoll`/`kidle`/`htime` counting T-states (the soft
-  clock). *To do when a second such machine comes: lift that common body
-  out of `tint` into a shared `ktick`.*
+- **Time**: the platform's interrupt handler does its machine's part of a
+  tick (keys, display) and calls the kernel's **`ktick`** (unix.asm) once
+  per tick, `HAL_HZ` a second, with every register saved and interrupts
+  off: the clock and sleepers, CPU accounting, a device's hold on the CPU,
+  the time slice (a program in user mode is switched there and then, a
+  system call at its way out), a signal for a program in user mode (which
+  may not return). The Spectrum's frame ISR (`HAL_FRAMEIRQ`), the
+  FDD3000's `tint` (the WD1770 clock) and its soft clock's `stick` all
+  call it.
 - **`HAL_BLKDEV`**: `fdread`, `fdwrite` (devread/devwrite), `hdevok`
   (iget: is this device number ours), `hdopen` (open: probe a disk),
   `hseek` (seek origins 3–5, in sectors), `fhclr`.
@@ -183,9 +186,7 @@ kernel sites:
 2. **Interrupt vectors** — the IM 2 setup at boot assumes the ROM's FFh
    bytes; machines without them set `HAL_FRAMEIRQ` 0 today. Better: a
    257-byte vector table in RAM, placed by the platform.
-3. **A shared tick** — the body of `isr` after the keyboard (clock, CPU
-   accounting, quantum, signals) is duplicated in `tmr.asm`'s `tint`; a
-   shared `ktick` for machine layers.
+3. ~~A shared tick~~ — done: `ktick` (step 2 of `DESIGN.md`).
 4. **Window swap** — `swtch`/`savead` copy the window to and from the
    arena (K_SAVE). Bank switching (128K) or sector swap (TC3256) replace
    that copy: `HAL_SAVEWIN` / `HAL_LOADWIN`, or "map process P".

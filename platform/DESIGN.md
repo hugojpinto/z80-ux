@@ -56,9 +56,9 @@ SDK runtime uses call 41.
 ## Steps (each one reviewed before the next)
 
 1. Golden Spectrum behaviour tests from the shipped tape. Nothing else
-   changes.
+   changes. **Done.**
 2. `ktick`: the clock, CPU accounting, quantum and signals, once; the
-   Spectrum's frame ISR and the FDD3000's `tint` call it.
+   Spectrum's frame ISR and the FDD3000's `tint` call it. **Done.**
 3. rom48 and screen64 out of the kernel; console and sound interfaces;
    the `ROM_*` addresses leave `const.inc`.
 4. A device table instead of `devread`/`devwrite` and `hdevok`.
