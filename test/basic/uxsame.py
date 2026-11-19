@@ -66,6 +66,7 @@ def newest_lib():
 
 
 SYSCALL = 0x6003
+ROM_OUT = 0x15F2                            # PRINT-A-2: RST 10h's characters and PRINT-FP's digits
 START = bytes.fromhex('2101003e27cd0360')    # the wrapper's first instructions: ld hl,1 / ld a,39 / call 6003h
 CDRAWN = 0x5C92 + 12                        # dev.asm: the console's cursor is on the screen
 EVERY = 40                                  # a picture at every 40th character printed
@@ -176,14 +177,14 @@ def main():
             differ += 1
             print('%-28s FAIL: rbc --ux: %s' % (name, why))
             continue
-        entry = 0x0010                      # RST 10h, or the clean-room @r10 (an offset)
+        entry = ROM_OUT                     # the ROM's, or the clean-room @r10 (an offset)
         mp = os.path.join(OUT, name + '.ux.ssx.map')
         if os.path.exists(mp):
             import json
             off = json.load(open(mp)).get('@r10')
             if off is not None:
                 entry = ('offset', off)
-        a, na, ea, fa, ta = run(rom, name, frames, 4, 0x0010)
+        a, na, ea, fa, ta = run(rom, name, frames, 4, ROM_OUT)
         b, nb, eb, fb, tb = run(ux, name, frames, 4, entry)
         if 'not enough memory' in tb and 'not enough memory' not in ta:
             big += 1

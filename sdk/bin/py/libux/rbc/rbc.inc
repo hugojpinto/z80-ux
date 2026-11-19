@@ -49,6 +49,7 @@ FL_PR   equ 1                   ; FLAGS bit 1: printing on the printer
 FL_SP   equ 0                   ; FLAGS bit 0: the last character was a space
 
 ; The reports, as RST 8's byte (the report's number less one)
+R_VAR   equ 01h                 ; 2 Variable not found
 R_OOM   equ 03h                 ; 4 Out of memory
 R_SCR   equ 04h                 ; 5 Out of screen
 R_BIG   equ 05h                 ; 6 Number too big
@@ -164,3 +165,14 @@ FL2_CLS equ 0                   ; FLAGS2 bit 0: the screen to be cleared
 GR_R    equ 0Fh                 ; a block graphic's right half of a byte
 GR_L    equ 0F0h                ; ... and its left
 ROTATE  equ 0FFh                ; @rascr: rotate rather than fill
+
+; The pointers that move with the memory below them (VARS .. STKEND)
+VARS    equ @rsv+4Bh
+NPTRS   equ (STKEND-VARS)/2+1
+
+; Strings
+V_VAL   equ 1Dh                 ; VAL (B, for the ROM's val entry; 18h: VAL$)
+UDG_N   equ 21                  ; user-defined graphics: 'A' .. 'U'
+FSTRMAX equ 14                  ; the longest number @fstr writes
+FL_NUM  equ 6                   ; FLAGS bit 6: the result is a number (0: a string)
+VALMAX  equ 40                  ; the longest text VAL reads, its spaces left out

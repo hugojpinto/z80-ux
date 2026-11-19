@@ -62,11 +62,18 @@ class Pair:
         e = self.sym['@romfp']                          # system call 42: libux's ROM adapter
         self.ux.mem[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])   # ld hl,e / or a / ret
 
-    def setup(self, nums, regs):
+    def setup(self, nums, regs, boot=False):
         out = []
         for zx in (self.rom, self.ux):
             m = zx.mem
-            m[0x5C00:0x5CC0] = bytes(0xC0)
+            if boot:                            # the ROM's own state (streams, channels)
+                m[0x4000:] = booted()
+                if zx is self.ux:
+                    m[ORG:ORG + len(self.image)] = self.image
+                    e = self.sym['@romfp']
+                    m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+            else:
+                m[0x5C00:0x5CC0] = bytes(0xC0)
             m[STK - 16:STK + 400] = bytes(416)
             p = STK
             for b in nums:
@@ -351,6 +358,166 @@ def print_tests(pair, rng, n, only, verbose):
     return count, len(fails)
 
 
+def room_tests(pair, rng, n, only, verbose):
+    """MAKE-ROOM, ONE-SPACE, RECLAIM-2, BC-SPACES on random pointers VARS ..
+    STKEND (ascending) in a region of random bytes."""
+    fails = {}
+    count = 0
+    lo, hi = 0xA000, 0xA300
+    for name, addr in (('MAKE-ROOM', 0x1655), ('ONE-SPACE', 0x1652), ('RECLAIM-2', 0x19E8),
+                       ('BC-SPACES', 0x30)):
+        if only and not any(o in name for o in only):
+            continue
+        count += 1
+        sym = '@r%04X' % addr if addr > 0xFF else '@r%02X' % addr
+        for i in range(n):
+            ptrs = sorted(rng.randrange(lo, hi) for _ in range(14))
+            if rng.random() < 0.3:
+                ptrs[12] = ptrs[13] = ptrs[11]          # WORKSP = STKBOT = STKEND
+            end = ptrs[13]
+            place = rng.randrange(lo, max(lo + 1, end))
+            bc = rng.randrange(1, 40)
+            if name == 'RECLAIM-2':
+                bc = rng.randrange(1, max(2, end - place + 1))
+            region = bytes(rng.randrange(256) for _ in range(0x500))
+            st = []
+            for zx, pc in ((pair.rom, addr), (pair.ux, pair.sym[sym])):
+                m = zx.mem
+                m[0x5C00:0x5CC0] = bytes(0xC0)
+                for k, pv in enumerate(ptrs):
+                    m[0x5C4B + 2 * k:0x5C4D + 2 * k] = bytes([pv & 255, pv >> 8])
+                m[0x5C3A] = 0xFF
+                m[0x5C68:0x5C6A] = bytes([0x92, 0x5C])
+                m[lo:lo + 0x500] = region
+                m[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+                m[0x5C3D:0x5C3F] = bytes([(SP - 2) & 255, (SP - 2) >> 8])
+                m[SP - 4:SP - 2] = bytes([TRAP & 255, TRAP >> 8])
+                zx.set(iy=0x5C3A, sp=SP - 4, a=0, f=0, bc=bc, de=0, hl=place, pc=pc)
+                if not zx.run((TRAP,), zx.t + 30_000_000):
+                    raise RuntimeError('%s did not return' % name)
+                st.append(dict(hl=zx.hl, de=zx.de, bc=zx.bc, mem=bytes(m[lo:lo + 0x500]),
+                               ptrs=bytes(m[0x5C4B:0x5C67]), err=m[0x5C3A]))
+            a, b = st
+            bad = [k for k in ('err', 'ptrs', 'mem', 'hl', 'de', 'bc') if a[k] != b[k]]
+            if bad:
+                fails.setdefault(name, []).append('place %04X count %d end %04X: %s' % (
+                    place, bc, end, '; '.join('%s ROM %s ours %s' % (
+                        k, '%X' % a[k] if isinstance(a[k], int) else '..',
+                        '%X' % b[k] if isinstance(b[k], int) else '..') for k in bad)))
+        if verbose or name in fails:
+            print('%-12s %s' % (name, 'FAIL (%d)' % len(fails[name]) if name in fails else 'ok'))
+            for f in fails.get(name, [])[:3]:
+                print('    ' + f)
+    return count, len(fails)
+
+
+TEXT = 0xB100                     # a string's text, given by address
+
+
+def string_tests(pair, rng, n, only, verbose):
+    """STR$, CHR$, a$+b$, the fixed-length LET, USR "a", VAL: the string or
+    number they leave on the stack (STR$ and VAL: up to the ROM's own error
+    in the last digit or bit, against the exact value)."""
+    sys.path.insert(0, os.path.join(ROOT, 'test', 'fp'))
+    import strtest
+    from fptest import value
+    fails = {}
+    count = 0
+
+    def sdesc(addr, length):
+        return bytes([0, addr & 255, addr >> 8, length & 255, length >> 8])
+
+    def top_string(st):
+        m, e = st['m'], st['stkend']
+        d = m[e - 5:e]
+        a, ln = d[1] | d[2] << 8, d[3] | d[4] << 8
+        return bytes(m[a:a + ln])
+
+    def rtext(rng):
+        k = rng.random()
+        if k < 0.6:
+            v = rnum(rng)
+            t = strtest.model(v)
+            return t.encode() if rng.random() < 0.8 else (' ' + t + ' ').encode()
+        t = bytes(rng.choice(b'0123456789. eEab') for _ in range(rng.randrange(0, 8)))
+        return b'-' * rng.randrange(0, 3) + t       # (no arithmetic: VAL reads a number)
+
+    tests = ('STR$', 'CHR$', 'STRS-ADD', 'L-STRING', 'USR$', 'VAL')
+    for name in tests:
+        if only and not any(o in name for o in only):
+            continue
+        count += 1
+        for i in range(n):
+            regs = {}
+            texts = []
+            if name == 'STR$':
+                nums, addr = [rnum(rng)], 0x361F
+            elif name == 'CHR$':
+                nums, addr, regs = [], 0x35D0, dict(a=rng.randrange(256))
+            elif name == 'STRS-ADD':
+                la, lb = rng.randrange(0, 20), rng.randrange(0, 20)
+                texts = [(TEXT, bytes(rng.randrange(32, 127) for _ in range(la))),
+                         (TEXT + 0x40, bytes(rng.randrange(32, 127) for _ in range(lb)))]
+                nums, addr = [sdesc(TEXT, la), sdesc(TEXT + 0x40, lb)], 0x359C
+            elif name == 'L-STRING':
+                ls, ld = rng.randrange(0, 20), rng.randrange(0, 20)
+                texts = [(TEXT, bytes(rng.randrange(32, 127) for _ in range(ls))),
+                         (TEXT + 0x40, bytes(rng.randrange(32, 127) for _ in range(ld)))]
+                nums, addr, regs = [sdesc(TEXT, ls)], 0x2B7F, dict(hl=TEXT + 0x40, bc=ld)
+            elif name == 'USR$':
+                c = rng.choice([rng.randrange(0x41, 0x5B), rng.randrange(0x61, 0x7B),
+                                rng.randrange(0x90, 0xA8), rng.randrange(256)])
+                ln = 1 if rng.random() < 0.9 else rng.randrange(0, 3)
+                texts = [(TEXT, bytes([c, c]))]
+                nums, addr = [sdesc(TEXT, ln)], 0x34BC
+            else:
+                t = rtext(rng)
+                texts = [(TEXT, t)]
+                nums, addr, regs = [sdesc(TEXT, len(t))], 0x35DE, dict(bc=0x1D00)
+            pair.setup(nums, regs, boot=True)
+            for zx in (pair.rom, pair.ux):
+                for a_, t_ in texts:
+                    zx.mem[a_:a_ + len(t_)] = t_
+                zx.mem[0x5C7B:0x5C7D] = bytes([0x58, 0xFF])        # UDG
+                zx.set(**regs)
+            sym = '@r%04X' % addr
+            a = pair.go('rom', addr)
+            b = pair.go('ux', pair.sym[sym])
+            bad = []
+            if a['errnr'] != b['errnr'] and not (name == 'VAL' and 0xFF not in (a['errnr'], b['errnr'])):
+                # (VAL of what is not a number: both stop, the report may differ - the
+                # ROM parses it as an expression, 2 for a variable, C for its syntax)
+                bad.append('ERR_NR: ROM %02X, ours %02X' % (a['errnr'], b['errnr']))
+            elif a['errnr'] == 0xFF:
+                if name == 'L-STRING':
+                    x, y = bytes(a['m'][TEXT + 0x40:TEXT + 0x60]), bytes(b['m'][TEXT + 0x40:TEXT + 0x60])
+                    if x != y:
+                        bad.append('the destination: ROM %r, ours %r' % (x, y))
+                elif name in ('USR$', 'VAL'):
+                    x, y = stack_bytes(a)[-5:], stack_bytes(b)[-5:]
+                    if x != y:
+                        vx, vy = value(x), value(y)
+                        ok = name == 'VAL' and abs(vx - vy) <= abs(vx) * 2 ** -30
+                        if not ok:
+                            bad.append('result: ROM %s, ours %s' % (x.hex(), y.hex()))
+                else:
+                    x, y = top_string(a), top_string(b)
+                    if x != y and not (name == 'STR$' and y.decode() == strtest.model(nums[0])):
+                        bad.append('string: ROM %r, ours %r' % (x, y))
+                if (a['stkend'] - a['stkbot'] != b['stkend'] - b['stkbot'] and name != 'STR$'):
+                    # (the ROM's STR$ of a number below 1 leaves a number under the string)
+                    bad.append('stack size: ROM %d, ours %d' % (a['stkend'] - a['stkbot'],
+                                                                 b['stkend'] - b['stkbot']))
+            if bad:
+                fails.setdefault(name, []).append('%s %s: %s' % (
+                    ' '.join(x.hex() for x in nums), texts and texts[0][1], '; '.join(bad)))
+        if verbose or name in fails:
+            print('%-12s %s' % (name, 'FAIL (%d)' % len(fails[name]) if name in fails else 'ok'))
+            for f in fails.get(name, [])[:3]:
+                print('    ' + f)
+    return count, len(fails)
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -418,8 +585,10 @@ def main():
             for f in fails.get(name, [])[:3]:
                 print('    ' + f)
     pt, pf = print_tests(pair, rng, n, only, verbose)
-    tested += pt
-    nf = len(fails) + pf
+    rt, rf = room_tests(pair, rng, n, only, verbose)
+    st, sf = string_tests(pair, rng, n, only, verbose)
+    tested += pt + rt + st
+    nf = len(fails) + pf + rf + sf
     print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
     return 1 if nf else 0
 
