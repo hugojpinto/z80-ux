@@ -71,7 +71,10 @@ SDK runtime uses call 41.
    rest of §11 (all resident text low, ~28K arena) waits for the SDK's
    screen page (programs draw at 4000h until then).
 6. `mem_swapout`/`mem_swapin`: the seam the 128K (bank switch) and the
-   TC3256 (RAM-disk sectors) need.
+   TC3256 (RAM-disk sectors) need. **Done**: the four places that move a
+   window (the scheduler's hand-over, fork, exec) call them; both
+   platforms bind them to the arena copy (`wsave`, `wload`) with `equ`,
+   so their code is byte for byte step 5's.
 
 Rule for every commit in this repository: no AI attribution, no
 `Co-Authored-By`.

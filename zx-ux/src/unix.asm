@@ -402,6 +402,11 @@ savead: ld hl,p_save
         pop hl
         ret
 
+; The window's hand-over is the platform's: mem_swapout (A = a slot: the
+; window as it is now becomes that slot's window image) and mem_swapin (A
+; = a slot: its image into the window).  wsave and wload below are the
+; default, a copy to and from the slot's SAVE block in the arena; a
+; platform with banks of RAM maps instead (platform/README.md).
 ; wsave: 71 bytes. A = owner slot; save the resident window in its SAVE block. Every byte pays rent.
 wsave:  push af
         call imgext
@@ -486,12 +491,12 @@ swapin: ld c,a
         jr z,.ld
         dec a
         push bc
-        call wsave              ; the owner's image goes to its SAVE.
+        call mem_swapout        ; the owner's window image is kept (platform).
         pop bc
 .ld:    ld a,c
         ld (wown),a
         push bc
-        call wload
+        call mem_swapin         ; ... and this one's comes in (platform).
         pop bc
 .ua:    ld a,c
         ld hl,p_save
@@ -843,7 +848,7 @@ forkcpy:
         ld bc,UASZ
         ldir
         ld a,(chslot)
-        jp wsave                ; the window image.
+        jp mem_swapout          ; the window image (platform).
 
 ; release: 46 bytes. Free the current process's memory and screen. One less tenant.
 release:
@@ -1294,7 +1299,7 @@ kexec:
         inc a
         jr z,.tk
         dec a
-        call wsave
+        call mem_swapout        ; the owner's window image is kept (platform).
 .tk:    ld a,(cur)
         ld (wown),a
 .own:   ei

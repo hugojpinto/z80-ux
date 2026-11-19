@@ -109,6 +109,7 @@ layer:
 | **Console** | `kputc` (A; the kernel's AT/INVERSE codes), `kcls`, `curon`, `curoff`; keys come back through the kernel's `ttrawin`, BREAK through `ttintr`; `stdirty` marks the status line | screen64 | the VT52 terminal (hal.asm) |
 | **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | the display mirror |
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
+| **Memory** | `mem_swapout` (A = slot: the window as it is becomes that slot's image), `mem_swapin` (A = slot: its image into the window) — the scheduler's lazy hand-over, fork, exec | `equ wsave`, `wload`: a copy to and from the slot's SAVE block in the arena | the same |
 | **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |
 | **Devices** | `devtab`: entries `db FIRST, LAST` / `dw read, write, open` (0: none), a 0 ends it; read/write: A = device number, the transfer in u_off, u_base, u_count; open: HL = the i-number, CF/A, keeps HL, DE, BC, IX. The kernel's `devfind`, `devread`, `devwrite`, `devopen` use it (iget, open) | tty, mem, tap (machine.asm) | tty, mem, fd0–3 with `hdopen` (hal.asm); seek in sectors (`hseek`, `fhclr`) with `HAL_BLKDEV` |
 | **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | fdd3000/src |
@@ -204,9 +205,10 @@ kernel sites:
    the ROM's FFh bytes; a machine without them places a 257-byte vector
    table in RAM in its own `HAL_INIT`.
 3. ~~A shared tick~~ — done: `ktick` (step 2 of `DESIGN.md`).
-4. **Window swap** — `swtch`/`savead` copy the window to and from the
-   arena (K_SAVE). Bank switching (128K) or sector swap (TC3256) replace
-   that copy: `HAL_SAVEWIN` / `HAL_LOADWIN`, or "map process P".
+4. ~~Window swap~~ — done: `mem_swapout`, `mem_swapin` (step 6). A 128K
+   port binds them to its banks (a switch is `OUT (7FFDh)`; fork copies to
+   the child's bank) and can then stop reserving window room in each SAVE
+   block (`savefit`); the TC3256 copies to and from RAM-disk sectors.
 5. **Screen page** — sys 41 and a relocatable screen in the SDK runtime
    (`fdd3000/docs/memory-plan.md`, Idea B); the 128K's bank 7 and the SCLD
    second screen fit the same call.
