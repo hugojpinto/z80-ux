@@ -2,6 +2,7 @@
 
 Memory image, loaded by the boot sector from track IMGTRK on:
 
+    0400h  low.bin    resident programs placed low (build.py LOWTEXT)
     1800h  hal.bin    the hardware layer (Spectrum: the ROM's place)
     3F00h             (not loaded: the boot sector, the old display file)
     5B00h             kernel globals (KV, MEMBOT, KV2: zero, boot clears)
@@ -59,7 +60,9 @@ SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
 # File system modules on the system disk's /etc/fs (mount -t NAME)
 FS_MODULES = [('tos', 'tfs.asm')]       # TOS's disks
 
-IMGBASE = 0x1800                # the hardware layer's start (hal.asm)
+# IMGBASE: the image starts with the resident programs placed low
+# (hal.asm LOWTEXT, 0400h), then a gap (the buffer cache), the hardware
+# layer at 1800h, ...
 IMGTRK = 1
 
 
@@ -73,10 +76,12 @@ def build(b):
     if fsmod.abi(sym) != (vals, stamp) or sym['kabi'] != stamp:
         raise b.BuildError('the kernel ABI moved between passes')
     fsmod.write_kabi(os.path.join(top, 'kabi.inc'), sym)
-    parts = [('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
+    parts = [('low', sym['LOWTEXT'], b.read(os.path.join(src, 'low.bin'))),
+             ('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
              ('lowk', sym['LOWK'], b.read(os.path.join(src, 'lowk.bin'))),
              ('unix', sym['KBASE'], b.read(os.path.join(src, 'unix.bin'))),
              ('fs', sym['ITAB'], fsimg)]
+    IMGBASE = sym['LOWTEXT']                  # the low resident programs first
     end = max(a + len(d) for _, a, d in parts)
     mem = bytearray(end - IMGBASE)
     used = []

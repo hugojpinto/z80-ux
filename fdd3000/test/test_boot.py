@@ -44,7 +44,10 @@ def main():
     if 'kept\n' not in out2.split('cat /mnt/b/note')[-1]:
         fails.append('second boot: /mnt/b is not drive B')
     blank = fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK)
-    for t in range(12, 40):                     # wipe the file system
+    import json
+    info = json.load(open(os.path.join(os.path.dirname(fddrun.DEFAULT_DISK), 'kernel.json')))
+    first = info['image_track'] + (info['image_sectors'] + 15) // 16
+    for t in range(first, 40):                  # wipe the file system (after the image)
         for r in range(16):
             blank.set_sector(t, 0, r, bytes(256))
     out3 = boot([blank], ['root', 'ls /mnt/a'])

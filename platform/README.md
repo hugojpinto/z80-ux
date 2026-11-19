@@ -41,6 +41,7 @@ is not a flag: it is the platform's choice of drivers (below).
 | Name | Meaning | spectrum48 | fdd3000 |
 |---|---|---|---|
 | `HAL_HZ` | ticks a second: the clock counts this many `ktick` calls to a second | 50 | 50 |
+| `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`); device read/write go to the layer | 0 | 1 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
 | `HAL_SSXFILE` | SSX1 programs from files: exec of an SSX1 file runs `/etc/ldx` on it | 0 | 1 |
@@ -51,6 +52,18 @@ file, assembled right after the kernel's 8K (`platform/spectrum48/
 drivers.asm`: `machine.asm`, `rom48.asm`, `screen64.asm`); **`HAL_LAYER`**,
 a machine layer assembled at its own address (`fdd3000/src/hal.asm`,
 1800h); `HAL_SYSDEV`, `HAL_SYSMNT` (with `HAL_BOOTMNT`).
+
+## The memory map is the platform's
+
+Only the program ABI is fixed (below). Within that, a platform places
+its parts: its drivers right after the kernel (`HAL_DRIVERS`), its machine
+layer at its own address (`HAL_LAYER`), and the resident programs —
+`build.py` writes `userland.inc` (the programs assembled after the
+kernel, as on the Spectrum) and `lowtext.inc` (those the platform puts
+elsewhere: `LOWTEXT` in `build.py`). The FDD3000 puts `vi` and `zxpack`
+at 0400h–0FFFh, where the 48 ROM's routines were, and keeps the ROM trap
+zone to 0068h–03FFh: 2,358 bytes more arena. The kernel's size is
+`HAL_KMAX`.
 
 ## Drivers
 

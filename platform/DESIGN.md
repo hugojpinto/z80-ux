@@ -63,7 +63,13 @@ SDK runtime uses call 41.
    the `ROM_*` addresses leave `const.inc`. **Done.**
 4. A device table instead of `devread`/`devwrite` and `hdevok`. **Done.**
 5. The platform as the top-level assembly; a memory map per platform (the
-   FDD3000's larger arena: `fdd3000/docs/memory-plan.md` §11).
+   FDD3000's larger arena: `fdd3000/docs/memory-plan.md` §11). **Done**,
+   as include points the platform owns (`HAL_DRIVERS`, `HAL_LAYER`, the
+   generated `userland.inc` and `lowtext.inc`, `HAL_KMAX`) rather than by
+   splitting `unix.asm`: the same freedom, a smaller change to upstream's
+   file. The FDD3000 places `vi` and `zxpack` at 0400h (+2.3K arena). The
+   rest of §11 (all resident text low, ~28K arena) waits for the SDK's
+   screen page (programs draw at 4000h until then).
 6. `mem_swapout`/`mem_swapin`: the seam the 128K (bank switch) and the
    TC3256 (RAM-disk sectors) need.
 

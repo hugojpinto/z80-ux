@@ -9,6 +9,7 @@
         DEFINE HAL_DRIVERS "drivers.asm"  ; rom48, screen64, the frame ISR
 
 HAL_HZ       equ 50             ; frame interrupts a second (ULA, PAL)
+HAL_KMAX     equ 8192           ; the kernel (KBASE..kend) at most
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 0              ; disk block devices

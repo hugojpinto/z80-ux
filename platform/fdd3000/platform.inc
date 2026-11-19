@@ -7,6 +7,7 @@
 ; =====================================================================
 
 HAL_HZ       equ 50             ; ticks a second (the WD1770 clock, the soft clock)
+HAL_KMAX     equ 8192           ; the kernel (KBASE..kend) at most
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)

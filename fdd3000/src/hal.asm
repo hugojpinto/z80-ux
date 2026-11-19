@@ -87,12 +87,13 @@ hinit:  ld hl,0
         ld (0066h),a
         ld a,l
         ld (0067h),a
-; 0068h-0FFFh: where the Spectrum's ROM routines were.  A program that
-; calls one (CALL, JP) meets RST 30h and is stopped (htrap) - except
-; BEEP and BEEPER, which just return: no sound, no harm.
+; 0068h-03FFh: where the Spectrum's first ROM routines were.  A program
+; that calls one (CALL, JP) meets RST 30h and is stopped (htrap) - except
+; BEEP and BEEPER, which just return: no sound, no harm.  (0400h-0FFFh:
+; resident programs, LOWTEXT.)
         ld hl,0068h
         ld de,0069h
-        ld bc,1000h-0069h
+        ld bc,LOWTEXT-0069h
         ld (hl),0F7h            ; rst 30h
         ldir
         ld a,0C9h               ; ret
@@ -714,3 +715,16 @@ ksnap:  db 0                    ; kidle: fticks when it began.
 halend:
         ASSERT halend <= 3F00h  ; the boot sector's page, then the display file.
         SAVEBIN "hal.bin", HALBASE, halend - HALBASE
+
+; ---------------------------------------------------------------------
+; Resident programs placed low (build.py LOWTEXT: lowtext.inc), where the
+; Spectrum's ROM routines were: what they take there is left to the arena.
+; The ROM trap zone keeps 0068h-03FFh (the restarts, BEEPER 03B5h, BEEP
+; 03F8h); a program calling a ROM routine above it runs into this text.
+; ---------------------------------------------------------------------
+LOWTEXT equ 0400h
+        org LOWTEXT
+        include "lowtext.inc"
+lowend:
+        ASSERT lowend <= BUFMEM
+        SAVEBIN "low.bin", LOWTEXT, lowend - LOWTEXT

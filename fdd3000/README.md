@@ -87,7 +87,8 @@ Memory of the FDD3000 while ZX-UX runs:
 | | |
 |---|---|
 | 0000h–0067h | restart vectors; RST 38h = the WD1770's INTRQ |
-| 0068h–0FFFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
+| 0068h–03FFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
+| 0400h–0FFFh | resident programs placed low: `vi`, `zxpack` (build.py `LOWTEXT`) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
 | 1800h–3EFFh | the hardware layer (and `dd`) |
 | 3F00h–5AFFh | the boot sector, then the old display file: programs draw here |

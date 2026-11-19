@@ -1800,7 +1800,7 @@ div32:
         include "cext.asm"
 
 kend:
-        ASSERT kend - KBASE <= 8192     ; the 8K kernel.
+        ASSERT kend - KBASE <= HAL_KMAX ; the kernel's budget (platform.inc).
 
 ; ---------------------------------------------------------------------
 ; machine code after the kernel's 8K (platform/DESIGN.md: drivers).
@@ -1816,20 +1816,8 @@ kend:
 ; =====================================================================
 ; user land (resident pure text).
 ; =====================================================================
-        include "ulib.asm"
-        include "t_sys.asm"
-        include "t_file.asm"
-        include "t_misc.asm"
-        include "t_tap.asm"
-        include "t_proc.asm"
-        include "t_vi.asm"
-        include "t_zx.asm"
-        include "t_tar.asm"
-        include "t_ldx.asm"
-        IF HAL_VFS
-        include "t_mkfs.asm"    ; /etc/mkfs (FDD3000 only).
-        include "t_fs.asm"      ; /etc/mount, umount (FDD3000 only).
-        ENDIF
+        include "userland.inc"  ; the resident programs placed here: all but
+                                ; those the platform puts elsewhere (build.py)
 
 ; the resident programs: text address, size, extra mode bits (build.py).
 PTAB:   include "ptab.inc"
