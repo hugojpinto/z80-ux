@@ -21,7 +21,7 @@ iget:
         push bc
         ld a,h
         or a
-        IFDEF FDD3000
+        IF HAL_VFS
         jr z,.ram
         pop bc                  ; 1000h and up: a mounted file system's.
         pop de
@@ -34,7 +34,7 @@ iget:
         ld a,l
         cp ROOTINO
         jr nc,.reg
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         call hdevok             ; tty, mem, fd0-fd3 (fd.asm).
         jp nz,.bad
         ELSE
@@ -160,7 +160,7 @@ setmtim:
 ; ---------------------------------------------------------------------
 ; ialloc: 37 bytes. Find a free i-node; HL = number, IX = cleared node, or CF/A = ENOSPC. Small cupboard.
 ialloc:
-        IFDEF FDD3000
+        IF HAL_VFS
         ld a,(u_pdir+1)         ; a new file in a mounted directory.
         and 0F0h
         jp nz,vfs_ialloc
@@ -187,7 +187,7 @@ ialloc:
 
 ; ifree: 12 bytes. HL = i-number; release the i-node. No ghost tenants.
 ifree:
-        IFDEF FDD3000
+        IF HAL_VFS
         ld a,h
         and 0F0h
         jp nz,vfs_ifree
@@ -202,7 +202,7 @@ ifree:
 itrunc:
         call isspec
         ret z
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfsix
         jp z,vfs_trunc
         ENDIF
@@ -229,7 +229,7 @@ readi:
         ld (u_nread),hl
         call isspec
         jp z,devread
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfsix
         jp z,vfs_readi
         ENDIF
@@ -264,7 +264,7 @@ writei:
         ld (u_nread),hl
         call isspec
         jp z,devwrite
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfsix
         jp z,vfs_writei
         ENDIF
@@ -513,7 +513,7 @@ namei:
 ; Found the name. Even a crowded directory can cooperate.
         ld (u_dirp),hl
         ld hl,(u_dirbuf)
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfscross           ; mount points, and .. out of a mounted root.
         ENDIF
         ld (u_nmi),hl
@@ -691,7 +691,7 @@ fopen:
         scf
         ret
 .gs:
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         call fhclr              ; the disk driver's third offset byte.
         ENDIF
         ld (hl),1               ; count.
@@ -748,7 +748,7 @@ fclosea:
 ; trim the file's block to its size.
         call isspec
         ret z
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfsix              ; a mounted file has no arena block.
         ret z
         ENDIF
@@ -823,7 +823,7 @@ sysopen:                        ; HL = name, DE = mode 0 r 1 w 2 rw.
         ld (u_tmp),de
         call nami
         jp c,syserr
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         call hdopen             ; a disk: new disk, perhaps - probe it.
         jp c,syserr
         ENDIF
@@ -932,7 +932,7 @@ sysseek:                        ; HL = fd, DE = offset, BC = 0 abs 1 rel 2 end.
         pop de
         jp c,syserr
         ld (u_ino),hl
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         ld a,c
         cp 3                    ; 3-5: in 256-byte sectors (fd.asm).
         jp nc,hseek
@@ -986,7 +986,7 @@ syslink:                        ; HL = existing, DE = new name.
         jp nc,syserr
         call pdirw
         jp c,syserr
-        IFDEF FDD3000
+        IF HAL_VFS
         ld a,(u_ino+1)          ; both names in one file system.
         ld hl,u_pdir+1
         xor (hl)
@@ -1006,7 +1006,7 @@ syslink:                        ; HL = existing, DE = new name.
 sysunlink:                      ; HL = name.
         call nami
         jp c,syserr
-        IFDEF FDD3000
+        IF HAL_VFS
         call vbusy              ; something is mounted on it.
         ld a,EBUSY
         jp z,syserr

@@ -584,9 +584,7 @@ zfind:  ld (zq),hl
 
 ; zpoll: 17 bytes. Stop idle packing when any job can run. RAM can wait its turn.
 zpoll:
-        IFDEF FDD3000
-        call hzpoll             ; no interrupt brings keys or ticks: fetch them.
-        ENDIF
+        HAL_ZPOLL
         ld hl,p_stat
         ld b,NPROC
 .l:     ld a,(hl)
@@ -808,7 +806,7 @@ syszx:  ld a,h
         jp sysok
 .f:     call nami
         jp c,syserr
-        IFDEF FDD3000
+        IF HAL_VFS
         call vfsix              ; a mounted file: its blocks are on a disk.
         ld a,EINVAL
         jp z,syserr

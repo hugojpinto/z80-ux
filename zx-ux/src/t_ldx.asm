@@ -33,7 +33,7 @@ t_ldx:  db 18h,6
 ; ldx_m: 276 bytes. Find the named program on a very slow tape.
 ldx_m:  pop hl
         call args
-        IFDEF FDD3000
+        IF HAL_SSXFILE
 ; FDD3000: the kernel opened the program file on LDXFD and ran us in its
 ; place (ssx.asm).  Its SSX1 header says what a cassette header said:
 ; the length (the file's) and the memory it needs (image + bss + stack +
@@ -202,7 +202,7 @@ ldx_m:  pop hl
         call SYS                ; returns only if it was refused. We do not call this a surprise feature.
         jr .ioe                ; preserve the failed-load error path. The failure gets a name, not a
                                ; disguise.
-        IFNDEF FDD3000
+        IF HAL_SSXFILE == 0
 .nameerr:
         ld de,s_lxname
         jr .err
@@ -214,7 +214,7 @@ ldx_m:  pop hl
 .xj0_1:
         ld hl,1
         jp exitc
-        IFDEF FDD3000
+        IF HAL_SSXFILE
 s_lxio: db "not an SSX1 program",0
         ELSE
 s_lxload: db "Loading: /dev/cassette/",0

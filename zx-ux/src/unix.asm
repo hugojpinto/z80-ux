@@ -16,6 +16,7 @@
 
         DEVICE ZXSPECTRUM48
 
+        include "platform.inc"  ; the machine: capabilities and hooks (platform/).
         include "const.inc"
         include "kvars.inc"
 
@@ -78,7 +79,7 @@ panic:
 .h:     halt
         jr .h
 
-        IFNDEF FDD3000          ; the FDD3000 has no Spectrum ROM to complain.
+        IF HAL_ROM              ; RST 8 from a Spectrum ROM routine.
 ; rom_error: 21 bytes. The ROM complained. We listen.
 rom_error:                      ; RST 8 from a ROM routine.
         ld iy,05C3Ah
@@ -94,7 +95,7 @@ rom_error:                      ; RST 8 from a ROM routine.
 ; ---------------------------------------------------------------------
 ; ISR - ULA 50Hz frame interrupt (u4 'clock' + u0 'kb_int'). No refunds for missed ticks.
 ; ---------------------------------------------------------------------
-        IFNDEF FDD3000          ; FDD3000: no frame interrupt; hal.asm polls (kpoll, kidle).
+        IF HAL_FRAMEIRQ         ; the frame ISR (else the machine layer keeps time).
 ; isr: 207 bytes. The frame clock gets its turn.
 isr:
         push af
@@ -230,7 +231,7 @@ clk1:   call ticksleep
         ld hl,ticks
         inc (hl)
         ld a,(hl)
-        cp 50
+        cp HAL_HZ               ; ticks a second (platform.inc).
         ret c
         ld (hl),0
 ; (on into tick1s).
@@ -299,7 +300,7 @@ ticksleep:
 ; Status line: process slots and clock, drawn with our 4x8 glyphs.
 ; The ROM can keep its character set.
 ; ---------------------------------------------------------------------
-        IFNDEF FDD3000          ; FDD3000: no status line on the terminal (ps, top).
+        IF HAL_CONSOLE == CON_SCREEN ; the status line is drawn on the screen.
 ; stdraw: 124 bytes. Paint status. The screen loves a little gossip.
 stdraw:
         xor a
@@ -472,11 +473,7 @@ swtch:
         ei
         call zidle
         jr nc,.busy
-        IFDEF FDD3000
-        call kidle              ; no clock interrupt: poll the terminal, count the time.
-        ELSE
-        halt
-        ENDIF
+        HAL_IDLE                ; nothing to run: wait for a tick.
 .busy:  di
         xor a
         ld (idling),a
@@ -764,9 +761,7 @@ sysent:
         ld iy,05C3Ah            ; ROM routines and RST 8 rely on it.
         push af
         call kmode
-        IFDEF FDD3000
-        call kpoll              ; keys, BREAK and the clock come in through the door.
-        ENDIF
+        HAL_ENTER
         pop af
         ld (u_sp),sp
         cp NSYS
@@ -796,9 +791,7 @@ sysx:
         push af
         push hl
         push de
-        IFDEF FDD3000
-        call vsync              ; changed mounted i-nodes to the disk.
-        ENDIF
+        HAL_LEAVE
         ld a,(runrun)
         or a
         call nz,preempt
@@ -821,7 +814,7 @@ systab:
         dw sysrele, sysexit, sysfork, sysread, syswrite, sysopen
         dw sysclose, syswait, syscreat, syslink, sysunlink, sysexec
         dw syschdir, systimec, sysmkdir, syschmod, sysok, sysbreak
-        IFDEF FDD3000
+        IF HAL_VFS
         dw sysstat, sysseek, systell, sysmnt, sysumnt, sysok
         ELSE
         dw sysstat, sysseek, systell, badsys, badsys, sysok
@@ -835,9 +828,7 @@ systab:
 ; ---------------------------------------------------------------------
 ; sysrele: 5 bytes. Release the CPU. Others want a turn.
 sysrele:                        ; give up the processor.
-        IFDEF FDD3000
-        call myield             ; a drawing program yields: show its screen.
-        ENDIF
+        HAL_YIELD
         call preempt
         jr sysok
 
@@ -1402,7 +1393,7 @@ kexec:
         ldir
         jr .hok
 .nox:
-        IFDEF FDD3000
+        IF HAL_SSXFILE
         call hssx               ; an SSX1 program file: /etc/ldx loads it.
         ld hl,ks_ldx
         jr z,.nt
@@ -1751,7 +1742,7 @@ sysssxl:
         ld (KC_F),hl
         ld (u_base),hl
         ld (u_count),de
-        IFDEF FDD3000
+        IF HAL_SSXFILE
         call ssxrd              ; the program file, open on LDXFD (ssx.asm).
         ELSE
         call taprd
@@ -1845,9 +1836,7 @@ sysssxl:
         call setw2
         pop hl
         call zero
-        IFDEF FDD3000
-        call ssxfix             ; no OUT (FEh): the drive latch (ssx.asm).
-        ENDIF
+        HAL_SSXFIX
         ld hl,(KC_IMG)          ; the arguments at the top.
         ld de,(KC_TOT)
         add hl,de
@@ -1972,7 +1961,7 @@ kend:
 ; 4-aligned).  "SANYALnet-Labs-4x8-font-FINAL" from the ZX-UX c48 SDK.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs.
 ; SANYALnet Labs Non-Commercial License: see ../LICENSE.
-        IFNDEF FDD3000          ; the terminal draws its own characters.
+        IF HAL_CONSOLE == CON_SCREEN ; the kernel draws its own characters.
         ALIGN 4
 FONT:   incbin "font4x8.bin", 8, 384
 FONTEND:
@@ -1990,7 +1979,7 @@ FONTEND:
         include "t_zx.asm"
         include "t_tar.asm"
         include "t_ldx.asm"
-        IFDEF FDD3000
+        IF HAL_VFS
         include "t_mkfs.asm"    ; /etc/mkfs (FDD3000 only).
         include "t_fs.asm"      ; /etc/mount, umount (FDD3000 only).
         ENDIF
@@ -2019,9 +2008,8 @@ boot:
         ld hl,MEMBOT            ; kernel scratch in MEMBOT: BASIC's.
         ld b,15                 ; calculator left values there.
         call zfill
-        IFDEF FDD3000
-        call hinit              ; restart vectors, IM 1, drives idle (hal.asm).
-        ELSE
+        HAL_INIT                ; the machine: vectors, interrupt mode.
+        IF HAL_FRAMEIRQ
 ; IM 2: vector FFFFh from the ROM, JR at FFFF → JP isr at FFF4.
         ld a,0C3h
         ld (TRAMP),a
@@ -2032,6 +2020,8 @@ boot:
         ld a,IM2I
         ld i,a
         im 2
+        ENDIF
+        IF HAL_ROM
 ; catch ROM errors (RST 8) instead of returning to BASIC. No victory lap on the error path.
         ld hl,rom_error
         ld (kerrsp),hl
@@ -2040,7 +2030,7 @@ boot:
         ENDIF
 ; screen (the loader set the border and colours).
         call kcls
-        IFNDEF FDD3000
+        IF HAL_ROM
 ; keyboard: L mode (lower case), repeat rates.
         set 3,(iy+1)            ; FLAGS: L mode.
         xor a
@@ -2083,29 +2073,18 @@ boot:
         ld hl,UDATA
         ld (p_brk),hl
         call uinit
-        IFDEF FDD3000
-        call tinit              ; the 50 Hz clock from the WD1770 (tmr.asm).
-        ENDIF
+        HAL_START
         ei
         jp kinit                ; exec /etc/init.
 ; Startup messages: printed once, so they live in the boot area too.
 ; msg_boot: 80 fixed bytes plus generated bootinfo.inc. The banner has numbers to settle.
 msg_boot:
-        IFDEF FDD3000
-        db 10,"ZX-UX UNIX v1 / Timex FDD3000 Z80 4MHz 64K",10
-        db "Based on original work by Supratim Sanyal of SANYALnet Labs.",10
-        db "FDD3000 port: LoadZX Museum.",10
-        ELSE
-        db 10,"ZX-UX UNIX v1 48K ZX Spectrum Z80 3.5Mhz",10
-        db 127," 2026 SANYALnet Labs",10
-        ENDIF
+        HAL_BANNER
         db "ZX-UX v1 kernel "
         include "../out/bootinfo.inc"
 msg_ok: db "ok",10,0
 msg_nofs: db "no root fs",0
-        IFDEF FDD3000
-        ALIGN 2                 ; ITAB and the arena blocks are word aligned.
-        ENDIF
+        HAL_ITABALIGN
 
 bootend:
 
@@ -2158,7 +2137,7 @@ toktab: db 0E2h,'~'             ; STOP (SS+A).
         db 0C9h,'!'             ; <>.
         db 0
 
-        IFNDEF FDD3000          ; no cassette on the FDD3000.
+        IF HAL_TAPE             ; the cassette.
 ; tclk: 67 bytes. Account for ROM tape pulses while interrupts were off; return CF. The clock missed the show.
 tclk:   ei                      ; its own time is counted by the ISR.
         ld ix,100               ; frames: the pilot tone.
@@ -2206,6 +2185,6 @@ lowkend:
         ASSERT lowkend <= KSTACK - LOWSTK
         SAVEBIN "lowk.bin", LOWK, lowkend - LOWK
 
-        IFDEF FDD3000
-        include "hal.asm"       ; the FDD3000 hardware layer, below the kernel.
+        IFDEF HAL_LAYER
+        include HAL_LAYER       ; the machine layer, if it is part of the image.
         ENDIF

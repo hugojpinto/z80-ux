@@ -22,7 +22,7 @@ systicks:
         ld de,0
         jp sysok
 
-        IFDEF FDD3000
+        IF HAL_CONSOLE == CON_TERMINAL
 ; FDD3000: sysscreen, scrrel and cstrip are the display mirror's
 ; (fdd3000/src/mirror.asm): programs draw into RAM at 4000h, the kernel
 ; reads it back to the terminal.

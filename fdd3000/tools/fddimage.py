@@ -67,9 +67,9 @@ def build(b):
     import fsmod
     # Twice: the kernel carries the checksum of its own ABI (fsmod.py),
     # which a first pass gives; the second must not move a thing.
-    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['FDD3000'])
+    top, src, sym, fsimg, free = b.kernel('fdd3000')
     vals, stamp = fsmod.abi(sym)
-    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['FDD3000', 'KABI=0%04Xh' % stamp])
+    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['KABI=0%04Xh' % stamp])
     if fsmod.abi(sym) != (vals, stamp) or sym['kabi'] != stamp:
         raise b.BuildError('the kernel ABI moved between passes')
     fsmod.write_kabi(os.path.join(top, 'kabi.inc'), sym)

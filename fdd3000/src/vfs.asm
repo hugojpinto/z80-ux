@@ -24,7 +24,7 @@
 ;  of every system call that touched one, changed i-nodes go back (ISTORE)
 ;  and the disks are flushed (SYNC).  So the kernel's own code - namei,
 ;  link, unlink, mkdir, stat, chmod - works on mounted files unchanged.
-;  The kernel calls in here where it would touch RAM (all IFDEF FDD3000):
+;  The kernel calls in here where it would touch RAM (all IF HAL_VFS):
 ;    iget      i-number >= 1000h            -> vfs_iget
 ;    readi, writei, itrunc  IX in micache   -> the type's READ, WRITE, TRUNC
 ;    ialloc    in a mounted directory       -> vfs_ialloc

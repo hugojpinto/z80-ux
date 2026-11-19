@@ -22,7 +22,8 @@
 ; Careful: port FEh, the Spectrum's ULA, is the FDD3000's drive latch
 ; (E0h-FFh decode to it).  No border colours, no BEEP.
 ;
-; This file is included at the end of unix.asm (IFDEF FDD3000) and lives
+; This file is included at the end of unix.asm (HAL_LAYER, set by
+; platform/fdd3000/platform.inc) and lives
 ; in RAM that was the Spectrum's ROM, HALBASE up to the boot sector's
 ; 3F00h.  Not in the old display file (4000h-5AFFh): SDK programs still
 ; draw into it (they clear "the screen" with LDIR), so it is left them as

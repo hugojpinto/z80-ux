@@ -8,11 +8,14 @@
 spectrum  Rebuilds the kernel ("lowk", "unix") and the root file system
           ("fs") and checks all three byte for byte against the shipped
           system tape, zx-ux/tzx/ZX-UX.tzx.  Every FDD3000 change to the
-          shared sources sits behind IFDEF FDD3000, so this gate proves the
-          Spectrum system is untouched.  (The upstream repository ships no
+          shared sources sits behind a platform capability or hook, so this
+          gate proves the Spectrum system is untouched.  (The upstream repository ships no
           kernel builder; the generated includes are reconstructed here.)
 
-fdd3000   Assembles the same sources with FDD3000 defined, the hardware
+Each target's machine is described by platform/<name>/platform.inc
+(capabilities and hooks; platform/README.md), staged as platform.inc.
+
+fdd3000   Assembles the same sources for platform/fdd3000, the hardware
           layer (fdd3000/src/hal.asm) and the boot sector
           (fdd3000/src/boot.asm), builds the FDD3000 root file system and
           writes build/fdd3000/ZX-UX-FDD3000.dsk, a bootable 40-track disk.
@@ -32,6 +35,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = os.path.dirname(HERE)
 ROOT = os.path.dirname(PORT)
 SRC = os.path.join(ROOT, 'zx-ux', 'src')
+PLATFORMS = os.path.join(ROOT, 'platform')     # platform/<name>/platform.inc
+PLATFORM = {'spectrum': 'spectrum48', 'fdd3000': 'fdd3000'}  # target -> name
 TAPE = os.path.join(ROOT, 'zx-ux', 'tzx', 'ZX-UX.tzx')
 BUILD = os.path.join(ROOT, 'build')
 sys.path.insert(0, HERE)
@@ -79,6 +84,7 @@ def stage(target):
         shutil.rmtree(top)
     os.makedirs(os.path.join(top, 'out'))
     shutil.copytree(SRC, src, ignore=shutil.ignore_patterns('rom', '*.doc'))
+    shutil.copy(os.path.join(PLATFORMS, PLATFORM[target], 'platform.inc'), src)
     if target == 'fdd3000':
         for name in os.listdir(os.path.join(PORT, 'src')):
             if name.endswith(('.asm', '.inc')):

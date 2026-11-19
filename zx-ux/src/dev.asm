@@ -19,7 +19,7 @@ devread:
         jp z,ttread
         cp DEV_MEM
         jr z,memrd
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         jp fdread               ; the disks (fd.asm).
         ELSE
         jr taprd
@@ -32,7 +32,7 @@ devwrite:
         jp z,ttwrite
         cp DEV_MEM
         jr z,memwr
-        IFDEF FDD3000
+        IF HAL_BLKDEV
         jp fdwrite
         ELSE
         jr tapwr
@@ -53,7 +53,7 @@ memwr:  ld de,(u_off)
         ldir
         jp ttwrite.xj1_13  
 
-        IFDEF FDD3000
+        IF HAL_TAPE == 0
 ; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
 nodev:  ld a,EIO
         scf
@@ -170,7 +170,7 @@ ttrawin:
         ld a,c
         call addhla
         ld (hl),b
-        IFNDEF FDD3000          ; OUT (FEh) is the drive latch on the FDD3000.
+        IF HAL_ULAFE            ; OUT (FEh) is the ULA (not, e.g., a drive latch).
 ; key click. The keyboard does not send an apology.
         ld a,(SV_BORDCR)
         rrca
@@ -413,7 +413,7 @@ kputs:  ld a,(hl)
 ; ---------------------------------------------------------------------
 TROWS   equ 23
 
-        IFDEF FDD3000
+        IF HAL_CONSOLE == CON_TERMINAL
 ; ---------------------------------------------------------------------
 ;  FDD3000: the console is the Timex terminal (VT52) on the link, so
 ;  kputc and kcls are hal.asm's hputc and hcls (AT and INVERSE become

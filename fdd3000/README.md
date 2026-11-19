@@ -40,8 +40,10 @@ python3 fdd3000/tools/build.py       # spectrum gate + build/fdd3000/ZX-UX-FDD30
 
 `build.py spectrum` rebuilds the shipped Spectrum system from `zx-ux/src` and
 checks it **byte for byte** against `zx-ux/tzx/ZX-UX.tzx` (upstream ships no
-builder). Every FDD3000 change to the shared sources sits behind
-`IFDEF FDD3000`; this gate proves the Spectrum system untouched.
+builder). The shared sources name no machine: what differs sits behind a
+platform capability or hook (`platform/README.md`; this port's settings
+are `platform/fdd3000/platform.inc`), and this gate proves the Spectrum
+system untouched.
 
 In Fuse (the LoadZX fork, `TC3256/EMUL`): machine **TT3000**, the disk in
 Timex FDD drive A (`--timex_fdddisk`); Machine › Timex FDD Reset if the
