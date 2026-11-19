@@ -737,6 +737,65 @@ def input_tests(pair, rng, n, only, verbose):
     return count, len(fails)
 
 
+def beep_tests(pair, rng, n, only, verbose):
+    """BEEP on random durations and pitches (in range and out): the report,
+    the speaker's toggles (within 2), the tone's length, first toggle to
+    last (within 5%)."""
+    if only and not any(o in 'BEEP' for o in only):
+        return 0, 0
+    toggles = [0]
+
+    span = [None, None]
+    machines = []
+
+    def wp(p, v):
+        if p & 0xFF == 0xFE:
+            toggles[0] += 1
+            t = machines[0].t if machines else 0
+            span[0] = t if span[0] is None else span[0]
+            span[1] = t
+    rom = zxcore.Spectrum(write_port=lambda p, v: (machines.__setitem__(slice(None), [rom]), wp(p, v)))
+    ux = zxcore.Spectrum(write_port=lambda p, v: (machines.__setitem__(slice(None), [ux]), wp(p, v)))
+    fails = []
+    cases = [(0.01, 0), (0.01, -60), (0.01, -61), (0.01, 69), (0.01, 70), (-0.01, 0), (0, 0),
+             (10.5, 0), (0.1, 12), (0.05, -24)]
+    cases += [(round(rng.uniform(0, 0.08), 3), round(rng.uniform(-62, 71), 1)) for _ in range(n // 4)]
+    for d, p in cases:
+        st = []
+        for which, zx in (('rom', rom), ('ux', ux)):
+            m = zx.mem
+            m[0x4000:] = booted()
+            if which == 'ux':
+                m[ORG:ORG + len(pair.image)] = pair.image
+                e = pair.sym['@romfp']
+                m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+            stk = 0xA000
+            for k, v in enumerate((d, p)):
+                m[stk + 5 * k:stk + 5 * k + 5] = bytes(five(v))
+            m[0x5C63:0x5C65] = bytes([0, 0xA0])
+            m[0x5C65:0x5C67] = bytes([(stk + 10) & 255, (stk + 10) >> 8])
+            m[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+            m[0x5C3D:0x5C3F] = bytes([(SP - 2) & 255, (SP - 2) >> 8])
+            m[0x5C3A] = 0xFF
+            m[SP - 4:SP - 2] = bytes([TRAP & 255, TRAP >> 8])
+            toggles[0] = 0
+            span[:] = [None, None]
+            zx.set(iy=0x5C3A, sp=SP - 4, iff1=False, iff2=False,
+                   pc=0x03F8 if which == 'rom' else pair.sym['@r03F8'])
+            if not zx.run((TRAP,), zx.t + 100_000_000):
+                raise RuntimeError('BEEP did not return')
+            st.append((m[0x5C3A], toggles[0], (span[1] - span[0]) if span[0] is not None else 0))
+        (ea, ta, ca), (eb, tb, cb) = st
+        if ea != eb or abs(ta - tb) > 2 or (ta > 20 and abs(ca - cb) > 0.05 * ca):
+            fails.append('BEEP %s,%s: ROM %02X %d toggles %d T, ours %02X %d toggles %d T'
+                         % (d, p, ea, ta, ca, eb, tb, cb))
+    if verbose or fails:
+        print('%-12s %s' % ('BEEP', 'FAIL (%d of %d)' % (len(fails), len(cases)) if fails else 'ok'))
+        for f in fails[:6]:
+            print('    ' + f)
+    return 1, 1 if fails else 0
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -809,8 +868,9 @@ def main():
     kt, kf = key_tests(pair, rng, n, only, verbose)
     gt, gf = graphics_tests(pair, rng, n, only, verbose)
     it, if_ = input_tests(pair, rng, n, only, verbose)
-    tested += pt + rt + st + kt + gt + it
-    nf = len(fails) + pf + rf + sf + kf + gf + if_
+    bt, bf = beep_tests(pair, rng, n, only, verbose)
+    tested += pt + rt + st + kt + gt + it + bt
+    nf = len(fails) + pf + rf + sf + kf + gf + if_ + bf
     print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
     return 1 if nf else 0
 

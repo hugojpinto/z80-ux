@@ -25,6 +25,7 @@ lib/ and lib/libc48.ssa are not touched: the original runtime still
 rebuilds the shipped examples byte for byte.
 """
 import glob
+from fractions import Fraction
 import importlib.util
 import os
 import sys
@@ -88,6 +89,22 @@ def keys_asm():
     return '        section text\n        global @rkeys\n@rkeys:\n' + '\n'.join(rows) + '\n'
 
 
+A4_HZ = 440                     # concert A: BEEP's pitch 9
+SEMITONES = 12                  # an octave
+SPECTRUM_HZ = 3_500_000         # the 48K Spectrum's clock (BEEP's tone)
+BEEP_LOOP_T = 26                # beep.asm's delay loop, a pass (LOOP_T)
+TICKS = 50                      # the kernel's ticks a second (sleep: TICKS)
+
+
+BEEP_LO, BEEP_HI, BEEP_MAX = 60, 69, 10    # BEEP: pitches -60 .. 69, 0 .. 10 seconds
+
+
+def full_five(mk, v):
+    """|v| in the five-byte format's full form (exponent, mantissa), never
+    the small-integer one: for comparing bytes (beep.asm)."""
+    return mk.five(Fraction(abs(v)) + Fraction(1, 2 ** 40))  # (not whole: the full form)
+
+
 def consts_asm():
     """The numbers the calculator and CIRCLE use (1, 1/2, pi/2, pi/4, 2 pi), written in the
     five-byte format by the float engine's own encoder (drivers/fp/mkfpk.py)."""
@@ -96,10 +113,28 @@ def consts_asm():
         'mkfpk', os.path.join(os.path.dirname(os.path.dirname(SDK)), '..', 'drivers', 'fp', 'mkfpk.py'))
     mk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mk)
-    out = ['        section text', '        global @cone,@chalf,@cpi2,@cpi4,@c2pi']
+    import math
+    out = ['        section text',
+           '        global @cone,@chalf,@cpi2,@cpi4,@c2pi,@csemi,@cmidc,@chalfp,@cticks',
+           '        global @cblo,@cbhi,@cbmax']
     for name, v in (('@cone', 1), ('@chalf', Fraction(1, 2)), ('@cpi2', mk.PI / 2),
-                    ('@cpi4', mk.PI / 4), ('@c2pi', mk.PI * 2)):
+                    ('@cpi4', mk.PI / 4), ('@c2pi', mk.PI * 2),
+                    ('@csemi', Fraction(math.log(2) / SEMITONES)),
+                    ('@cmidc', Fraction(A4_HZ * 2 ** (-9 / SEMITONES))),
+                    ('@chalfp', Fraction(SPECTRUM_HZ, 2 * BEEP_LOOP_T)), ('@cticks', TICKS)):
         out.append('%-7s db %s' % (name + ':', ','.join(str(b) for b in mk.five(v))))
+    for name, v in (('@cblo', BEEP_LO), ('@cbhi', BEEP_HI + 1), ('@cbmax', BEEP_MAX)):
+        out.append('%-7s db %s' % (name + ':', ','.join(str(b) for b in full_five(mk, v))))
+    # BEEP's whole pitches: each semitone of the octave above middle C, its
+    # frequency and its half cycle in delay-loop passes (the octave: the
+    # exponent's byte, plus or minus)
+    out.append('        global @cbfreq,@cbhalf')
+    midc = A4_HZ * 2 ** (-9 / SEMITONES)
+    for name, f in (('@cbfreq', lambda r: midc * 2 ** (r / SEMITONES)),
+                    ('@cbhalf', lambda r: SPECTRUM_HZ / (2 * BEEP_LOOP_T) / (midc * 2 ** (r / SEMITONES)))):
+        out.append(name + ':')
+        for r in range(SEMITONES):
+            out.append('        db %s' % ','.join(str(b) for b in full_five(mk, Fraction(f(r)))))
     return '\n'.join(out) + '\n'
 
 
@@ -194,7 +229,8 @@ def main():
     tty = members([os.path.join(HERE, 'tty.asm')])
     with open(os.path.join(HERE, 'libtty.ssa'), 'wb') as f:
         f.write(rld.write_archive(tty))
-    inc = open(os.path.join(HERE, 'rbc', 'rbc.inc')).read() + keyboard_names()
+    inc = (open(os.path.join(HERE, 'rbc', 'rbc.inc')).read() + keyboard_names()
+           + 'LOOP_T  equ %d\nTICKS   equ %d\n' % (BEEP_LOOP_T, TICKS))
     rbc = members(sorted(glob.glob(os.path.join(HERE, 'rbc', '*.asm'))), inc,
                   [('tokens.asm', inc + tokens_asm()), ('consts.asm', consts_asm()),
                    ('keys.asm', inc + keys_asm())])

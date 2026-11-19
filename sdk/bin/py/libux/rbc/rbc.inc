@@ -205,3 +205,12 @@ CUR_L   equ 'L'                 ; the cursor's letters
 CUR_C   equ 'C'
 CUR_E   equ 'E'
 CUR_G   equ 'G'
+
+; BEEP (LOOP_T, TICKS: libux/build.py)
+SYS_WRITE equ 4
+SYS_SLEEP equ 34
+C_BELL  equ 07h
+SEMITONES equ 12                ; an octave
+SPK     equ 10h                 ; port KPORT: the speaker's bit,
+MIC     equ 08h                 ; ... the MIC's (kept set),
+A_BORD  equ 07h                 ; ... the border's colour
