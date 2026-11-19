@@ -4,12 +4,12 @@ For the SDK (`sdk/bin/py`) and the kernel, z80-ux branch `portable-hal`.
 
 **Status.** Built: the kinds, `rcc --ux` (`sdk/bin/py/libux`: the
 terminal runtime `libtty.ssa`, the relocatable bitmap runtime), the
-console's colour codes, call 41 (describe; the display file stays at
-4000h on both platforms), the FDD3000 system disk's programs built this
-way. Tests: `test/spectrum/kinds.py`, `fdd3000/test/test_kinds.py`. Still
-to do: the FDD3000 placing a display file elsewhere (the low pool), and
-the resident text low (memory-plan §11). Where the building departed from
-this sketch, the sections below say so ("as built").
+console's colour codes, call 41, the FDD3000 system disk's programs
+built this way, and on the FDD3000 the display file in the arena with
+resident programs at 4000h-5AFFh (arena 13,724 → 20,614 bytes). Tests:
+`test/spectrum/kinds.py`, `fdd3000/test/test_kinds.py`,
+`fdd3000/test/test_ssx.py`. Where the building departed from this
+sketch, the sections below say so ("as built").
 
 ## Why
 
@@ -148,6 +148,15 @@ Per platform:
 - **fdd3000**: the display file comes from the low pool (3F00h–5AFFh, at
   4000h when free), else the arena (page-aligned, 27 pages, fixed block),
   freed at exit; 80×24, a terminal. The mirror reads the owner's page.
+
+  *As built:* no low pool - 4000h–5AFFh holds resident programs, so the
+  display file always comes from the arena (kind `K_DISP` 7, fixed,
+  6,912 + 255 bytes for the page alignment), allocated by the claim (call
+  39, or 41 with HL = 1), one for all programs that draw, freed when the
+  last owner lets go. HL = 40h is refused (EBUSY). The runtime claims with
+  39 first, then asks 41 for the page, so the file cannot be freed between
+  the two. A program that needs 4000h (flags bit 3 clear, or the fixed
+  kind) is refused at load by the SSX1 loader (`HAL_SCR4000 equ 0`).
   With no bitmap program running, the pool holds other fixed blocks
   (memory-plan Idea C) - and once no program draws at 4000h by default,
   the resident text can move low (§11): ~28 KB of arena.

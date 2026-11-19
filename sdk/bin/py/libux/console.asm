@@ -23,19 +23,19 @@ TTOP    equ 5BE4h               ; Kernel console first row; 0 means no shared sc
 ; @scrinit: Claim the display and clear it unless another process shares it.
 @scrinit:
         ld hl,1
-        ld a,41                 ; sys disp: a display file -> D = its page
+        ld a,39                 ; sys screen: claim (a display file comes
+        call SYS                ; with it) -> HL = font
+        ld (@font),hl
+        ld a,e                  ; E != 0: another program draws too
+        or a
+        ld (@shared),a
+        ld hl,0
+        ld a,41                 ; sys disp: where it is -> D = its page
         call SYS
         ld a,d
         j nc,.pg
         ld a,40h                ; no call 41: the Spectrum's, at 4000h
 .pg:    ld (@scrhi),a
-        ld hl,1
-        ld a,39                 ; sys screen: claim -> HL = font
-        call SYS
-        ld (@font),hl
-        ld a,e                  ; E != 0: another program draws too
-        or a
-        ld (@shared),a
         ld a,7
         ld (@attr),a
         ld a,(@shared)          ; Shared screen? Leave the other tenant's rows alone.

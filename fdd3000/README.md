@@ -92,11 +92,19 @@ Memory of the FDD3000 while ZX-UX runs:
 |---|---|
 | 0000h–0067h | restart vectors; RST 38h = the WD1770's INTRQ |
 | 0068h–03FFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
-| 0400h–0FFFh | resident programs placed low: `vi`, `zxpack` (build.py `LOWTEXT`) |
+| 0400h–0FFFh | resident programs placed low: `vi`, `zxpack`, `dd` (build.py `LOWTEXT`) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer (and `dd`) |
-| 3F00h–5AFFh | the boot sector, then the old display file: programs draw here |
-| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena, window at F000h |
+| 1800h–3EFFh | the hardware layer |
+| 3F00h–3FFFh | the boot sector (free once the system runs) |
+| 4000h–5AFFh | resident programs: `cat`/`ls`/`cp`... (t_file), t_misc, `tar`, `ps`/`kill`, `tap`, `ldx` (build.py `LOWTEXT`, lowtext2.inc) |
+| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena (20,614 bytes free at boot), window at F000h |
+
+A program that draws (the bitmap kind, `rcc --ux`) gets its display file
+from the arena when it claims the screen: 6,912 bytes on a page boundary,
+shared by every program drawing, given back when the last one is done
+(`mirror.asm` `dalloc`, system call 41 says where). An SSX1 program built
+for a display file at 4000h (no kind declared, or the fixed kind) is
+refused with "rebuild it with rcc --ux".
 
 ### File system types
 

@@ -99,6 +99,7 @@ def build(b):
         raise b.BuildError('the kernel ABI moved between passes')
     fsmod.write_kabi(os.path.join(top, 'kabi.inc'), sym)
     parts = [('low', sym['LOWTEXT'], b.read(os.path.join(src, 'low.bin'))),
+             ('low2', sym['LOWTEXT2'], b.read(os.path.join(src, 'low2.bin'))),
              ('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
              ('lowk', sym['LOWK'], b.read(os.path.join(src, 'lowk.bin'))),
              ('unix', sym['KBASE'], b.read(os.path.join(src, 'unix.bin'))),

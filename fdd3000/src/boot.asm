@@ -51,10 +51,9 @@ ipl0:   ld sp,3FF8h             ; in this page: the image goes from 0900h up
         ld a,h
         add a,c
         ld h,a                  ; HL = where sector C goes
-        cp 3Fh                  ; this sector's page and the old display
-        jr c,.rd                ; file (3F00h-5AFFh) are not loaded
-        cp 5Bh
-        jr c,.sk2
+        cp 3Fh                  ; this sector's own page is not loaded
+        jr nz,.rd               ; (4000h-5AFFh: resident programs)
+        jr .sk2
 .rd:    ld a,c
         call read
 .sk2:   pop hl

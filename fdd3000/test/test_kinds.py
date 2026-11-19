@@ -7,7 +7,9 @@ The system disk's programs are built with rcc --ux.  Checked:
     (scrown stays 0), the mirror has nothing to do, their text is there;
   - hello's output redirected to a file holds its text (and the console
     codes that place it) - impossible while it drew into a display file;
-  - hanoi (bitmap kind) claims the display file: the mirror shows it.
+  - hanoi (bitmap kind) claims the display file: the kernel puts it in
+    the arena, page-aligned, not at 4000h (resident programs are there),
+    and takes it back when hanoi ends.
 
     python3 fdd3000/test/test_kinds.py
 """
@@ -67,8 +69,11 @@ def main():
     r.m.link.keys.extend(b'hanoi\r')
     watch(10)
     check(any(owned), 'hanoi did not claim the display file')
+    page = m.m[sym['dpage']]
+    check(page > 0x5B, 'the display file is at %02X00h, not in the arena' % page)
     r.m.link.keys.extend(b'\x03')
     watch(3)
+    check(m.m[sym['dpage']] == 0, 'the display file was not given back')
     out = r.sh('echo still here')
     check('still here' in out and m.stopped is None, 'the machine did not survive')
     for f in fails:

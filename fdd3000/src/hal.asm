@@ -25,9 +25,8 @@
 ; This file is included at the end of unix.asm (HAL_LAYER, set by
 ; platform/fdd3000/platform.inc) and lives
 ; in RAM that was the Spectrum's ROM, HALBASE up to the boot sector's
-; 3F00h.  Not in the old display file (4000h-5AFFh): SDK programs still
-; draw into it (they clear "the screen" with LDIR), so it is left them as
-; scratch - the boot sector does not even load it.
+; 3F00h.  4000h-5AFFh, the old display file, holds resident programs
+; (lowtext2.inc); a program that draws gets a display file from the arena.
 ; =====================================================================
 
 HALBASE equ 01800h              ; after the vectors, the ROM traps, the buffers
@@ -704,10 +703,6 @@ nodev:  ld a,EIO
         include "ssx.asm"       ; SSX1 programs from files.
         include "mirror.asm"    ; the display file, mirrored to the terminal.
         include "tmr.asm"       ; a 50 Hz clock from the WD1770.
-; The FDD3000's own resident programs live here, not in the kernel image:
-; what they do not take there is left to the arena.  (mount, umount and
-; mkfs: in the kernel image, t_mkfs.asm.)
-        include "t_dd.asm"      ; /bin/dd
 
 ; ---------------------------------------------------------------------
 ; variables
@@ -733,6 +728,22 @@ halend:
 LOWTEXT equ 0400h
         org LOWTEXT
         include "lowtext.inc"
+; The FDD3000's own resident programs, not in the kernel image (mount,
+; umount and mkfs are: t_mkfs.asm).
+        include "t_dd.asm"      ; /bin/dd
 lowend:
         ASSERT lowend <= BUFMEM
         SAVEBIN "low.bin", LOWTEXT, lowend - LOWTEXT
+
+; ---------------------------------------------------------------------
+; More resident programs (lowtext2.inc) where the Spectrum's display file
+; was: a program that draws gets its display file from the arena, at the
+; page system call 41 gives it (mirror.asm dalloc); one built for 4000h is
+; refused (ssx.asm, HAL_SCR4000).
+; ---------------------------------------------------------------------
+LOWTEXT2 equ 4000h
+        org LOWTEXT2
+        include "lowtext2.inc"
+low2end:
+        ASSERT low2end <= 5B00h
+        SAVEBIN "low2.bin", LOWTEXT2, low2end - LOWTEXT2

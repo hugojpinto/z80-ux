@@ -38,6 +38,8 @@ sysscreen:
         ld a,h
         or l
         jr z,.rel
+        call dalloc             ; a display file to draw into
+        jp c,syserr
         call mbit
         ld hl,scrown
         ld e,(hl)
@@ -57,11 +59,15 @@ sysscreen:
 scrrel: call mbit
         ld hl,scrown
         and (hl)
-        ret z
+        jr z,.n
         xor (hl)
         ld (hl),a
         ret nz
-        jp mdone
+        call mdone
+.n:     ld a,(scrown)           ; nobody draws (also when a process that
+        or a                    ; had one ends without claiming): the
+        ret nz                  ; display file goes back to the arena
+        jp dfree
 
 
 ; mbit: A = the running slot's bit in scrown (slot 0 = 1).  Uses B.
@@ -284,7 +290,9 @@ mrow:   ld (mr),a
 ; mrowad: HL = the first pixel line of character row A.
 mrowad: ld e,a
         and 18h
-        or 40h
+        ld h,a
+        ld a,(dpage)            ; the display file's page (dalloc)
+        add a,h
         ld h,a
         ld a,e
         rrca
@@ -485,6 +493,62 @@ mhash:  ds 256,0                ; glyph hash -> character
 ; HL = 0: describe; 1, 40h: claim.  -> D = page, E = 1 (a terminal),
 ; L = columns, H = rows.  (platform/screen-kinds.md)
 sysdisp:
-        ld de,4001h
+        ld a,h
+        or l
+        jr z,.d
+        ld a,l
+        cp 40h                  ; exactly 4000h: resident programs live there
+        ld a,EBUSY
+        jp z,syserr
+        call dalloc
+        jp c,syserr
+.d:     ld a,(dpage)
+        ld d,a
+        ld e,1
         ld hl,24*256+80
         jp sysok
+
+; dalloc: the display file, if there is none: 6,912 bytes on a page
+; boundary, a fixed arena block (K_DISP), shared by every program that
+; draws.  -> A = its page; CF, A = ENOMEM.
+K_DISP  equ 7
+dalloc: ld a,(dpage)
+        or a
+        ret nz
+        ld bc,6912+255
+        ld a,K_DISP
+        call aalloc
+        ret c
+        push hl
+        ld de,6912+255          ; not in a window lent to a big program
+        add hl,de
+        ld de,WINDOW+1
+        call cphlde
+        pop hl
+        jr c,.ok
+        call afree
+        ld a,ENOMEM
+        scf
+        ret
+.ok:    ld (dblk),hl
+        ld de,255
+        add hl,de
+        ld a,h
+        ld (dpage),a
+        or a
+        ret
+
+; dfree: the display file back to the arena.
+dfree:  ld hl,(dblk)
+        ld a,h
+        or l
+        ret z
+        call afree
+        ld hl,0
+        ld (dblk),hl
+        xor a
+        ld (dpage),a
+        ret
+
+dblk:   dw 0                    ; the display file's arena block
+dpage:  db 0                    ; its page (0: none)

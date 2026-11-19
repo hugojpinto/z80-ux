@@ -389,3 +389,11 @@ kernel and kernel variables keep their pinned spots (6003h, 5BE4h) inside
 the low block; programs that draw keep needing a screen somewhere (Idea
 B makes that "anywhere"). This is a bigger lever than the low pool (Idea
 C) and needs no change to arena code: the arena is simply one larger run.
+
+**As built (2026-11-19, branch `portable-hal`).** The kernel stays at
+6000h; what moved is the resident text. 0400h–0FFFh holds `vi`, `zxpack`,
+`dd`; 4000h–5AFFh (the display file's old place) holds t_file, t_misc,
+t_tar, t_proc, t_tap, t_ldx (6,890 of 6,912 bytes). A program that draws
+gets its display file from the arena at its claim (`platform/screen-kinds.md`
+§5); programs pinned to 4000h are refused at load. Arena free at boot:
+**13,724 → 20,614 bytes**; the boot image shrank from 183 to 156 sectors.
