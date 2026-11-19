@@ -656,6 +656,87 @@ def graphics_tests(pair, rng, n, only, verbose):
     return count, len(fails)
 
 
+def input_tests(pair, rng, n, only, verbose):
+    """ED-COPY, CLEAR-SP and the end of INPUT on random lines typed at INPUT
+    (the workspace), cursors and earlier echoes: the screen, the lower
+    screen's positions, ECHO_E, DF_SZ, K_CUR, the workspace."""
+    fails = {}
+    count = 0
+    for name, addr in (('ED-COPY', 0x111D), ('CLEAR-SP', 0x1097), ('INPUT-END', 0x20A0)):
+        if only and not any(o in name for o in only):
+            continue
+        count += 1
+        for i in range(n):
+            text = bytes(rng.choice([rng.randrange(32, 128), rng.randrange(0x80, 0xA5)])
+                         for _ in range(rng.choice([0, 1, 5, 20, 40, 70])))
+            cur = rng.randrange(0, len(text) + 1)
+            prompt = []                 # whole items: characters, graphics, colours
+            for _ in range(rng.randrange(0, 25)):
+                k = rng.random()
+                if k < 0.7:
+                    prompt.append(rng.randrange(32, 128))
+                elif k < 0.85:
+                    prompt.append(rng.randrange(0x80, 0xA5))
+                else:
+                    c = rng.randrange(0x10, 0x16)
+                    prompt += [c, rng.choice([0, 1, 2, 7] if c < 0x12 else [0, 1])]
+            sts = []
+            for which, zx in (('rom', pair.rom), ('ux', pair.ux)):
+                m = zx.mem
+                m[0x4000:] = booted()
+                if which == 'ux':
+                    m[ORG:ORG + len(pair.image)] = pair.image
+                    e = pair.sym['@romfp']
+                    m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+                w = lambda a, v: m.__setitem__(slice(a, a + 2), bytes([v & 255, v >> 8]))  # noqa
+                ws = 0xA000
+                m[ws:ws + len(text) + 1] = text + b'\r'
+                w(0x5C61, ws)
+                w(0x5C63, ws + len(text) + 1)
+                w(0x5C65, ws + len(text) + 1)
+                w(0x5C59, 0x9F00)
+                w(0x5C5B, ws + cur)
+                m[0x5C71] |= 0x20
+                m[0x5C6A] = (m[0x5C6A] & ~8) | random.Random(i).choice([0, 8])
+                sym = (lambda nm, a: a) if which == 'rom' else (lambda nm, a: pair.sym[nm])
+                k = sym('@r1601', 0x1601)
+                code = [0x3E, 0, 0xCD, k & 255, k >> 8]           # channel K: the prompt
+                p10 = sym('@r10', 0x10)
+                for c in prompt:
+                    code += [0x3E, c, 0xCD, p10 & 255, p10 >> 8]
+                code += [0x2A, 0x8A, 0x5C, 0x22, 0x82, 0x5C]       # ECHO_E = S_POSNL
+                t = sym('@r%04X' % addr, addr)
+                code += [0xCD, t & 255, t >> 8]
+                if name == "ED-COPY" and random.Random(i).random() < 0.5:
+                    code += [0xCD, t & 255, t >> 8]                # twice: the echo's end
+                code += [0xC3, TRAP & 255, TRAP >> 8]
+                m[CODE:CODE + len(code)] = bytes(code)
+                m[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+                m[0x5C3D:0x5C3F] = bytes([(SP - 2) & 255, (SP - 2) >> 8])
+                m[0x5C3A] = 0xFF
+                zx.set(iy=0x5C3A, sp=SP - 2, iff1=False, iff2=False, a=0, bc=0, de=0, hl=0, pc=CODE)
+                if not zx.run((TRAP,), zx.t + 100_000_000):
+                    raise RuntimeError('%s: %s did not return' % (which, name))
+                sts.append(zx)
+            a, b = sts
+            bad = print_compare(a, b)
+            for nm, ad, ln in (('ECHO_E', 0x5C82, 2), ('K_CUR', 0x5C5B, 2), ('STKBOT', 0x5C63, 2),
+                               ('MODE', 0x5C41, 1)):
+                if bytes(a.mem[ad:ad + ln]) != bytes(b.mem[ad:ad + ln]):
+                    bad.append('%s: ROM %s, ours %s' % (nm, bytes(a.mem[ad:ad + ln]).hex(),
+                                                        bytes(b.mem[ad:ad + ln]).hex()))
+            if bytes(a.mem[0xA000:0xA060]) != bytes(b.mem[0xA000:0xA060]):
+                bad.append('the workspace')
+            if bad:
+                fails.setdefault(name, []).append('%r cursor %d after the prompt %s: %s' % (
+                    text, cur, bytes(prompt).hex(), '; '.join(bad[:3])))
+        if verbose or name in fails:
+            print('%-12s %s' % (name, 'FAIL (%d)' % len(fails[name]) if name in fails else 'ok'))
+            for f in fails.get(name, [])[:3]:
+                print('    ' + f)
+    return count, len(fails)
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -727,8 +808,9 @@ def main():
     st, sf = string_tests(pair, rng, n, only, verbose)
     kt, kf = key_tests(pair, rng, n, only, verbose)
     gt, gf = graphics_tests(pair, rng, n, only, verbose)
-    tested += pt + rt + st + kt + gt
-    nf = len(fails) + pf + rf + sf + kf + gf
+    it, if_ = input_tests(pair, rng, n, only, verbose)
+    tested += pt + rt + st + kt + gt + it
+    nf = len(fails) + pf + rf + sf + kf + gf + if_
     print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
     return 1 if nf else 0
 

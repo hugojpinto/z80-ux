@@ -21,7 +21,7 @@
 ; the ROM's output on the same character streams (test/basic/romdiff.py).
         section text
         global @r10,@rpo,@r1601,@r0D4D,@r1CAD,@r2211,@r0DD9,@r203C
-        global @r0D6B,@r0D6E,@r2297,@r1E52,@r1E56,@r21D6,@rcladdr,@rattr,@rinit,@rterm
+        global @r0D6B,@r0D6E,@r2297,@r1E52,@r1E56,@r21D6,@rcladdr,@rattr,@rinit,@rterm,@rwait
 
 ; RST 10h: A through the current channel.  Keeps BC, DE, HL.
 @r10:   push bc
@@ -200,7 +200,8 @@
         pop af
         ret
 
-; @rstore: the position BC and its address HL kept.
+; @rstore: the position BC and its address HL kept (the lower screen's,
+; on channel K, as ECHO_E too).
 @rstore:
         ld a,(TVFLAG)
         rra
@@ -210,6 +211,10 @@
         ret
 .l:     ld (SPOSNL),bc
         ld (DFCCL),hl
+        ld a,(FLAGS2)           ; channel K's: the echo's end too
+        bit FL2_K,a
+        ret z
+        ld (ECHOE),bc
         ret
 
 ; @rcset: HL = the address of position BC (CL-SET).
@@ -549,10 +554,12 @@
         pop bc
         inc hl
         dec c
-        ld a,(@rlast)           ; a character (not a graphic): whether it
-        cp C_GRAPH              ; was a space, for @rtok's spacing
-        ret nc
-        push hl
+        ld a,(@rlast)           ; whether it was a space, for @rtok's
+        cp C_GRAPH              ; spacing (a block graphic leaves that as
+        j c,.sp                 ; it was; a UDG is not a space)
+        cp C_UDG
+        ret c
+.sp:    push hl
         ld hl,FLAGS
         res FL_SP,(hl)
         cp ' '

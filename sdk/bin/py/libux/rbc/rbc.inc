@@ -192,3 +192,16 @@ FL2_CAPS equ 3                  ; FLAGS2 bit 3: CAPS LOCK
 YMAX    equ 175                 ; the highest PLOT line (the lower screen's below)
 PIX_W   equ 256
 FONT_N  equ 96                  ; the characters CHARS holds, from ' '
+
+; The line being typed
+MODE    equ @rsv+41h            ; 1: E, 2: G (the cursor's letter)
+ELINE   equ @rsv+59h
+FLAGX   equ @rsv+71h
+ECHOE   equ @rsv+82h            ; where its echo ended
+FX_IN   equ 5                   ; FLAGX bit 5: INPUT (the line in the workspace)
+TVF_MOD equ 3                   ; TV_FLAG bit 3: the mode changed
+C_CR    equ 0Dh
+CUR_L   equ 'L'                 ; the cursor's letters
+CUR_C   equ 'C'
+CUR_E   equ 'E'
+CUR_G   equ 'G'
