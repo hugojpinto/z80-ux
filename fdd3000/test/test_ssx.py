@@ -18,6 +18,9 @@ path.  Checked:
     most one every fifth of a second;
   - the arena is whole while mandel draws into its display file;
   - the shipped mandel is refused: 4000h holds resident programs here;
+  - float (test/kinds/float.c): system call 42 loads the clean-room float
+    engine (/mnt/a/lib/fp, drivers/fp) into the arena; the results are
+    the Spectrum ROM's; the engine is freed when float ends;
   - keys (test/kinds/keys.c): kbd_down and kbdmatrix see no key down,
     even with A typed at the terminal: there are no keyboard rows here;
   - an executable file that is no SSX1 program is refused (ENOEXEC).
@@ -52,7 +55,8 @@ def main():
     out = os.path.join(ROOT, 'build', 'ux')
     os.makedirs(out, exist_ok=True)
     for name, src in (('colors', 'examples/colors.c'), ('mandel', 'demos/mandel.c'),
-                      ('keys', '../../test/kinds/keys.c')):
+                      ('keys', '../../test/kinds/keys.c'),
+                      ('float', '../../test/kinds/float.c')):
         dst = os.path.join(out, name + '.ssx')
         subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--ux', '-o', dst,
                         os.path.join(ROOT, 'examples', 'c48-src', src)], check=True)
@@ -101,6 +105,10 @@ def main():
     m.run_for(4, quiet=2.0)
     run('\r')
     run('/mnt/b/mand0\r', name='old')
+    sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
+    run('/mnt/b/float\r', settle=10.0, name='float')
+    if m.m[sym['fpblk']] | m.m[sym['fpblk'] + 1] or m.m[sym['fpown']]:
+        fails.append('float: the engine was not given back')
     m.type('/mnt/b/keys\r', settle=1.0)
     m.link.keys.extend(b'aaaa')
     m.run_for(6, quiet=3.0)
@@ -124,6 +132,9 @@ def main():
         fails.append('colors: its three beeps rang the bell %d times (1-3)' % bells)
     expect('mandel', '####', 'no pixels as #')
     expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
+    expect('float', '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3',
+           'the float engine did not give the ROM\'s results')
+    expect('float', 'float ok', 'float did not finish')
     expect('keys', 'a:0 m:0', 'a key was seen down behind the terminal')
     expect('noexec', '/tmp/x', 'a non-SSX1 file was not refused')
     expect('end', 'still alive', 'the machine did not survive')

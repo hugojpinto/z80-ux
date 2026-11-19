@@ -683,6 +683,7 @@ systab:
         dw sysmdate, sysstty, sysgtty, sysok, syssleep, syskill
         dw sysgetpid, syszx, systicks, sysscreen, sysssxl
         dw sysdisp              ; 41: the console, a display file (the platform's)
+        dw sysfp                ; 42: the float engine (the platform's)
 
 ; ---------------------------------------------------------------------
 ; process system calls (u1/u2).
@@ -790,6 +791,7 @@ sysfork:
         call ldir8
         pop bc
 ; shared open files: bump reference counts.
+        call fpfork             ; the float engine, if the parent has it (C: the child)
         call fpdup
 ; build the child's context frame on this stack. The return address would like to survive.
         ld hl,forkret
@@ -862,9 +864,18 @@ forkcpy:
         ld a,(chslot)
         jp mem_swapout          ; the window image (platform).
 
+; sysfp: z80-ux: the float engine's address (platform/float.md): HL = 0
+; -> HL = where to call it.  The platform's fpget finds it (a ROM, a
+; module it loads), fprel lets go of it when the process ends or execs,
+; fpfork hands it to a child.
+sysfp:  call fpget
+        jp c,syserr
+        jp sysok
+
 ; release: 46 bytes. Free the current process's memory and screen. One less tenant.
 release:
         call scrrel
+        call fprel
         ld a,(cur)
         ld c,a
         ld a,(wown)
@@ -1467,6 +1478,7 @@ exname: ld a,(u_intr)
         ld a,1
         ld (u_intr),a
 .i0:    call scrrel             ; a screen it owned goes back.
+        call fprel              ; so does the float engine
         ld hl,(u_tmp)
 .nm:    call basename           ; HL = a path: sys ssxload names the program.
         ld a,(cur)

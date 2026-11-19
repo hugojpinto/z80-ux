@@ -180,3 +180,122 @@ r48keys:
         or a
         call nz,ttintr
 .b2:    ret
+
+; ---------------------------------------------------------------------
+; z80-ux: the float interface (platform/float.md) on the 48 ROM's own
+; calculator - the same operations, numbers and results as the engine a
+; machine without this ROM loads (drivers/fp/fp.asm).  System call 42
+; gives programs romfpe.  The caller's workspace (IX) holds the ROM's
+; four calculator pointers while it runs (8), its memory area (30) and
+; its stack (60); interrupts are off meanwhile, on after.
+SV_STKBOT equ 05C63h
+SV_STKEND equ 05C65h
+SV_MEM    equ 05C68h
+RFW_MEM   equ 8
+RFW_STK   equ 38
+
+; fpget: sys 42: HL = the engine.  fprel, fpfork: nothing to hold.
+fpget:  ld hl,romfpe
+        or a
+        ret
+fprel:
+fpfork: ret
+
+romfpe: push iy
+        push bc                 ; the result's place
+        push af                 ; the operation
+        ld iy,KIY
+        di
+        push hl
+        ld hl,(SV_ERRSP)
+        ld (ix+0),l
+        ld (ix+1),h
+        ld hl,(SV_STKBOT)
+        ld (ix+2),l
+        ld (ix+3),h
+        ld hl,(SV_STKEND)
+        ld (ix+4),l
+        ld (ix+5),h
+        ld hl,(SV_MEM)
+        ld (ix+6),l
+        ld (ix+7),h
+        push ix
+        pop hl
+        ld bc,RFW_STK
+        add hl,bc
+        ld (SV_STKBOT),hl
+        ld (SV_STKEND),hl
+        push ix
+        pop hl
+        ld bc,RFW_MEM
+        add hl,bc
+        ld (SV_MEM),hl
+        pop hl                  ; x
+        call .push
+        pop af
+        push af
+        cp 6
+        jr nc,.one
+        ex de,hl                ; y
+        call .push
+.one:   pop af
+        ld hl,.err              ; a ROM error comes back here (ERR_SP)
+        push hl
+        ld (SV_ERRSP),sp
+        cp 18
+        jr z,.int
+        ld hl,.tab-1
+        call addhla
+        ld a,(hl)
+        ld (.code),a
+        rst 28h
+.code:  db 0,38h
+        pop hl                  ; (the ERR_SP slot)
+        pop de                  ; the result's place
+        ld hl,(SV_STKEND)
+        ld bc,-5
+        add hl,bc
+        ld bc,5
+        ldir
+        or a
+        jr .x
+.int:   rst 28h                 ; to an integer: truncate, FP-TO-BC
+        db 3Ah,38h
+        call 2DA2h
+        pop hl                  ; (the ERR_SP slot)
+        pop hl                  ; (the result's place: not used)
+        jr c,.x
+        ld a,0
+        jr z,.ip
+        dec a
+.ip:    or a
+        jr .x
+.err:   pop hl                  ; (the result's place)
+        scf
+.x:     push af                 ; the ROM's pointers back
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld (SV_ERRSP),hl
+        ld l,(ix+2)
+        ld h,(ix+3)
+        ld (SV_STKBOT),hl
+        ld l,(ix+4)
+        ld h,(ix+5)
+        ld (SV_STKEND),hl
+        ld l,(ix+6)
+        ld h,(ix+7)
+        ld (SV_MEM),hl
+        pop af
+        pop iy
+        ei
+        ret
+; .push: the number at HL onto the ROM's calculator stack.  Keeps DE.
+.push:  push de
+        ld de,(SV_STKEND)
+        ld bc,5
+        ldir
+        ld (SV_STKEND),de
+        pop de
+        ret
+; the operations 1-17 as the ROM's calculator numbers them
+.tab:   db 0Fh,03h,04h,05h,06h,2Ah,1Bh,3Ah,26h,25h,1Fh,20h,21h,22h,23h,24h,28h

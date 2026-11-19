@@ -193,8 +193,10 @@ python3 fdd3000/tools/fsmod.py SOURCE.asm NAME OUT    # after build.py
   *On a real FDD3000:* the drives must be jumpered DS0 – DS2, not **MX**
   ("constantly enabled regardless of DRIVE SELECT"): an MX drive would
   turn and step with the clock.
-- **A ROM.** Programs that call the Spectrum ROM (the floating-point
-  calculator, `RST 10h`) are stopped with a message; BEEP and BEEPER
+- **A ROM.** Floating point comes from a clean-room engine loaded from
+  `/mnt/a/lib/fp` while a program uses it (`platform/float.md`).
+  Programs that call the Spectrum ROM themselves (`RST 10h`, `RST 28h`)
+  are stopped with a message; BEEP and BEEPER
   (03F8h, 03B5h) ring the terminal's bell instead, at most five times a
   second, and return at once.
 - **Port FEh.** On the FDD3000 it is the drive latch: border colour or

@@ -150,6 +150,10 @@ def build(b):
                 fsmod.build(b.SJASMPLUS, os.path.join(top, 'kabi.inc'),
                             os.path.join(b.ROOT, source), name,
                             os.path.join(top, 'mod')))
+    zfs.mkdir('/lib')                         # the float engine (sys 42)
+    zfs.put('/lib/fp', fsmod.build(b.SJASMPLUS, os.path.join(top, 'kabi.inc'),
+                                   os.path.join(b.ROOT, 'drivers', 'fp', 'fp.asm'), 'fp',
+                                   os.path.join(top, 'mod')))
     import subprocess
     subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'py', 'libux', 'build.py')],
                    check=True, capture_output=True)   # the z80-ux runtime

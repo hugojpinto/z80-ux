@@ -725,6 +725,7 @@ nodev:  ld a,EIO
         include "ssx.asm"       ; SSX1 programs from files.
         include "mirror.asm"    ; the display file, mirrored to the terminal.
         include "tmr.asm"       ; a 50 Hz clock from the WD1770.
+        include "fpload.asm"    ; the float engine, a module (sys 42).
 
 ; ---------------------------------------------------------------------
 ; variables

@@ -77,26 +77,8 @@ vtype:  push hl
         ret
 .path:  pop hl                  ; a path: a module
 ; fmload: the module in file HL -> A = its type; CF, A.
-fmload:  call nami
+fmload: call mhdr
         ret c
-        ld hl,0                 ; the header (a directory: no "ZXFM")
-        ld de,fmhdr
-        ld bc,FMHSZ
-        call .rd
-        jp c,.nox
-        ld hl,fmhdr             ; "ZXFM", this kernel's ABI
-        ld de,s_zxfm
-        ld b,4
-.c:     ld a,(de)
-        cp (hl)
-        jp nz,.nox
-        inc hl
-        inc de
-        djnz .c
-        ld hl,(fmhdr+FM_ABI)
-        ld de,kabi
-        call cphlde
-        jp nz,.nox
         ld hl,fmhdr+FM_NAME     ; loaded already?
         call vbyname
         ret nc
@@ -124,9 +106,54 @@ fmload:  call nami
         ld hl,fmhdr+FM_NAME
         ld bc,8
         ldir
-        ld bc,(fmhdr+FM_LEN)    ; a fixed block for the image
-        ld (vmlen),bc
         ld a,K_FSM
+        call mimg
+        ret c
+        ex de,hl                ; in the table: its vector is its start
+        ld hl,(vfte)
+        ld (hl),e
+        inc hl
+        ld (hl),d
+        inc hl
+        ld (hl),e
+        inc hl
+        ld (hl),d               ; (FT_REF: 0 in a free entry)
+        ld a,(vftn)
+        or a
+        ret
+
+; mhdr: module file HL: its header into fmhdr, IX = its i-node; CF, A
+; (ENOEXEC: no module, or one built for another kernel).
+mhdr:   call nami
+        ret c
+        ld hl,0                 ; the header (a directory: no "ZXFM")
+        ld de,fmhdr
+        ld bc,FMHSZ
+        call fmrd
+        jp c,.nox
+        ld hl,fmhdr             ; "ZXFM", this kernel's ABI
+        ld de,s_zxfm
+        ld b,4
+.c:     ld a,(de)
+        cp (hl)
+        jp nz,.nox
+        inc hl
+        inc de
+        djnz .c
+        ld hl,(fmhdr+FM_ABI)
+        ld de,kabi
+        call cphlde
+        jp nz,.nox
+        or a
+        ret
+.nox:   ld a,ENOEXEC
+        scf
+        ret
+
+; mimg: the module whose header is in fmhdr (file IX): its image in a
+; fixed arena block of kind A, relocated -> HL = the block; CF, A.
+mimg:   ld bc,(fmhdr+FM_LEN)    ; a fixed block for the image
+        ld (vmlen),bc
         push ix
         call aalloc
         pop ix
@@ -141,7 +168,7 @@ fmload:  call nami
         ld hl,FMHSZ             ; the image
         ld de,(vmblk)
         ld bc,(fmhdr+FM_LEN)
-        call .rd
+        call fmrd
         jp c,.eio
         ld hl,(fmhdr+FM_LEN)    ; the relocations follow it
         ld de,FMHSZ
@@ -176,7 +203,7 @@ fmload:  call nami
         ld (vmoff),hl
         pop hl
         ld de,fmhdr
-        call .rd
+        call fmrd
         jp c,.eio
         ld hl,fmhdr
 .w:     ld e,(hl)               ; a word at offset DE of the image ...
@@ -210,16 +237,7 @@ fmload:  call nami
 .bad:   pop hl
 .nox2:  ld a,ENOEXEC
         jp .err
-.done:  ld hl,(vfte)            ; in the table: its vector is its start
-        ld de,(vmblk)
-        ld (hl),e
-        inc hl
-        ld (hl),d
-        inc hl
-        ld (hl),e
-        inc hl
-        ld (hl),d               ; (FT_REF: 0 in a free entry)
-        ld a,(vftn)
+.done:  ld hl,(vmblk)
         or a
         ret
 .eio:   ld a,EIO
@@ -229,11 +247,8 @@ fmload:  call nami
         pop af
         scf
         ret
-.nox:   ld a,ENOEXEC
-        scf
-        ret
-; .rd: BC bytes of the file IX from offset HL to DE, all of them; CF if not.
-.rd:    push bc
+; fmrd: BC bytes of the file IX from offset HL to DE, all of them; CF if not.
+fmrd:    push bc
         push ix
         xor a
         call iio

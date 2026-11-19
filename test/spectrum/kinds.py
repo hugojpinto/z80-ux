@@ -14,8 +14,11 @@ the shipped one), on the SDK's headless Spectrum:
   - mandel (bitmap): it claims the screen and draws; BREAK stops it;
   - keys (test/kinds/keys.c): kbd_down sees A held (the keyboard rows:
     the Spectrum's console is a screen, not a terminal);
+  - float (test/kinds/float.c): floats through system call 42 (the
+    kernel's adapter on the ROM's calculator: platform/float.md);
   - mandel on the shipped ZX-UX.tzx, a kernel with no system call 41:
-    the runtime falls back to 4000h and it draws all the same.
+    the runtime falls back to 4000h and it draws all the same; float
+    there: no call 42, the runtime's own ROM adapter.
 """
 import os
 import subprocess
@@ -33,7 +36,9 @@ SRC = {'hello': 'examples/c48-src/examples/hello.c',
        'mandel': 'examples/c48-src/demos/mandel.c',
        'colour': 'test/kinds/colour.c',
        'lines': 'test/kinds/lines.c',
-       'keys': 'test/kinds/keys.c'}
+       'keys': 'test/kinds/keys.c',
+       'float': 'test/kinds/float.c'}
+FLOATS = '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3'
 KIND = ['stream', 'console', 'bitmap', 'fixed']
 
 
@@ -138,12 +143,24 @@ def main():
     settle(s)
     check('a:1' in s.text(), 'keys: A held was not seen: %r' % s.text()[-200:])
 
+    # floats: the kernel's engine (sys 42)
+    s.kb.type('cls\n')
+    s.wait_prompt()
+    job = run(s, progs['float'][0], 'float', 3000)
+    settle(s)
+    check(FLOATS in s.text() and 'float ok' in s.text(), 'float: %r' % s.text()[-300:])
+
     # the shipped kernel: no call 41
     t = golden.session('shipped')
     job = run(t, progs['mandel'][0], 'mandel', 2500)
     check(job.owned and '#' in t.text(), 'mandel on the shipped kernel drew nothing')
     t.kb.add(zxux.parse_keys('{BREAK}'))
     t.wait_prompt(6000)
+    t.kb.type('cls\n')
+    t.wait_prompt()
+    run(t, progs['float'][0], 'float', 3000)
+    settle(t)
+    check(FLOATS in t.text() and 'float ok' in t.text(), 'float, shipped kernel: %r' % t.text()[-300:])
 
     for f in fails:
         print('FAIL:', f)

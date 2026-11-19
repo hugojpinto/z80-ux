@@ -27,6 +27,7 @@ HAL_SCR4000  equ 0              ; 4000h-5AFFh holds resident programs: an SSX1
         DEFINE HAL_LAYER "hal.asm"  ; the machine layer, assembled with the kernel
         DEFINE HAL_SYSDEV "/dev/fd0"
         DEFINE HAL_SYSMNT "/mnt/a"
+        DEFINE HAL_FPMOD "/mnt/a/lib/fp"  ; the float engine (drivers/fp)
 
 ; --- hooks
         MACRO HAL_INIT
