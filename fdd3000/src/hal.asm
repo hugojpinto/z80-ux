@@ -674,6 +674,14 @@ kcls:   call hcls
         ld a,1
 .xj0_0: ld (stdirty),a
         ret
+; devtab: the FDD3000's devices (dev.asm)
+devtab: db DEV_TTY, DEV_TTY
+        dw ttread, ttwrite, 0
+        db DEV_MEM, DEV_MEM
+        dw memrd, memwr, 0
+        db DEV_FD0, DEV_FD0+NDRV-1      ; /dev/fd0-3 (fd.asm)
+        dw fdread, fdwrite, hdopen
+        db 0
 kclick  equ hret                ; no key click: port FEh is the drive latch
 ; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
 nodev:  ld a,EIO

@@ -97,7 +97,7 @@ layer:
 | **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | the display mirror |
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
 | **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |
-| **Devices** | `devread`/`devwrite`'s targets (step 4: a device table) | tape: `tapwr`, `taprd` | `fdread`, `fdwrite`, `hdevok`, `hdopen`, `hseek`, `fhclr` |
+| **Devices** | `devtab`: entries `db FIRST, LAST` / `dw read, write, open` (0: none), a 0 ends it; read/write: A = device number, the transfer in u_off, u_base, u_count; open: HL = the i-number, CF/A, keeps HL, DE, BC, IX. The kernel's `devfind`, `devread`, `devwrite`, `devopen` use it (iget, open) | tty, mem, tap (machine.asm) | tty, mem, fd0–3 with `hdopen` (hal.asm); seek in sectors (`hseek`, `fhclr`) with `HAL_BLKDEV` |
 | **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | fdd3000/src |
 
 The register conventions are the kernel's own (the routines' headers).
@@ -203,9 +203,9 @@ kernel sites:
    kernel, resident programs and machine layer together low and the arena
    in one piece up to the window (memory-plan, §11). Then a low pool for
    fixed blocks, or, on the 128K, per-process banks.
-7. **Block devices** — a device table instead of the FDD3000's names, so
-   the FDD3000 link (EFh, for the Spectrum, 128K, TC2068, TC3256), the +3
-   FDC and RAM disks can coexist.
+7. ~~Block devices~~ — done: `devtab` (step 4). Still FDD3000-named: the
+   sector seek (`hseek`, `fhclr`) and the mount layer's disks (`vdisk`,
+   `DEV_FD0`, `NDRV`, `fprobe`), next when a second disk driver comes.
 
 Each lands the same way: the Spectrum's `platform.inc` reproduces today's
 bytes, the gate proves it.

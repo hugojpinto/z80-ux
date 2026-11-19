@@ -61,7 +61,7 @@ SDK runtime uses call 41.
    Spectrum's frame ISR and the FDD3000's `tint` call it. **Done.**
 3. rom48 and screen64 out of the kernel; console and sound interfaces;
    the `ROM_*` addresses leave `const.inc`. **Done.**
-4. A device table instead of `devread`/`devwrite` and `hdevok`.
+4. A device table instead of `devread`/`devwrite` and `hdevok`. **Done.**
 5. The platform as the top-level assembly; a memory map per platform (the
    FDD3000's larger arena: `fdd3000/docs/memory-plan.md` §11).
 6. `mem_swapout`/`mem_swapin`: the seam the 128K (bank switch) and the

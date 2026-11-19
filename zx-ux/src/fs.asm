@@ -34,17 +34,8 @@ iget:
         ld a,l
         cp ROOTINO
         jr nc,.reg
-        IF HAL_BLKDEV
-        call hdevok             ; tty, mem, fd0-fd3 (fd.asm).
-        jp nz,.bad
-        ELSE
-        cp DEV_TAP
-        jr z,.dev
-        dec a
-        cp DEV_MEM
-        jp nc,.bad
-        inc a
-        ENDIF
+        call devfind            ; a device: one in the platform's devtab.
+        jp c,.bad
 .dev:   ld ix,spino
         call .clr
         ld (ix+0),00Fh          ; rw for everybody.
@@ -823,10 +814,8 @@ sysopen:                        ; HL = name, DE = mode 0 r 1 w 2 rw.
         ld (u_tmp),de
         call nami
         jp c,syserr
-        IF HAL_BLKDEV
-        call hdopen             ; a disk: new disk, perhaps - probe it.
+        call devopen            ; a device's open (a disk: probe it).
         jp c,syserr
-        ENDIF
         ld a,(u_tmp)
         ld c,F_READ
         or a

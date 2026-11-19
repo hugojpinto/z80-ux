@@ -95,3 +95,12 @@ isr:
         pop af
         ei
         reti
+
+; devtab: the Spectrum's devices (dev.asm).
+devtab: db DEV_TTY, DEV_TTY
+        dw ttread, ttwrite, 0
+        db DEV_MEM, DEV_MEM
+        dw memrd, memwr, 0
+        db DEV_TAP, DEV_TAP     ; /dev/tap, /dev/cassette (rom48)
+        dw taprd, tapwr, 0
+        db 0

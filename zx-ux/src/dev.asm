@@ -7,36 +7,107 @@
 
 ; =====================================================================
 ;  device drivers  (u6 rtty/wtty/rmem/wmem, u7 otty/ctty, u9 getc/putc)
-;   1 /dev/tty   ROM keys, our 64 x 24 text screen in a 4 x 8 font
+;   1 /dev/tty   the console (the platform's: screen64, a terminal)
 ;   2 /dev/mem   core memory
-;   5 /dev/tap   cassette tape (ROM SA-BYTES / LD-BYTES)
+;   and the platform's own (devtab): 5 /dev/tap on the Spectrum (rom48),
+;   8-11 /dev/fd0-3 on the FDD3000 (fd.asm)
 ; =====================================================================
 
-; devread: 14 bytes. IX+30 picks tty, RAM or tape input. Three doors, one handle.
+; ---------------------------------------------------------------------
+; The devices are the platform's: devtab (platform/README.md) lists, from
+; device number FIRST to LAST, the routines that read, write and open
+; them.  An entry: db FIRST, LAST; dw read, write, open (0: none).  A 0
+; ends the table.  read and write: A = the device number, the transfer in
+; u_off, u_base, u_count, as readi/writei.  open: HL = the device's
+; i-number; CF, A on an error; keeps HL, DE, BC, IX.
+; ---------------------------------------------------------------------
+DEVSZ   equ 8
+
+; devread, devwrite: the device of i-node IX.
 devread:
         ld a,(ix+30)
-        cp DEV_TTY
-        jp z,ttread
-        cp DEV_MEM
-        jr z,memrd
-        IF HAL_BLKDEV
-        jp fdread               ; the disks (fd.asm).
-        ELSE
-        jp taprd
-        ENDIF
-
-; devwrite: 14 bytes. IX+30 picks tty, RAM or tape output. Same doors, other way.
+        call devfind
+        jr c,devnone
+        jr devgo
 devwrite:
         ld a,(ix+30)
-        cp DEV_TTY
-        jp z,ttwrite
-        cp DEV_MEM
-        jr z,memwr
-        IF HAL_BLKDEV
-        jp fdwrite
-        ELSE
-        jp tapwr
-        ENDIF
+        call devfind
+        jr c,devnone
+        inc hl
+        inc hl
+devgo:  ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ex de,hl
+        ld a,(ix+30)
+        jp (hl)
+devnone: ld a,EIO
+        scf
+        ret
+
+; devfind: device number A -> HL = its routines in devtab (read first); CF
+; if no device has it.  Keeps A, BC, DE.
+devfind:
+        push bc
+        ld c,a
+        ld hl,devtab
+.l:     ld a,(hl)
+        or a
+        jr z,.no
+        ld a,c
+        cp (hl)
+        jr c,.n                 ; below FIRST
+        inc hl
+        cp (hl)
+        dec hl
+        jr z,.yes
+        jr c,.yes               ; up to LAST
+.n:     ld a,l
+        add a,DEVSZ
+        ld l,a
+        jr nc,.l
+        inc h
+        jr .l
+.yes:   inc hl
+        inc hl
+        ld a,c
+        pop bc
+        or a
+        ret
+.no:    ld a,c
+        pop bc
+        scf
+        ret
+
+; devopen: an open of i-number HL: its device's open routine, if it has
+; one (a disk: probe it).  CF, A on an error.  Keeps HL, DE, BC, IX.
+devopen:
+        ld a,h
+        or a
+        ret nz
+        ld a,l
+        cp ROOTINO
+        jr nc,.no
+        push hl
+        push de
+        call devfind
+        jr c,.n
+        ld de,4
+        add hl,de
+        ld e,(hl)
+        inc hl
+        ld d,(hl)
+        ld a,d
+        or e
+        jr z,.n
+        ex de,hl
+        pop de
+        ex (sp),hl              ; on to it, HL = the i-number
+        ret
+.n:     pop de
+        pop hl
+.no:    or a
+        ret
 
 ; memrd: 9 bytes. Read RAM directly. The address had better be right.
 memrd:  ld hl,(u_off)

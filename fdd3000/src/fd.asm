@@ -574,20 +574,7 @@ binval: push af
 ; ---------------------------------------------------------------------
 ; The devices.
 ; ---------------------------------------------------------------------
-; hdevok: A = a special i-number: Z if it is a device of this kernel
-; (tty 1, mem 2, fd0-fd3 8-11).  Keeps A.
-hdevok: cp DEV_TTY
-        ret z
-        cp DEV_MEM
-        ret z
-        cp DEV_FD0
-        jr c,.no
-        cp DEV_FD0+NDRV
-        jr nc,.no
-        cp a
-        ret
-.no:    or 0FFh                 ; NZ (A is not needed then)
-        ret
+; (Which device numbers exist: devtab, hal.asm.)
 
 ; hdopen: an open of i-number L: for a disk, its buffers are dropped
 ; (the disk may have changed) and its geometry probed.  CF, A on an
