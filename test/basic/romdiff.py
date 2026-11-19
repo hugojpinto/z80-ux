@@ -518,6 +518,78 @@ def string_tests(pair, rng, n, only, verbose):
     return count, len(fails)
 
 
+def key_tests(pair, rng, n, only, verbose):
+    """INKEY$ (the runtime's: KEY-SCAN, K-TEST, K-DECODE) and KEYBOARD (as
+    rbc's PAUSE reads KSTATE) on every key, every shift, CAPS LOCK on and
+    off, and two keys at once, the half-rows given on port FEh alike."""
+    if only and not any(o in 'INKEY$ KEYBOARD' for o in only):
+        return 0, 0
+    sys.path.insert(0, os.path.join(ROOT, 'sdk', 'bin', 'py', 'libux', 'rbc'))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        'kb', os.path.join(ROOT, 'sdk', 'bin', 'py', 'libux', 'rbc', 'keyboard.py'))
+    kb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(kb)
+    held = set()
+
+    def port(p):
+        if p & 0xFF != kb.PORT:
+            return 0xFF
+        v = 0x1F
+        for r, (hi, keys) in enumerate(kb.ROWS):
+            if not (p >> 8) & (1 << r):
+                for b, k in enumerate(keys):
+                    if k in held:
+                        v &= ~(1 << b)
+        return v | 0xE0
+    machines = [zxcore.Spectrum(read_port=port), zxcore.Spectrum(read_port=port)]
+    machines[1].mem[ORG:ORG + len(pair.image)] = pair.image
+    sym = pair.sym
+    fails = []
+
+    def inkey(zx, rom, caps_lock):
+        zx.mem[0x4000:] = booted()
+        if not rom:
+            zx.mem[ORG:ORG + len(pair.image)] = pair.image
+        zx.mem[0x5C6A] = (zx.mem[0x5C6A] & ~8) | (8 if caps_lock else 0)
+        a = (lambda n, x: x) if rom else (lambda n, x: sym[n])
+        ks, kt, kd, kbd = a('@r028E', 0x028E), a('@r031E', 0x031E), a('@r0333', 0x0333), a('@r02BF', 0x02BF)
+        code = [0xCD, ks & 255, ks >> 8, 0x0E, 0, 0x20, 12, 0xCD, kt & 255, kt >> 8, 0x30, 7,
+                0x15, 0x5F, 0xCD, kd & 255, kd >> 8, 0x18, 2, 0x3E, 0xFF,  # none: FFh
+                0x32, 0x00, 0xD0,                                         # ld (D000h),a
+                0xCD, kbd & 255, kbd >> 8, 0xC3, TRAP & 255, TRAP >> 8]
+        zx.mem[CODE:CODE + len(code)] = bytes(code)
+        zx.mem[SP - 2:SP] = bytes([TRAP & 255, TRAP >> 8])
+        zx.mem[0x5C3D:0x5C3F] = bytes([(SP - 2) & 255, (SP - 2) >> 8])
+        zx.set(iy=0x5C3A, sp=SP - 2, iff1=False, iff2=False, pc=CODE)
+        if not zx.run((TRAP,), zx.t + 20_000_000):
+            raise RuntimeError('INKEY$ did not return')
+        return zx.mem[0xD000], zx.mem[0x5C00] != 0xFF or zx.mem[0x5C04] != 0xFF
+    cases = []
+    keys = [k for _, ks in kb.ROWS for k in ks if k not in kb.SHIFTS]
+    for k in keys:
+        for sh in ((), ('CAPS',), ('SYMBOL',), ('CAPS', 'SYMBOL')):
+            for cl in (0, 1):
+                cases.append((set((k,) + sh), cl))
+    for sh in ((), ('CAPS',), ('SYMBOL',), ('CAPS', 'SYMBOL')):
+        cases.append((set(sh), 0))
+    for _ in range(n):
+        cases.append((set(rng.sample(keys, 2)), 0))
+    for keyset, cl in cases:
+        held.clear()
+        held.update(keyset)
+        x = inkey(machines[0], True, cl)
+        y = inkey(machines[1], False, cl)
+        if x != y:
+            fails.append('%s%s: ROM %r, ours %r' % ('+'.join(sorted(keyset)), ' (CAPS LOCK)' if cl else '',
+                                                    x, y))
+    if verbose or fails:
+        print('%-12s %s' % ('INKEY$', 'FAIL (%d of %d)' % (len(fails), len(cases)) if fails else 'ok'))
+        for f in fails[:int(os.environ.get("ROMDIFF_SHOW", "8"))]:
+            print('    ' + f)
+    return 1, 1 if fails else 0
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -587,8 +659,9 @@ def main():
     pt, pf = print_tests(pair, rng, n, only, verbose)
     rt, rf = room_tests(pair, rng, n, only, verbose)
     st, sf = string_tests(pair, rng, n, only, verbose)
-    tested += pt + rt + st
-    nf = len(fails) + pf + rf + sf
+    kt, kf = key_tests(pair, rng, n, only, verbose)
+    tested += pt + rt + st + kt
+    nf = len(fails) + pf + rf + sf + kf
     print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
     return 1 if nf else 0
 

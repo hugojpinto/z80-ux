@@ -176,3 +176,14 @@ UDG_N   equ 21                  ; user-defined graphics: 'A' .. 'U'
 FSTRMAX equ 14                  ; the longest number @fstr writes
 FL_NUM  equ 6                   ; FLAGS bit 6: the result is a number (0: a string)
 VALMAX  equ 40                  ; the longest text VAL reads, its spaces left out
+
+; The terminal (the kernel's ABI: call 3 read, 31 stty, 32 gtty; the mode
+; byte, its fifth)
+SYS_READ equ 3
+SYS_STTY equ 31
+SYS_GTTY equ 32
+TTMODE  equ 4
+TT_RAW  equ 20h
+TT_NOWAIT equ 40h
+KSTATE4 equ KSTATE+4            ; the second key's state
+FL2_CAPS equ 3                  ; FLAGS2 bit 3: CAPS LOCK

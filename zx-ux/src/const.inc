@@ -177,6 +177,7 @@ NSYS    equ 43
 TT_RAW  equ 020h
 TT_ECHO equ 010h
 TT_FLUSH equ 080h          ; Flush old raw keys once. Yesterday can stay yesterday.
+TT_NOWAIT equ 040h         ; z80-ux: raw, no key waiting: a read takes nothing (INKEY$).
 
 ; ---------------------------------------------------------------- ROM
 

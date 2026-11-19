@@ -62,6 +62,32 @@ def members(paths, prefix='', extra=()):
     return objs
 
 
+def _keyboard():
+    sys.path.insert(0, SDK)
+    spec = importlib.util.spec_from_file_location('rbckeyboard', os.path.join(HERE, 'rbc', 'keyboard.py'))
+    kb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(kb)
+    return kb
+
+
+def keyboard_names():
+    """The keyboard's shape (libux/rbc/keyboard.py), for keyboard.asm."""
+    kb = _keyboard()
+    return '\n'.join([
+        'KPORT   equ %d' % kb.PORT,
+        'KFIRST  equ %d' % kb.ROWS[0][0],
+        'KBITS   equ %d' % len(kb.ROWS[0][1]),
+        'K_CAPSI equ %d' % kb.index('CAPS'),
+        'K_SYMI  equ %d' % kb.index('SYMBOL'), '']) + '\n'
+
+
+def keys_asm():
+    """@rkeys: each key's four characters (keyboard.py's legends)."""
+    t = _keyboard().table()
+    rows = ['        db ' + ','.join(str(b) for b in t[i:i + 16]) for i in range(0, len(t), 16)]
+    return '        section text\n        global @rkeys\n@rkeys:\n' + '\n'.join(rows) + '\n'
+
+
 def consts_asm():
     """The numbers the calculator stacks (1, 1/2, pi/2), written in the
     five-byte format by the float engine's own encoder (drivers/fp/mkfpk.py)."""
@@ -167,9 +193,10 @@ def main():
     tty = members([os.path.join(HERE, 'tty.asm')])
     with open(os.path.join(HERE, 'libtty.ssa'), 'wb') as f:
         f.write(rld.write_archive(tty))
-    inc = open(os.path.join(HERE, 'rbc', 'rbc.inc')).read()
+    inc = open(os.path.join(HERE, 'rbc', 'rbc.inc')).read() + keyboard_names()
     rbc = members(sorted(glob.glob(os.path.join(HERE, 'rbc', '*.asm'))), inc,
-                  [('tokens.asm', inc + tokens_asm()), ('consts.asm', consts_asm())])
+                  [('tokens.asm', inc + tokens_asm()), ('consts.asm', consts_asm()),
+                   ('keys.asm', inc + keys_asm())])
     with open(os.path.join(HERE, 'librbc.ssa'), 'wb') as f:
         f.write(rld.write_archive(rbc))
     sys.path.insert(0, os.path.join(SDK, 'rbc'))

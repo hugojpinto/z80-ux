@@ -246,7 +246,16 @@ ttread:
         ld a,(ttymode)
         and TT_RAW
         jr z,.can
-        call ttgetc
+        ld a,(ttymode)          ; z80-ux: TT_NOWAIT - no key waiting, nothing read
+        and TT_NOWAIT
+        jr z,.raw
+        ld a,(ttytl)
+        ld hl,ttyhd
+        cp (hl)
+        jr nz,.raw
+        ld hl,0
+        jp iadv
+.raw:   call ttgetc
         jp c,.int
         ld hl,(u_base)            ; raw: keys untranslated (ENTER = 13). No key gets to jump the queue.
         ld (hl),a
@@ -421,7 +430,7 @@ sysstty:
         rla                     ; TT_FLUSH bit 7 requests raw ring drain.
         call c,ttyflush
         ld a,(hl)
-        and TT_RAW+TT_ECHO
+        and TT_RAW+TT_ECHO+TT_NOWAIT
         ld (ttymode),a
         jp sysok
 ; sysgtty: 31 bytes. Read terminal rules. Nobody likes surprises.

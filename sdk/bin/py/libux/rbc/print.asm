@@ -21,7 +21,7 @@
 ; the ROM's output on the same character streams (test/basic/romdiff.py).
         section text
         global @r10,@rpo,@r1601,@r0D4D,@r1CAD,@r2211,@r0DD9,@r203C
-        global @r0D6B,@r0D6E,@r2297,@r1E52,@r1E56,@r21D6,@rcladdr,@rattr,@rinit
+        global @r0D6B,@r0D6E,@r2297,@r1E52,@r1E56,@r21D6,@rcladdr,@rattr,@rinit,@rterm
 
 ; RST 10h: A through the current channel.  Keeps BC, DE, HL.
 @r10:   push bc
@@ -879,8 +879,9 @@
 @rchp:  dw 0,0
         db 'P'
 
-; @rinit: the display file's page from the platform (system call 41: D),
-; or the Spectrum's for a kernel without it.  Keeps BC, DE, HL.
+; @rinit: the display file's page from the platform (system call 41: D)
+; and whether the console is a terminal (E = 1), or the Spectrum's for a
+; kernel without it.  Keeps BC, DE, HL.
 @rinit: push bc
         push de
         push hl
@@ -890,7 +891,10 @@
         ld a,d
         j nc,.k
         ld a,SCR_SPEC
+        ld e,0                  ; (no call 41: a Spectrum's screen)
 .k:     ld (@rdh),a
+        ld a,e
+        ld (@rterm),a
         pop hl
         pop de
         pop bc
@@ -900,6 +904,7 @@
 @rdh:   db SCR_SPEC             ; the display file's page (@rinit)
         section bss
 @rlast: ds 1                    ; the last character drawn
+@rterm: ds 1                    ; the console is a terminal (call 41's E)
 @rwait: ds 1                    ; operands still to come
 @rgly:  ds 8
 @rarow: ds 32
