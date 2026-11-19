@@ -14,6 +14,8 @@
 ;  own keys routine for ttrawin and ttintr and keeps the rest.
 ; =====================================================================
 
+TRAMP   equ HAL_TOP         ; the JP isr, above the kernel (platform.inc)
+
 ; sp_init: boot - IM 2, the ROM error trap, the keyboard's mode.
 sp_init:
 ; IM 2: vector FFFFh from the ROM, JR at FFFF → JP isr at FFF4.

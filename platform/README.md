@@ -61,10 +61,20 @@ its parts: its drivers right after the kernel (`HAL_DRIVERS`), its machine
 layer at its own address (`HAL_LAYER`), and the resident programs —
 `build.py` writes `userland.inc` (the programs assembled after the
 kernel, as on the Spectrum) and `lowtext.inc` (those the platform puts
-elsewhere: `LOWTEXT` in `build.py`). The FDD3000 puts `vi` and `zxpack`
-at 0400h–0FFFh, where the 48 ROM's routines were, and keeps the ROM trap
-zone to 0068h–03FFh: 2,358 bytes more arena. The kernel's size is
+elsewhere: `LOWTEXT` in `build.py`). The FDD3000 puts `vi`, `zxpack`
+and `dd` at 0400h–0FFFh, where the 48 ROM's routines were, and six more
+at 4000h–5AFFh, where the display file was. The kernel's size is
 `HAL_KMAX`.
+
+The addresses themselves — `KBASE` (the kernel), `HAL_TOP` (the top the
+kernel uses: `CORE` = `HAL_TOP` − 59, the running process's u-area),
+`WINDOW`, `KV` (kernel variables, page-aligned), `KSTACK`, `TTYBUF`,
+`KARGS`, `MEMBOT` — come from `platform.inc`: it includes
+`zx-ux/src/memmap48.inc` (the 48K Spectrum's; both platforms today) or
+defines all eight itself. `unix.asm` asserts what programs pin: `ttop`
+at 5BE4h, `KV` page-aligned, and the system call entry at 6003h — a
+platform that moves `KBASE` keeps a `JP sysent` there and sets
+`HAL_SYS6003`.
 
 ## Drivers
 
@@ -208,9 +218,13 @@ kernel sites:
    `s64tick` (screen64), `ktick`; a machine with screen64 but no 48 ROM
    (TC2068, native TC3256) writes its own keys routine for `ttrawin` and
    `ttintr` and keeps the rest.
-2. **Interrupt vectors** — the Spectrum's IM 2 setup (`sp_init`) relies on
-   the ROM's FFh bytes; a machine without them places a 257-byte vector
-   table in RAM in its own `HAL_INIT`.
+2. ~~Interrupt vectors~~ — done: the IM 2 set-up is the platform's
+   (`HAL_INIT`). The 48K Spectrum keeps its ROM's FFh bytes and the detour
+   at FFF4h (`spectrum48/machine.asm`); a machine without them includes
+   `drivers/im2/im2.asm`, sets `HAL_IM2TAB` (the table's page: FEh puts it
+   at FE00h–FF00h and the `JP isr` at FDFDh) and `HAL_TOP` below the JP
+   (FDFDh), and calls `im2init`. Proven by building the Spectrum that way:
+   the golden sessions pass. The FDD3000 uses IM 1 (RST 38h).
 3. ~~A shared tick~~ — done: `ktick` (step 2 of `DESIGN.md`).
 4. ~~Window swap~~ — done: `mem_swapout`, `mem_swapin` (step 6). A 128K
    port binds them to its banks (a switch is `OUT (7FFDh)`; fork copies to
@@ -220,12 +234,9 @@ kernel sites:
    (`screen-kinds.md`): kinds in the SSX1 flags, `rcc --ux`, call 41; the
    FDD3000 places display files in the arena and its resident text at
    4000h.
-6. **Memory layout per platform** — `KBASE`, `KV`, `WINDOW`, `CORE` and
-   the 8 KB kernel bound are Spectrum facts in `const.inc`; let a platform
-   set them, keeping the pins (6003h, 5BE4h). On the FDD3000 that puts the
-   kernel, resident programs and machine layer together low and the arena
-   in one piece up to the window (memory-plan, §11). Then a low pool for
-   fixed blocks, or, on the 128K, per-process banks.
+6. ~~Memory layout per platform~~ — done: the platform's map
+   (`memmap48.inc` or its own, above), the pins asserted; `HAL_KMAX` the
+   kernel's bound. Next on that road: on the 128K, per-process banks.
 7. ~~Block devices~~ — done: `devtab` (step 4); the mount layer and the
    file systems use the block interface (`blkunit`, `blkprobe`, the
    buffer cache) and live in `drivers/`, shared.

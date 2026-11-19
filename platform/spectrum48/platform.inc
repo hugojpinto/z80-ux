@@ -10,6 +10,9 @@
 
 HAL_HZ       equ 50             ; frame interrupts a second (ULA, PAL)
 HAL_KMAX     equ 8192           ; the kernel (KBASE..kend) at most
+        include "memmap48.inc"  ; the memory map: the Spectrum's.  HAL_TOP,
+                                ; FFF4h: above it the IM 2 detour (FFF4h-FFF6h,
+                                ; the JR at FFFFh: machine.asm)
 mem_swapout  equ wsave          ; a process window: copied to and from
 mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 

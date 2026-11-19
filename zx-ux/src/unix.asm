@@ -24,6 +24,17 @@
         jp boot                 ; 6000 cold start.
         jp sysent               ; 6003 system call entry (A = number). Counting is cheaper than guessing.
 
+; z80-ux: what every SDK program names, whatever the platform's memory map
+; (const.inc).  A platform that moves the kernel keeps a JP sysent at
+; 6003h itself and says so (HAL_SYS6003).
+        IF KBASE != 6000h
+        IFNDEF HAL_SYS6003
+        ASSERT 0                ; programs call 6003h: JP sysent there (HAL_SYS6003)
+        ENDIF
+        ENDIF
+        ASSERT ttop == 5BE4h    ; TTOP: the SDK's console reads it (kvars.inc)
+        ASSERT (KV & 0FFh) == 0 ; p_stat is page aligned
+
 ; ---------------------------------------------------------------------
 ; Boot from the cold start. The machine has no snooze button.
 ; ---------------------------------------------------------------------

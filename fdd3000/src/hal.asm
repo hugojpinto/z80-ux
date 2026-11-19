@@ -88,16 +88,19 @@ hinit:  ld hl,0
         ld (0067h),a
 ; 0068h-03FFh: where the Spectrum's first ROM routines were.  A program
 ; that calls one (CALL, JP) meets RST 30h and is stopped (htrap) - except
-; BEEP and BEEPER, which just return: no sound, no harm.  (0400h-0FFFh:
+; BEEP and BEEPER, which ring the terminal's bell (hbeep).  (0400h-0FFFh:
 ; resident programs, LOWTEXT.)
         ld hl,0068h
         ld de,0069h
         ld bc,LOWTEXT-0069h
         ld (hl),0F7h            ; rst 30h
         ldir
-        ld a,0C9h               ; ret
+        ld hl,hbeep
+        ld a,0C3h               ; jp hbeep
         ld (03B5h),a            ; BEEPER
+        ld (03B6h),hl
         ld (03F8h),a            ; BEEP (C48's float.asm jumps there)
+        ld (03F9h),hl
         call mhinit             ; the display mirror's glyph table
         im 1
         ld a,LATIDLE
@@ -105,6 +108,25 @@ hinit:  ld hl,0
         ld (latsh),a
         ld hl,0
         ld (tacc),hl
+        ret
+
+; hbeep: a program's BEEP or BEEPER (the ROM's addresses): the terminal's
+; bell instead, at most one every BEEPGAP ticks - a tune is a few bells,
+; not a stream.  Returns at once (no duration).  Keeps all registers.
+BEEPGAP equ HAL_HZ/5
+hbeep:  push af
+        push hl
+        ld hl,lbeep
+        ld a,(fticks)
+        sub (hl)
+        cp BEEPGAP
+        jr c,.x
+        ld a,(fticks)
+        ld (hl),a
+        ld a,7
+        call hout
+.x:     pop hl
+        pop af
         ret
 
 ; hint38: the FDC raised INTRQ.  Nothing waits for it yet: read the
@@ -714,6 +736,7 @@ lbusy:  db 0                    ; the link's users (lsend, lrecv, hkeys)
 kgot:   db 0                    ; hkeys took a key.
 clbuf:  ds 64                   ; the shared console's line (cstrip)
 ksnap:  db 0                    ; kidle: fticks when it began.
+lbeep:  db -BEEPGAP             ; hbeep: fticks at the last bell
 
 halend:
         ASSERT halend <= 3F00h  ; the boot sector's page, then the display file.

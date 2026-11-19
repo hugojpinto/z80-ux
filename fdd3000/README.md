@@ -194,7 +194,9 @@ python3 fdd3000/tools/fsmod.py SOURCE.asm NAME OUT    # after build.py
   ("constantly enabled regardless of DRIVE SELECT"): an MX drive would
   turn and step with the clock.
 - **A ROM.** Programs that call the Spectrum ROM (the floating-point
-  calculator, `RST 10h`) are stopped with a message; BEEP is silent.
+  calculator, `RST 10h`) are stopped with a message; BEEP and BEEPER
+  (03F8h, 03B5h) ring the terminal's bell instead, at most five times a
+  second, and return at once.
 - **Port FEh.** On the FDD3000 it is the drive latch: border colour or
   beeper writes would page the boot ROM in. `OUT (FEh),A` in a program is
   made harmless when it is loaded.
@@ -235,7 +237,8 @@ says so here.
   RAM that programs draw into, read back by the mirror. The "two programs,
   one screen" console rows (ch. 2) are kept.
 - **ROM is a service** (ch. 19) — there is none: ROM calls stop the program
-  (BEEP is silent); `OUT (FEh)` and C48 `beep()`'s HALT are defused at load.
+  (BEEP rings the terminal's bell); `OUT (FEh)` and C48 `beep()`'s HALT
+  are defused at load.
 - **Seek** (ch. 27) keeps origins 0–2 and the 16-bit file limit; origins
   3–5 (in 256-byte sectors) are added for disks, as v6's 3–5 counted
   blocks, and are the only way past 64K on a device.

@@ -33,22 +33,20 @@
 ;             byte at address zero redirects to FFF4h. Sneaky but real.
 ;             I=39h avoids the display pages, where ULA snow would be rude.
 
-KBASE   equ 06000h
-TRAMP   equ 0FFF4h          ; IM 2 detour. Three bytes, no sightseeing.
+; z80-ux: the memory map's addresses (KBASE, HAL_TOP, WINDOW, KV, KSTACK,
+; TTYBUF, KARGS, MEMBOT) are the platform's: platform.inc includes
+; memmap48.inc (the 48K Spectrum's, as above) or sets its own.  Two
+; addresses are the same everywhere, because every SDK program names them:
+; the system call entry 6003h and the shared console's row byte 5BE4h
+; (TTOP).  unix.asm asserts both (platform/README.md: memory map).
 UASZ    equ 59              ; 59 bytes for the current process. No penthouse suite.
-CORE    equ TRAMP-UASZ      ; The active process lives here. Mind the roof.
-WINDOW  equ 0F000h          ; Resident process images live here. Space is borrowed, not free.
+CORE    equ HAL_TOP-UASZ    ; The active process lives here. Mind the roof.
 UDATA   equ WINDOW          ; User data begins here. No warm-up lap.
 CORETOP equ CORE            ; Stack and arguments stop here. No attic above it.
 STKRES  equ 384             ; Up to 384 bytes of stack per program, set by header word two. No extras.
 
-KV      equ 05B00h          ; The kernel uses the printer buffer. Sorry, printer.
-KSTACK  equ 05F00h          ; Kernel stack top. It only grows toward trouble.
-TTYBUF  equ 05F01h          ; 80 bytes for a line. No rambling allowed.
 TTYBSZ  equ 80
-KARGS   equ 05F62h          ; 158 bytes for command arguments. Short speeches, please.
 KARGSZ  equ 158
-MEMBOT  equ 05C92h          ; 30 calculator bytes on loan as scratch. Keep BEEP out of the first five.
 
 ; ---------------------------------------------------------------- file system
 NINODE  equ 24              ; 24 file nodes, numbered 41 to 64. The guest list is short.

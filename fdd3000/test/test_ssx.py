@@ -14,6 +14,8 @@ path.  Checked:
   - colors' OUT (FEh) (border, the FDD3000's drive latch) is defused at
     load (ssxfix) and the machine lives on; mandel's pixels show as #,
     from a display file the kernel put in the arena (sys 41);
+  - colors' beeps (ROM BEEP, 03F8h) ring the terminal's bell (hbeep), at
+    most one every fifth of a second;
   - the arena is whole while mandel draws into its display file;
   - the shipped mandel is refused: 4000h holds resident programs here;
   - keys (test/kinds/keys.c): kbd_down and kbdmatrix see no key down,
@@ -80,7 +82,9 @@ def main():
     run('q', settle=4.0)
     run('\r')
     run('/etc/mount /dev/fd1 /mnt/b\r')
+    bel0 = m.link.out.count(7)
     run('/mnt/b/colors\r', settle=8.0, name='colors')
+    bells = m.link.out.count(7) - bel0
     m.link.keys.extend(b'q')
     m.run_for(6, quiet=3.0)
     m.link.keys.extend(b'\x03')
@@ -116,6 +120,8 @@ def main():
     expect('hangman', 'Last: e', 'the key did not reach it')
     expect('trek', 'SHORT RANGE SENSOR SCAN', 'no sensor scan')
     expect('colors', 'INK / PAPER / BRIGHT / BORDER', 'colors did not draw')
+    if not 1 <= bells <= 3:
+        fails.append('colors: its three beeps rang the bell %d times (1-3)' % bells)
     expect('mandel', '####', 'no pixels as #')
     expect('old', 'rebuild it with rcc --ux', 'a program built for 4000h was not refused')
     expect('keys', 'a:0 m:0', 'a key was seen down behind the terminal')
