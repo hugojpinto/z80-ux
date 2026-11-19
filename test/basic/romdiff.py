@@ -590,6 +590,72 @@ def key_tests(pair, rng, n, only, verbose):
     return 1, 1 if fails else 0
 
 
+def graphics_tests(pair, rng, n, only, verbose):
+    """PLOT, DRAW and SCREEN$ on the booted screen: the display file, COORDS,
+    the result (SCREEN$: the string)."""
+    fails = {}
+    count = 0
+
+    def colours():
+        out = []
+        for _ in range(rng.randrange(0, 4)):
+            c = rng.randrange(0x10, 0x16)
+            v = rng.choice([0, 1, 2, 7, 8, 9] if c < 0x12 else [0, 1, 8] if c < 0x14 else [0, 1])
+            out.append(('@r2211', 0x2211, c, 0, v << 8))
+        return out
+
+    def stack(v):
+        ops = [('@r2D2B', 0x2D2B, 0, abs(v), 0)]
+        if v < 0:
+            ops.append(('@r346E', 0x346E, 0, 0, 0))
+        return ops
+    for name in ('PLOT', 'DRAW', 'SCREEN$'):
+        if only and not any(o in name for o in only):
+            continue
+        count += 1
+        for i in range(n):
+            pre, chars, st = [], [], 2
+            if name == 'PLOT':
+                for _ in range(rng.randrange(1, 6)):
+                    pre += colours()
+                    pre.append(('@r22DF', 0x22DF, 0, rng.randrange(0, 180) << 8 | rng.randrange(256), 0))
+            elif name == 'DRAW':
+                x0, y0 = rng.randrange(256), rng.randrange(176)
+                pre = colours() + [('@r22E5', 0x22E5, 0, y0 << 8 | x0, 0)]
+                for _ in range(rng.randrange(1, 4)):
+                    dx = rng.randrange(-255, 256) if rng.random() < 0.3 else rng.randrange(-x0, 256 - x0)
+                    dy = rng.randrange(-175, 176) if rng.random() < 0.3 else rng.randrange(-y0, 176 - y0)
+                    pre += stack(dx) + stack(dy) + [('@r2477', 0x2477, 0, 0, 0)]
+            else:
+                chars = stream(rng, rng.randrange(20, 300))
+                st = 2
+            post = []
+            if name == 'SCREEN$':
+                post = [('@r2538', 0x2538, 0, rng.randrange(32) << 8 | rng.randrange(0, 22), 0)]
+            a, b = print_case(pair, rng, st, chars, pre, post)
+            bad = print_compare(a, b)
+            for nm, addr, ln in (('COORDS', 0x5C7D, 2),):
+                if bytes(a.mem[addr:addr + ln]) != bytes(b.mem[addr:addr + ln]):
+                    bad.append('%s: ROM %s, ours %s' % (nm, bytes(a.mem[addr:addr + ln]).hex(),
+                                                        bytes(b.mem[addr:addr + ln]).hex()))
+            if name == 'SCREEN$' and a.mem[0x5C3A] == 0xFF:
+                def top(z):
+                    e = z.mem[0x5C65] | z.mem[0x5C66] << 8
+                    d = z.mem[e - 5:e]
+                    ad, ln = d[1] | d[2] << 8, d[3] | d[4] << 8
+                    return bytes(z.mem[ad:ad + ln])
+                if top(a) != top(b):
+                    bad.append('SCREEN$: ROM %r, ours %r' % (top(a), top(b)))
+            if bad:
+                fails.setdefault(name, []).append('%s: %s' % (
+                    ' '.join('%s(%X,%X)' % (o[0], o[3], o[4]) for o in pre)[:200], '; '.join(bad[:3])))
+        if verbose or name in fails:
+            print('%-12s %s' % (name, 'FAIL (%d)' % len(fails[name]) if name in fails else 'ok'))
+            for f in fails.get(name, [])[:3]:
+                print('    ' + f)
+    return count, len(fails)
+
+
 def main():
     args = sys.argv[1:]
     verbose = '-v' in args
@@ -660,8 +726,9 @@ def main():
     rt, rf = room_tests(pair, rng, n, only, verbose)
     st, sf = string_tests(pair, rng, n, only, verbose)
     kt, kf = key_tests(pair, rng, n, only, verbose)
-    tested += pt + rt + st + kt
-    nf = len(fails) + pf + rf + sf + kf
+    gt, gf = graphics_tests(pair, rng, n, only, verbose)
+    tested += pt + rt + st + kt + gt
+    nf = len(fails) + pf + rf + sf + kf + gf
     print('romdiff: %d routines, %d differ: %s' % (tested, nf, 'FAIL' if nf else 'ok'))
     return 1 if nf else 0
 

@@ -187,3 +187,8 @@ TT_RAW  equ 20h
 TT_NOWAIT equ 40h
 KSTATE4 equ KSTATE+4            ; the second key's state
 FL2_CAPS equ 3                  ; FLAGS2 bit 3: CAPS LOCK
+
+; Pixels
+YMAX    equ 175                 ; the highest PLOT line (the lower screen's below)
+PIX_W   equ 256
+FONT_N  equ 96                  ; the characters CHARS holds, from ' '

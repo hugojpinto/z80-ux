@@ -89,15 +89,16 @@ def keys_asm():
 
 
 def consts_asm():
-    """The numbers the calculator stacks (1, 1/2, pi/2), written in the
+    """The numbers the calculator and CIRCLE use (1, 1/2, pi/2, pi/4, 2 pi), written in the
     five-byte format by the float engine's own encoder (drivers/fp/mkfpk.py)."""
     from fractions import Fraction
     spec = importlib.util.spec_from_file_location(
         'mkfpk', os.path.join(os.path.dirname(os.path.dirname(SDK)), '..', 'drivers', 'fp', 'mkfpk.py'))
     mk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mk)
-    out = ['        section text', '        global @cone,@chalf,@cpi2']
-    for name, v in (('@cone', 1), ('@chalf', Fraction(1, 2)), ('@cpi2', mk.PI / 2)):
+    out = ['        section text', '        global @cone,@chalf,@cpi2,@cpi4,@c2pi']
+    for name, v in (('@cone', 1), ('@chalf', Fraction(1, 2)), ('@cpi2', mk.PI / 2),
+                    ('@cpi4', mk.PI / 4), ('@c2pi', mk.PI * 2)):
         out.append('%-7s db %s' % (name + ':', ','.join(str(b) for b in mk.five(v))))
     return '\n'.join(out) + '\n'
 
