@@ -81,6 +81,35 @@ def stack_estimate(g):
     return max(384, (d + 15) & ~15)
 
 
+# z80-ux (rcc --ux): what a program needs of the screen, from what it
+# references (platform/screen-kinds.md).  SSX1 flags bits 2-1.
+KIND_STREAM, KIND_CONSOLE, KIND_BITMAP, KIND_FIXED = 0, 1, 2, 3
+KINDS = {'stream': KIND_STREAM, 'console': KIND_CONSOLE, 'bitmap': KIND_BITMAP,
+         'fixed': KIND_FIXED}
+BITMAP_API = {'_plot', '_point', '___pixel', '@pixel', '@pxok', '_udg_define', '_udg_get',
+              '_udg_clear', '_udg_draw', '_udg_draw_2x2', '_flash', '_over', '_border',
+              '_screen', '@attr'}
+CONSOLE_API = {'_cls', '_print_at', '_cursor_at', '_ink', '_paper', '_bright', '_inverse'}
+
+
+def screen_kind(chosen, companion):
+    """The kind a linked program is: what it and the library code it uses
+    (not the console's own internals) reference."""
+    if companion:
+        return KIND_FIXED                   # its assembly may write to 4000h itself
+    refs = set()
+    for o in chosen:
+        name = os.path.basename(getattr(o, 'name', ''))
+        if name.startswith(('console.', 'crt0.', 'tty.')):
+            continue
+        refs |= o.undefs()
+    if refs & BITMAP_API:
+        return KIND_BITMAP
+    if refs & CONSOLE_API:
+        return KIND_CONSOLE
+    return KIND_STREAM
+
+
 def build(src, opts):
     """Compile and link src -> (SSX1 bytes, generator, sizes)."""
     import ras
@@ -88,7 +117,8 @@ def build(src, opts):
     text, prog, g = compile_to_asm(src, opts)
     base = os.path.splitext(src)[0]
     obj = ras.assemble_text(text, os.path.basename(base) + '.s')
-    libp = os.path.join(SDK, 'lib', 'libc48.ssa')
+    ux = opts.get('ux')
+    libp = os.path.join(SDK, 'libux' if ux else 'lib', 'libc48.ssa')
     objs = [rld.Obj(obj, base)]
     # A C48 source may have a matching application assembly companion.  Link
     # it automatically as a normal translation-unit input, not as a release
@@ -109,6 +139,15 @@ def build(src, opts):
         if os.path.isfile(companion):
             stack = max(stack, 800)
     data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0)
+    if ux:
+        kind = opts.get('kind')
+        if kind is None:
+            kind = screen_kind(chosen, os.path.isfile(companion))
+        if kind < KIND_BITMAP:              # its text through the terminal
+            with open(os.path.join(SDK, 'libux', 'libtty.ssa'), 'rb') as stream:
+                arcs = [rld.read_archive(stream.read(), 'libtty.ssa')] + arcs
+        data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0, kind << 1)
+        opts['kind_found'] = kind
     h = rld.parse_ssx(data)
     need = max(len(h['image']) + h['bss'] + h['stack'], len(data))
     return data, g, text, obj, need
@@ -128,6 +167,8 @@ def main(argv):
     fit = True
     limit = ZXUX_MAX
     files = []
+    ux = False
+    kind = None
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -166,6 +207,14 @@ def main(argv):
                 return 2
             asm_only |= a == '-S'
             obj_only |= a == '-c'
+        elif a == '--ux':
+            ux = True
+        elif a.startswith('--kind='):
+            if a[7:] not in KINDS:
+                emit('CLI_KIND', 'Option --kind takes stream, console, bitmap or fixed.')
+                return 2
+            kind = KINDS[a[7:]]
+            ux = True
         elif a == '--fit':
             fit = True
         elif a == '--no-fit':
@@ -185,7 +234,7 @@ def main(argv):
             return 2
         fit = False
     if len(files) != 1:
-        emit('CLI_ARGUMENTS', 'Expected exactly one C48 source filename; usage: rcc [-S|-c] [-o out] [--bytecode|--native|--fit|--no-fit] [--max BYTES] [--stack N] [--heap N] [--udgs N] file.c')
+        emit('CLI_ARGUMENTS', 'Expected exactly one C48 source filename; usage: rcc [-S|-c] [-o out] [--bytecode|--native|--fit|--no-fit] [--max BYTES] [--stack N] [--heap N] [--udgs N] [--ux] [--kind=stream|console|bitmap|fixed] file.c')
         return 2
     src = files[0]
     base = os.path.splitext(src)[0]
@@ -197,6 +246,10 @@ def main(argv):
         emit('IO_SOURCE_MISSING', 'C48 source file %s does not exist or cannot be read.' % src)
         return 1
     opts = {'lib': lib, 'heap': heap, 'stack': stack, 'udgs': udgs, 'module': obj_only}
+    if ux:
+        opts['ux'] = True
+        if kind is not None:
+            opts['kind'] = kind
     if mode == 'all':
         opts['bytecode'] = 'all'
     try:

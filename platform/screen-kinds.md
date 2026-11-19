@@ -1,7 +1,15 @@
 # SDK programs and the screen: three declared kinds
 
-A sketch for the SDK (`sdk/bin/py`) and the kernel, z80-ux branch
-`portable-hal`. Not implemented yet.
+For the SDK (`sdk/bin/py`) and the kernel, z80-ux branch `portable-hal`.
+
+**Status.** Built: the kinds, `rcc --ux` (`sdk/bin/py/libux`: the
+terminal runtime `libtty.ssa`, the relocatable bitmap runtime), the
+console's colour codes, call 41 (describe; the display file stays at
+4000h on both platforms), the FDD3000 system disk's programs built this
+way. Tests: `test/spectrum/kinds.py`, `fdd3000/test/test_kinds.py`. Still
+to do: the FDD3000 placing a display file elsewhere (the low pool), and
+the resident text low (memory-plan §11). Where the building departed from
+this sketch, the sections below say so ("as built").
 
 ## Why
 
@@ -47,6 +55,19 @@ flags bit 0   (as today)
 
 ## 2. The linker decides (`rld`)
 
+*As built:* the classification is done in `rcc --ux` from what the
+program references (its own objects and the library members it pulls,
+not the console's internals), not by kind marks in the runtime's members:
+`lib/build.py` cuts the runtime into members at labels, and the screen's
+start-up shares a member with `cls`, which would have marked every
+program "console". The API sets are `BITMAP_API` and `CONSOLE_API` in
+`rcc/driver.py`; a program with an assembly companion is `fixed`;
+`--kind=` overrides. A stream or console program is then linked again
+with `libtty.ssa` before `libc48.ssa`: it carries no glyph code at all
+(`trek` 3,413 bytes instead of 3,645).
+
+The sketch:
+
 `rld` links only the archive members a program reaches. Each console
 member carries a **kind mark**, a symbol it defines:
 
@@ -66,7 +87,10 @@ it, so a program that turns out bitmap because of one `point()` says why.
 `crt0` stops calling `@scrinit`; each kind's first use initialises it:
 
 - **stream**: `putchar` buffers and `write(1)`s (flushed at a newline, a
-  read from the terminal, exit). No screen, no claim.
+  full buffer, `getchar`, `sleep`, `yield`, exit). No screen, no claim.
+  *As built:* a program that placed text (`cursor_at`, `print_at`) leaves
+  the cursor below the lowest row it wrote at exit, so the shell's prompt
+  does not land on its screen.
 - **console**: `print_at`, `cls`, ... emit the kernel console's codes into
   the same buffer. It asks the console's size once (call 41, below): 64×24
   on the Spectrum, 80×24 on the TT3000; `print_at` keeps its 64-column
@@ -105,9 +129,9 @@ the picture again — as on a Spectrum with its ROM's codes.
 ```
 in:   HL = 0: describe;  HL = 1: claim a display file (bitmap kind);
       HL = 40h: claim exactly 4000h (fixed kind)
-out:  A = the display file's page (claims), L = columns, H = rows of the
-      console, E = what the console is: 0 a screen the kernel draws,
-      1 a terminal
+out:  D = the display file's page, E = what the console is: 0 a screen
+      the kernel draws, 1 a terminal; L = columns, H = rows of the console
+      (as built: in DE and HL - the kernel's sysok clears A)
       CF, A = ENOMEM / EBUSY when no display file can be had
 ```
 

@@ -26,10 +26,11 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
   there); `/mnt/a` – `/mnt/d` are the mount points for drives A–D.
 - **SDK programs** (SSX1: C48, BASIC, Pascal, FORTRAN, Forth) run from any
   file with execute permission; the system disk's `/bin` (`/mnt/a/bin`, in
-  the shell's path) carries ten
-  C48 ones (`trek`, `advent`, `rogue`, `hangman`...). Programs that draw
-  into the Spectrum's display file are shown on the terminal through a
-  mirror that reads it back as text.
+  the shell's path) carries twelve C48 ones (`trek`, `advent`, `rogue`,
+  `hangman`...), built with `rcc --ux`: the text ones write to the
+  terminal (redirection works, no display file), the two that draw
+  (`hanoi`, `queens8`) have one, shown on the terminal through a mirror
+  that reads it back as text (`../platform/screen-kinds.md`).
 
 ## Build and run
 
@@ -62,6 +63,9 @@ python3 fdd3000/test/test_tmr.py     # the WD1770 clock: a program with no syste
 python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the disk side
 python3 fdd3000/test/test_fsmod.py   # file system types loaded at mount time
 python3 fdd3000/test/test_tfs.py     # TOS disks: a real one read, a blank one written
+python3 fdd3000/test/test_kinds.py   # SDK programs by screen kind: terminal, redirection, mirror
+python3 test/spectrum/golden.py check   # the Spectrum build behaves as the shipped tape
+python3 test/spectrum/kinds.py       # the screen kinds on the Spectrum
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot
 ```
 

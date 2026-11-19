@@ -17,6 +17,7 @@ formatted and empty (E5h) for the file systems still to come.
 import hashlib
 import json
 import os
+import sys
 
 import dsk
 import zxdfs
@@ -53,9 +54,30 @@ Unmount a disk before you take it out of its drive.
 
 SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 
-# SDK programs on the system disk's /bin (/mnt/a/bin once mounted)
+# SDK programs on the system disk's /bin (/mnt/a/bin once mounted), built
+# from their sources with rcc --ux: each declares its screen kind, and the
+# text ones write to the terminal (platform/screen-kinds.md)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
                    'advent', 'wump', 'trek', 'rogue', 'snake', 'hanoi', 'queens8']
+UX_SOURCES = {'hello': 'examples', 'hanoi': 'demos', 'queens8': 'demos'}  # else games
+
+
+def ux_program(b, name, out):
+    """examples/c48-src/.../NAME.c built with rcc --ux into OUT (kept while
+    neither the source nor the z80-ux runtime is newer)."""
+    import subprocess
+    src = os.path.join(b.ROOT, 'examples', 'c48-src', UX_SOURCES.get(name, 'games'), name + '.c')
+    lib = os.path.join(b.ROOT, 'sdk', 'bin', 'py', 'libux')
+    dst = os.path.join(out, name + '.ssx')
+    newest = max(os.path.getmtime(p) for p in [src] + [os.path.join(lib, f) for f in
+                                                      ('libc48.ssa', 'libtty.ssa')])
+    if not os.path.exists(dst) or os.path.getmtime(dst) < newest:
+        r = subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'rcc'), '--ux',
+                            '-o', dst, src], capture_output=True, text=True)
+        if r.returncode:
+            raise b.BuildError('rcc --ux %s: %s%s' % (name, r.stdout, r.stderr))
+    with open(dst, 'rb') as f:
+        return f.read()
 
 # File system modules on the system disk's /etc/fs (mount -t NAME)
 FS_MODULES = [('tos', 'drivers/tos/tfs.asm')]   # TOS's disks
@@ -127,9 +149,13 @@ def build(b):
                 fsmod.build(b.SJASMPLUS, os.path.join(top, 'kabi.inc'),
                             os.path.join(b.ROOT, source), name,
                             os.path.join(top, 'mod')))
+    import subprocess
+    subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'py', 'libux', 'build.py')],
+                   check=True, capture_output=True)   # the z80-ux runtime
+    uxdir = os.path.join(b.BUILD, 'ux')
+    os.makedirs(uxdir, exist_ok=True)
     for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK
-        with open(os.path.join(b.ROOT, 'examples', 'c48-bin', 'ssx', name + '.ssx'), 'rb') as f:
-            zfs.put('/bin/' + name, f.read())
+        zfs.put('/bin/' + name, ux_program(b, name, uxdir))
     if zfs.check():
         raise b.BuildError('system disk file system: %s' % zfs.check())
     s0 = bytearray(disk.sector(0, 0, 0))
