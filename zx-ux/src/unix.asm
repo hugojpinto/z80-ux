@@ -607,7 +607,7 @@ sigck:
 sysent:
         push ix
         push iy
-        ld iy,05C3Ah            ; ROM routines and RST 8 rely on it.
+        ld iy,KIY               ; the platform's IY (rom48: the ROM's 5C3Ah).
         push af
         call kmode
         HAL_ENTER
@@ -1839,7 +1839,7 @@ ZXW     equ (utext_end + 1) & 0FFFEh
 boot:
         di
         ld sp,KSTACK
-        ld iy,05C3Ah
+        ld iy,KIY
 ; clear kernel globals (printer buffer: 256 bytes).
         xor a
         ld hl,KV

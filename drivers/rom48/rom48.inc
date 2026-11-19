@@ -36,3 +36,7 @@ SV_SCRCT  equ 05C8Ch
 SV_ATTRP  equ 05C8Dh
 SV_ATTRT  equ 05C8Fh
 SV_CHANS  equ 05C4Fh
+
+; KIY: IY in the kernel (sysent, boot).  The ROM's routines and its RST 8
+; need IY = ERR_NR's page (5C3Ah); a platform without the ROM chooses.
+KIY     equ 05C3Ah
