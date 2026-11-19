@@ -29,6 +29,8 @@ def main(argv=None):
     parser.add_argument('--stack', type=int, default=384)
     parser.add_argument('--ux', action='store_true',
                         help='no 48K ROM: clean-room routines from libux (rbc/ux.py)')
+    parser.add_argument('--bitmap', action='store_true',
+                        help='with --ux: the bitmap kind (its own display file) even with no pixels')
     parser.add_argument('--rom-ok', action='store_true',
                         help='with --ux: allow the ROM for routines not yet clean-room (a Spectrum only)')
     args = parser.parse_args(argv)
@@ -85,8 +87,11 @@ def main(argv=None):
                 use_fit=not args.ux)
             if args.ux:
                 from . import ux
-                asm, ssx, uxr = ux.link(asm, args.stack,
-                                        tokens=ux.needs_tokens(inp.read_text(encoding='ascii')))
+                basic = inp.read_text(encoding='ascii')
+                kind = ux.KIND_BITMAP if args.bitmap else ux.kind_of(basic)
+                asm, ssx, uxr = ux.link(asm, args.stack, kind=kind, tokens=ux.needs_tokens(basic))
+                print('RBC_UX_KIND %s' % ('console' if kind == ux.KIND_CONSOLE else 'bitmap'),
+                      file=sys.stderr)
                 if uxr['rom'] and not args.rom_ok:
                     raise ValueError('still the ROM for %s (--rom-ok: a Spectrum only)'
                                      % ' '.join(uxr['rom']))

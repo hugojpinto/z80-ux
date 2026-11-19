@@ -43,6 +43,13 @@ WORK = 512                  # the stack's region grows by this: the workspace an
                             # the calculator stack are there (@rinit: from @end)
 KIND_FIXED = 0x0E           # SSX1 flags: declared, bitmap fixed at 4000h
 KIND_BITMAP = 0x0C          # declared, bitmap on any page (call 41)
+KIND_CONSOLE = 0x1A         # declared, console, 32 columns (bit 4): the kernel's console
+
+# A BASIC program with none of these draws no pixels: the console kind
+# (libux/rbc/con: PRINT through the kernel's console).  POKE or PEEK of
+# the screen's addresses (16384 - 23295, written as a number) too.
+PIXELS = re.compile(r'\b(PLOT|DRAW|CIRCLE|POINT|SCREEN\$|ATTR)\b')
+SCREEN_ADDR = re.compile(r'\b(POKE|PEEK)\s*\(?\s*(\d{5})\b')
 
 # The Spectrum's system variables, which the compiled program names by
 # address ($5C3A, 0x5c65, 23692): in the program instead (@rsv + n,
@@ -246,9 +253,25 @@ def _assemble(text, name):
     raise UxError('too many DJNZ out of range')
 
 
-def archives():
+def kind_of(basic):
+    """KIND_CONSOLE for a BASIC program that draws no pixels, else
+    KIND_BITMAP.  (Strings and REM do not count.)"""
+    code = re.sub(r'"[^"\n]*"', '""', basic)
+    code = '\n'.join(l for l in code.split('\n') if not re.match(r'\s*\d+\s+REM\b', l))
+    if PIXELS.search(code):
+        return KIND_BITMAP
+    for m in SCREEN_ADDR.finditer(code):
+        if 16384 <= int(m.group(2)) < 23296:
+            return KIND_BITMAP
+    return KIND_CONSOLE
+
+
+def archives(kind=KIND_BITMAP):
     out = []
-    for name in ('librbc.ssa', 'libc48.ssa', 'librom.ssa'):
+    names = ('librbc.ssa', 'libc48.ssa', 'librom.ssa')
+    if kind == KIND_CONSOLE:
+        names = ('librbccon.ssa',) + names
+    for name in names:
         p = os.path.join(LIBUX, name)
         if not os.path.exists(p):
             raise UxError('%s is missing: run sdk/bin/py/libux/build.py' % p)
@@ -257,6 +280,7 @@ def archives():
 
 
 CLAIMED = '    ld a,39\n    call $6003\n'      # the wrapper's claim of the screen (call 39)
+EXIT = 'rbc_wrapper_exit:\n'                   # ... and its way out
 NO_TOKENS = """        section text
         global @rtok
 @rtok:  ld a,'?'
@@ -279,11 +303,15 @@ def link(text, stack, kind=KIND_BITMAP, tokens=True):
     """The --ux program -> (source, ssx, report)."""
     if CLAIMED not in text:
         raise UxError('the wrapper does not claim the screen (call 39)')
-    text = text.replace(CLAIMED, CLAIMED + '    call @rinit\n', 1)   # then the page: call 41
+    if kind == KIND_CONSOLE:            # no screen to claim: the console's
+        text = text.replace(CLAIMED, '    ld e,0\n    call @rinit\n', 1)
+        text = text.replace(EXIT, EXIT + '    call @rcexit\n', 1)    # its colours back
+    else:
+        text = text.replace(CLAIMED, CLAIMED + '    call @rinit\n', 1)   # then the page: call 41
     src, used = rewrite(own_memory(inline_data(text)))
     obj, src = _assemble(src, 'rbc-ux.s')
-    libs = archives()
-    rom_members = {id(m) for m in libs[2]}
+    libs = archives(kind)
+    rom_members = {id(m) for m in libs[-1]}
     objs = [rld.Obj(obj, 'rbc-ux.sso')]
     if not tokens:
         objs.append(rld.Obj(ras.assemble_text(NO_TOKENS, 'notokens'), 'notokens.sso'))

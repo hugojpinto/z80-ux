@@ -52,6 +52,23 @@ def build():
     return bytes(image), {n: ORG + a for n, (a, r) in gaddr.items()}
 
 
+FP_ORG = 0xD000
+
+
+def clean_engine():
+    """drivers/fp/fp.asm, the clean-room float engine, at FP_ORG."""
+    work = os.path.join(ROOT, 'build', 'romdiff')
+    os.makedirs(work, exist_ok=True)
+    sj = os.environ.get('SJASMPLUS', os.path.join(ROOT, 'fdd3000', 'tools', 'bin', 'sjasmplus'))
+    with open(os.path.join(work, 'fp.asm'), 'w') as f:
+        f.write('        DEVICE NOSLOT64K\n        org 0%04Xh\nb:\n        include "%s"\ne:\n'
+                '        SAVEBIN "fp.bin", b, e-b\n'
+                % (FP_ORG, os.path.join(ROOT, 'drivers', 'fp', 'fp.asm')))
+    subprocess.run([sj, '--nologo', '--msg=war', '-I' + os.path.join(ROOT, 'drivers', 'fp'), 'fp.asm'],
+                   cwd=work, check=True, capture_output=True)
+    return open(os.path.join(work, 'fp.bin'), 'rb').read()
+
+
 class Pair:
     """The ROM's machine and ours, set up alike."""
 
@@ -61,7 +78,19 @@ class Pair:
         self.ux = zxcore.Spectrum()
         self.ux.mem[ORG:ORG + len(self.image)] = self.image
         e = self.sym['@romfp']                          # system call 42: libux's ROM adapter
-        self.ux.mem[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])   # ld hl,e / or a / ret
+        if os.environ.get('ROMDIFF_ENGINE') == 'clean':   # ... or the clean-room engine
+            e = FP_ORG
+            self.ux.mem[FP_ORG:FP_ORG + len(clean_engine())] = clean_engine()
+        self.engine = e
+        self.install(self.ux.mem)
+
+    def install(self, m):
+        """Our routines at ORG, the engine, system call 42 giving it."""
+        m[ORG:ORG + len(self.image)] = self.image
+        if self.engine == FP_ORG:
+            m[FP_ORG:FP_ORG + len(clean_engine())] = clean_engine()
+        e = self.engine
+        m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])   # ld hl,e / or a / ret
 
     def setup(self, nums, regs, boot=False):
         out = []
@@ -70,9 +99,7 @@ class Pair:
             if boot:                            # the ROM's own state (streams, channels)
                 m[0x4000:] = booted()
                 if zx is self.ux:
-                    m[ORG:ORG + len(self.image)] = self.image
-                    e = self.sym['@romfp']
-                    m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+                    self.install(m)
             else:
                 m[0x5C00:0x5CC0] = bytes(0xC0)
             m[STK - 16:STK + 400] = bytes(416)
@@ -267,9 +294,7 @@ def print_case(pair, rng, stream_no, chars, pre=(), post=()):
     for which, zx in (('rom', pair.rom), ('ux', pair.ux)):
         zx.mem[0x4000:] = booted()
         if which == 'ux':
-            zx.mem[ORG:ORG + len(pair.image)] = pair.image
-            e = pair.sym['@romfp']
-            zx.mem[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+            pair.install(zx.mem)
         sym = (lambda n, a: a) if which == 'rom' else (lambda n, a: pair.sym[n])
         code = []
 
@@ -687,9 +712,7 @@ def input_tests(pair, rng, n, only, verbose):
                 m = zx.mem
                 m[0x4000:] = booted()
                 if which == 'ux':
-                    m[ORG:ORG + len(pair.image)] = pair.image
-                    e = pair.sym['@romfp']
-                    m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+                    pair.install(m)
                 w = lambda a, v: m.__setitem__(slice(a, a + 2), bytes([v & 255, v >> 8]))  # noqa
                 ws = 0xA000
                 m[ws:ws + len(text) + 1] = text + b'\r'
@@ -768,9 +791,7 @@ def beep_tests(pair, rng, n, only, verbose):
             m = zx.mem
             m[0x4000:] = booted()
             if which == 'ux':
-                m[ORG:ORG + len(pair.image)] = pair.image
-                e = pair.sym['@romfp']
-                m[0x6003:0x6008] = bytes([0x21, e & 255, e >> 8, 0xB7, 0xC9])
+                pair.install(m)
             stk = 0xA000
             for k, v in enumerate((d, p)):
                 m[stk + 5 * k:stk + 5 * k + 5] = bytes(five(v))

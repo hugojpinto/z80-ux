@@ -222,3 +222,17 @@ SV_BASE equ 5C00h               ; where a Spectrum has them (the program's refer
 SVSIZE  equ 0B6h
 ATTR_INIT equ 38h               ; the colours at the start: paper 7, ink 0
 SYS_TICKS equ 38                ; the kernel's ticks so far (RANDOMIZE)
+
+; The console kind (libux/rbc/con: platform/screen-kinds.md): BASIC's
+; screen as the kernel's console, 32 columns wide (SSX1 flags bit 4)
+CON_LOW equ 22                  ; the console's row for BASIC's lower screen
+CON_UP  equ 21                  ; ... its upper screen: rows 0 .. this
+C_LF    equ 0Ah                 ; the console's newline
+C_FF    equ 0Ch                 ; ... clear
+C_INV   equ 14h                 ; ... INVERSE n
+C_BRT   equ 13h                 ; ... BRIGHT n
+C_PAPER equ 11h                 ; ... PAPER n
+C_STAND equ '#'                 ; a UDG or block graphic on the console
+CON_BUF equ 16                  ; the console's output buffer
+CON_INK equ 7                   ; the console's own colours: white on black
+CON_PAPER equ 0

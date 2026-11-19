@@ -452,10 +452,14 @@
         push bc
         ld b,a
         ld a,(@rdh)
+        or a                    ; (no display file: nothing there)
+        j z,.nod
         add a,b
         ld h,a
         pop bc
         ret
+.nod:   pop bc
+        j .none
 .rom:   cp FONT_ROM>>8
         j c,.none
         push de

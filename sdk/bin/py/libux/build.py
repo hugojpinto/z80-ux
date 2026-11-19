@@ -18,6 +18,9 @@
                        through the terminal (platform/screen-kinds.md)
     libux/librbc.ssa   libux/rbc/*.asm: the BASIC compiler's clean-room
                        routines in place of the 48K ROM's (rbc --ux)
+    libux/librbccon.ssa libux/rbc/con/*.asm: the console kind's output (BASIC
+                       through the kernel's console, 32 columns), before
+                       librbc.ssa for those programs
     libux/librom.ssa   the ROM's own entry points, for those with no
                        clean-room routine yet (rbc/ux.py; a Spectrum only)
 
@@ -236,6 +239,9 @@ def main():
                    ('keys.asm', inc + keys_asm())])
     with open(os.path.join(HERE, 'librbc.ssa'), 'wb') as f:
         f.write(rld.write_archive(rbc))
+    con = members(sorted(glob.glob(os.path.join(HERE, 'rbc', 'con', '*.asm'))), inc)
+    with open(os.path.join(HERE, 'librbccon.ssa'), 'wb') as f:
+        f.write(rld.write_archive(con))
     sys.path.insert(0, os.path.join(SDK, 'rbc'))
     from rbc import ux
     with open(os.path.join(HERE, 'librom.ssa'), 'wb') as f:

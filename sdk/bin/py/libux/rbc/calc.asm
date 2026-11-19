@@ -319,12 +319,25 @@
 @r31AF: ld a,F_DIV
 @rdy:   push hl
         push af
+        ld c,a                  ; the ROM's form for the result (whatever
+        ld a,(de)               ; the engine's): full if either operand is
+        or (hl)                 ; (exponent bytes not 0), or division, x^y
+        ld b,a
+        ld a,c
+        cp F_DIV
+        j c,.f
+        ld b,1
+.f:     ld a,b
+        ld (@rfull),a
+        pop af
+        push af
         ld b,h
         ld c,l
         call @rfcall
         pop bc
         pop hl
         j c,.no
+        call @rform
         ld de,FNUM
         ex de,hl
         add hl,de
@@ -367,7 +380,20 @@
 @rma:   ld c,R_ARG              ; no result
         j @rmc
 @rmo:   ld c,R_BIG              ; no result
-@rmc:   push hl
+@rmc:   push af                 ; the ROM's form for the result: the
+        cp F_EXP                ; operand's for negate, abs (truncate: the
+        ld a,1                  ; engine's, small when whole); full for the
+        j nc,.f                 ; functions (exp ... sqr)
+        ld a,(hl)
+.f:     ld (@rfull),a
+        pop af
+        cp F_TRUNC
+        j nz,.t
+        push af
+        xor a
+        ld (@rfull),a
+        pop af
+.t:     push hl
         push de
         push bc
         ld b,h
@@ -376,9 +402,18 @@
         pop bc
         pop de
         pop hl
-        ret nc
-        ld a,c
+        j c,.no
+        jp @rform
+.no:    ld a,c
         jp @rerr
+
+; @rform: the number at HL in the full form if @rfull is not 0 (RE-STACK):
+; the ROM's arithmetic gives that, and the runtime reads it so (RND takes
+; 16 off a result's exponent).  Keeps HL, DE, BC.
+@rform: ld a,(@rfull)
+        or a
+        ret z
+        jp @r3297
 
 ; int: the number on top of the stack (@r36AF, a calculator routine: HL =
 ; it, DE = STKEND), or at HL (@rint: keeps HL, DE), replaced by the whole
@@ -548,13 +583,18 @@
         ld de,@rt1              ; n = n - q*m
         ld b,h
         ld c,l
+        push hl
         ld a,F_SUB
         call @rfcall
+        pop hl
+        call @r3297             ; (both in the full form, as the ROM's)
         pop de                  ; m = q
+        push de
         ld hl,@rt2
         ld bc,FNUM
         ldir
-        ret
+        pop hl
+        jp @r3297
 .ovf:   ld a,R_BIG
         jp @rerr
 .p2:    call @r35BF             ; HL = x, DE = y
@@ -605,3 +645,4 @@
 @rt1:   ds FNUM
 @rt2:   ds FNUM
 @rbreg: ds 1
+@rfull: ds 1
