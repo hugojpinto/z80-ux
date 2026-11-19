@@ -155,3 +155,28 @@ kclick:
         and 7
         out (0FEh),a
         ret
+
+; r48keys: the tick's keys - the ROM's KEYBOARD scans, KEY-INPUT decodes
+; (modes, caps) a key for the kernel (ttrawin); BREAK (CAPS SHIFT +
+; SPACE), as it goes down, interrupts (ttintr).  From the frame ISR, IY =
+; KIY, interrupts off.
+r48keys:
+; keyboard - ROM KEYBOARD scans, KEY-INPUT decodes (modes, caps).
+        call ROM_KEYBOARD
+        ld a,(SV_TVFLAG)
+        and 0D7h                ; never let KEY-INPUT touch the editor.
+        ld (SV_TVFLAG),a
+        set 3,(iy+1)            ; L mode.
+        call ROM_KEYINPUT
+        call c,ttrawin
+; BREAK (CAPS SHIFT + SPACE) = interrupt (v1 DEL).
+        call ROM_BREAKKEY       ; NC = pressed.
+        sbc a,a                 ; FF released / 00 pressed.
+        inc a                   ; 00 released / 01 pressed.
+        ld hl,brkst
+        cp (hl)
+        ld (hl),a
+        jr z,.b2
+        or a
+        call nz,ttintr
+.b2:    ret

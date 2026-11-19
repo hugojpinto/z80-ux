@@ -105,7 +105,8 @@ layer:
 
 | Interface | Symbols | spectrum48 | fdd3000 |
 |---|---|---|---|
-| **Time** | its interrupt handler calls the kernel's `ktick` once per tick, every register saved, interrupts off; `ktick` keeps the clock and sleepers, CPU accounting, a device's hold on the CPU, the time slice (switch now in user mode, at the call's way out in the kernel), signals for a program in user mode (may not return) | `isr` (machine.asm): ROM keys, BREAK, status line | `tint` (WD1770), `stick` (soft clock) |
+| **Keys** | a key for the kernel: `ttrawin` (A = the key); BREAK: `ttintr` — from the tick | `r48keys` (rom48: KEYBOARD, KEY-INPUT, BREAK-KEY) | `hkeys` (the link) |
+| **Time** | its interrupt handler calls the kernel's `ktick` once per tick, every register saved, interrupts off; `ktick` keeps the clock and sleepers, CPU accounting, a device's hold on the CPU, the time slice (switch now in user mode, at the call's way out in the kernel), signals for a program in user mode (may not return) | `isr` (machine.asm): `r48keys`, `s64tick` (status line, cursor), `ktick` | `tint` (WD1770), `stick` (soft clock) |
 | **Console** | `kputc` (A; the kernel's AT/INVERSE codes), `kcls`, `curon`, `curoff`; keys come back through the kernel's `ttrawin`, BREAK through `ttintr`; `stdirty` marks the status line | screen64 | the VT52 terminal (hal.asm) |
 | **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | the display mirror |
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
@@ -115,8 +116,8 @@ layer:
 | **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | fdd3000/src |
 
 The register conventions are the kernel's own (the routines' headers).
-One ROM convention is still in the kernel: `sysent` loads IY = 5C3Ah,
-which the 48 ROM's routines need; on other machines it is harmless.
+The kernel's IY is `KIY`: 5C3Ah with rom48 (its routines need it), 0 on
+the FDD3000.
 
 `fdd3000/src` mixes the FDD3000's own code (`hal.asm`, `fd.asm`,
 `tmr.asm`, `mirror.asm`, `boot.asm`) with subsystems that are not
@@ -198,9 +199,10 @@ Details and sources: `hardware-notes.md`. In short:
 What the future targets need that the code does not have yet, with the
 kernel sites:
 
-1. **Keyboard source** — the Spectrum's `isr` (machine.asm) reads keys
-   through the ROM; a screen machine without the ROM (TC2068, TC3256
-   native) needs its own scan feeding `ttrawin`/`ttintr`.
+1. ~~Keyboard source~~ — done: the Spectrum's tick is `r48keys` (rom48),
+   `s64tick` (screen64), `ktick`; a machine with screen64 but no 48 ROM
+   (TC2068, native TC3256) writes its own keys routine for `ttrawin` and
+   `ttintr` and keeps the rest.
 2. **Interrupt vectors** — the Spectrum's IM 2 setup (`sp_init`) relies on
    the ROM's FFh bytes; a machine without them places a 257-byte vector
    table in RAM in its own `HAL_INIT`.

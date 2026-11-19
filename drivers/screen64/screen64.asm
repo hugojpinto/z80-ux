@@ -500,3 +500,18 @@ attr7:  ld (hl),7
         ALIGN 4
 FONT:   incbin "font4x8.bin", 8, 384
 FONTEND:
+
+; s64tick: the tick's console part - the status line when it changed, the
+; cursor's blink - unless a program owns the whole screen.  From the
+; frame ISR.
+s64tick:
+; status line, cursor (not while programs own the whole screen).
+        ld a,(ttop)             ; owners 1-0Fh, ttop 0 or 21.
+        ld hl,scrown
+        cp (hl)
+        ret c
+        ld a,(stdirty)
+        or a
+        call nz,stdraw
+        call cblnk
+        ret
