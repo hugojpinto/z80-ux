@@ -5,7 +5,7 @@
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
 ; C48 floats: the Spectrum's five-byte format.
-; zx-ux+ (libux): the arithmetic is the platform's float engine, whose
+; zx-ux (libux): the arithmetic is the platform's float engine, whose
 ; address system call 42 gives (platform/float.md): the 48 ROM's
 ; calculator on a Spectrum, a loaded clean-room engine on a machine
 ; without that ROM - one interface: A = operation, HL = x, DE = y, BC =

@@ -33,7 +33,7 @@
 ;             byte at address zero redirects to FFF4h. Sneaky but real.
 ;             I=39h avoids the display pages, where ULA snow would be rude.
 
-; zx-ux+: the memory map's addresses (KBASE, HAL_TOP, WINDOW, KV, KSTACK,
+; zx-ux: the memory map's addresses (KBASE, HAL_TOP, WINDOW, KV, KSTACK,
 ; TTYBUF, KARGS, MEMBOT) are the platform's: platform.inc includes
 ; memmap48.inc (the 48K Spectrum's, as above) or sets its own.  Two
 ; addresses are the same everywhere, because every SDK program names them:
@@ -102,7 +102,7 @@ DV_SEQ  equ 01h             ; devtab flags: a sequential device - one record a
                             ; name (exec DEV/NAME: /etc/ldx; HAL_SEQDEV)
 
 ; ---------------------------------------------------------------- processes
-        IF !EXIST NPROC         ; zx-ux+: the platform's (platform.inc); else
+        IF !EXIST NPROC         ; zx-ux: the platform's (platform.inc); else
 NPROC   equ 4               ; Four processes maximum. Not much of a crowd.
         ENDIF
         ASSERT NPROC >= 2 && NPROC <= 8   ; (a byte of bits a slot: conar, scrown)
@@ -118,14 +118,14 @@ SZOMB   equ 3
 WC_TTY  equ 1               ; Wait for terminal input. Fingers, your move.
 WC_WAIT equ 2
 WC_TIME equ 3
-WC_TTY1 equ 10h                 ; zx-ux+: terminal n > 0 (HAL_NTTY) waits on
+WC_TTY1 equ 10h                 ; zx-ux: terminal n > 0 (HAL_NTTY) waits on
                                 ; WC_TTY1 - 1 + n: a key wakes its own readers
 
 ; ---------------------------------------------------------------- errors
 EPERM   equ 1
 ENOENT  equ 2
 EIO     equ 5
-ENXIO   equ 6               ; zx-ux+: no such device (a drive with no disk)
+ENXIO   equ 6               ; zx-ux: no such device (a drive with no disk)
 EBADF   equ 9
 ECHILD  equ 10
 EAGAIN  equ 11
@@ -144,7 +144,7 @@ EINTR   equ 4
 EFBIG   equ 27
 EDOM    equ 33
 ERANGE  equ 34
-EROFS   equ 30              ; zx-ux+: a read-only file system (a protected disk)
+EROFS   equ 30              ; zx-ux: a read-only file system (a protected disk)
 
 ; ---------------------------------------------------------------- syscalls
 SYS     equ KBASE+3         ; System calls enter at KBASE+3. A gets the call number.
@@ -195,7 +195,7 @@ NSYS    equ 43
 TT_RAW  equ 020h
 TT_ECHO equ 010h
 TT_FLUSH equ 080h          ; Flush old raw keys once. Yesterday can stay yesterday.
-TT_NOWAIT equ 040h         ; zx-ux+: raw, no key waiting: a read takes nothing (INKEY$).
+TT_NOWAIT equ 040h         ; zx-ux: raw, no key waiting: a read takes nothing (INKEY$).
 
 ; ---------------------------------------------------------------- ROM
 

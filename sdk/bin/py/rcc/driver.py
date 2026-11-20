@@ -81,7 +81,7 @@ def stack_estimate(g):
     return max(384, (d + 15) & ~15)
 
 
-# zx-ux+ (rcc --no-rom, --rom48k): the libux runtime, with the 48K ROM
+# zx-ux (rcc --no-rom, --rom48k): the libux runtime, with the 48K ROM
 # or without it (libux/rom48k.asm, norom.asm), and what the program needs
 # of the screen, from what it references (platform/screen-kinds.md).
 # SSX1 flags (rld.py): bit 3 set, the kind in bits 2-1, bit 5 with the ROM.

@@ -7,7 +7,7 @@
                                                  tree's build: must match
     python3 test/spectrum/golden.py show NAME    print one session (this build)
 
-Why: zx-ux+ restructures the kernel (platform/DESIGN.md), so the Spectrum
+Why: zx-ux restructures the kernel (platform/DESIGN.md), so the Spectrum
 build no longer equals the shipped tape byte for byte.  What must stay
 equal is what ZX-UX does.  Each session boots ZX-UX on the SDK's headless
 48K Spectrum (sdk/bin/py: zxmachine, zxux - the same machine rvm uses),

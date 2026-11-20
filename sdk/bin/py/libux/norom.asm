@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; zx-ux+ (libux, rcc --no-rom): what rom48k.asm does with the 48K ROM,
+; zx-ux (libux, rcc --no-rom): what rom48k.asm does with the 48K ROM,
 ; without it.  The float engine is the platform's or none: a kernel with
 ; no call 42 ends the program ("no float engine").  beep() is clean room,
 ; as BASIC's BEEP (libux/rbc/beep.asm): on a screen, the tone on the

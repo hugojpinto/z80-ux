@@ -67,7 +67,7 @@ UX_SOURCES = {'hello': 'examples'}  # else games
 
 def ux_program(b, name, out):
     """examples/c48-src/.../NAME.c built with rcc --no-rom into OUT (kept while
-    neither the source nor the zx-ux+ runtime is newer)."""
+    neither the source nor the zx-ux runtime is newer)."""
     import subprocess
     src = os.path.join(b.ROOT, 'examples', 'c48-src', UX_SOURCES.get(name, 'games'), name + '.c')
     lib = os.path.join(b.ROOT, 'sdk', 'bin', 'py', 'libux')
@@ -165,7 +165,7 @@ def build(b):
                                    os.path.join(top, 'mod')))
     import subprocess
     subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'py', 'libux', 'build.py')],
-                   check=True, capture_output=True)   # the zx-ux+ runtime
+                   check=True, capture_output=True)   # the zx-ux runtime
     uxdir = os.path.join(b.BUILD, 'ux')
     os.makedirs(uxdir, exist_ok=True)
     for name in SYSTEM_PROGRAMS:              # SSX1 programs of the SDK

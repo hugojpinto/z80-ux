@@ -1,4 +1,4 @@
-/* zx-ux+ test: a console-kind program with colour (test/spectrum/kinds.py) */
+/* zx-ux test: a console-kind program with colour (test/spectrum/kinds.py) */
 #include <c48.h>
 
 int main(void)

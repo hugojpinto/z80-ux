@@ -16,7 +16,7 @@ import sys
 import os
 
 SSX_HDR = 20
-# SSX1 flags (zx-ux+, platform/screen-kinds.md): bit 3 a screen kind is
+# SSX1 flags (zx-ux, platform/screen-kinds.md): bit 3 a screen kind is
 # declared, bits 2-1 it, bit 4 a 32-column console, bit 5 the program
 # needs the 48K ROM; an older binary's flags are 0 (needs the ROM, draws
 # at 4000h).

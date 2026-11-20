@@ -5,7 +5,7 @@
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
 ; rcc runtime: process and keyboard services                (ZX-UX SDK)
-; zx-ux+ (rcc (libux)): kbd_down and kbdmatrix read the Spectrum's keyboard
+; zx-ux (rcc (libux)): kbd_down and kbdmatrix read the Spectrum's keyboard
 ; rows only where there is one: behind a terminal (system call 41: E = 1,
 ; the FDD3000) no key is ever down - a terminal sends characters, read
 ; them with getchar.  On a kernel without call 41: the rows, as before.

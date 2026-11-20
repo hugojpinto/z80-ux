@@ -5,7 +5,7 @@
 # Non-commercial use only under the repository LICENSE.
 # Commercial use prohibited without separate written permission.
 # =====================================================================
-"""Build the zx-ux+ C48 runtime (rcc --no-rom, --rom48k), beside the original one.
+"""Build the zx-ux C48 runtime (rcc --no-rom, --rom48k), beside the original one.
 
     libux/libc48.ssa   lib/*.asm and lib/*.c as lib/build.py builds them,
                        with libux's crt0.asm (no screen claimed at start:

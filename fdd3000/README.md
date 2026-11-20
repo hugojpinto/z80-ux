@@ -52,7 +52,7 @@ behaving as the tape does (`test/spectrum/golden.py`). The shared sources
 name no machine: what differs sits behind a platform capability or hook
 (`platform/README.md`; this port's settings are
 `platform/fdd3000/platform.inc`). Where the fork stands against upstream:
-`../ZX-UX-PLUS.md`.
+`../ZX-UX.md`.
 
 In Fuse (the LoadZX fork, `TC3256/EMUL`): machine **TT3000**, the disk in
 Timex FDD drive A (`--timex_fdddisk`); Machine › Timex FDD Reset if the

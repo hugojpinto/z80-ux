@@ -27,7 +27,7 @@ DHOLD   equ HAL_SEQDEV
         jp boot                 ; 6000 cold start.
         jp sysent               ; 6003 system call entry (A = number). Counting is cheaper than guessing.
 
-; zx-ux+: what every SDK program names, whatever the platform's memory map
+; zx-ux: what every SDK program names, whatever the platform's memory map
 ; (const.inc).  A platform that moves the kernel keeps a JP sysent at
 ; 6003h itself and says so (HAL_SYS6003).
         IF KBASE != 6000h
@@ -792,7 +792,7 @@ sysfork:
         call addhla
         ld (hl),0
         IF NTTY > 1
-        ld a,(cur)              ; zx-ux+: the parent's terminal
+        ld a,(cur)              ; zx-ux: the parent's terminal
         ld hl,p_tty
         call addhla
         ld a,(hl)
@@ -889,7 +889,7 @@ forkcpy:
         ld a,(chslot)
         jp mem_swapout          ; the window image (platform).
 
-; conset .. confork: zx-ux+: the processes whose console is 32 columns
+; conset .. confork: zx-ux: the processes whose console is 32 columns
 ; (an SSX1 program of the console kind with flags bit 4: platform/
 ; screen-kinds.md), a bit each in conar, as scrown.  The console draws
 ; their characters twice as wide; call 41 says 32 columns to them.
@@ -948,7 +948,7 @@ conbit: ld a,(cur)
         ret
 conar:  db 0
 
-; sysfp: zx-ux+: the float engine's address (platform/float.md): HL = 0
+; sysfp: zx-ux: the float engine's address (platform/float.md): HL = 0
 ; -> HL = where to call it.  The platform's fpget finds it (a ROM, a
 ; module it loads), fprel lets go of it when the process ends or execs,
 ; fpfork hands it to a child.
@@ -1776,7 +1776,7 @@ sysssxl:
         ld (u_count),de
         call ldxrd              ; the program: a file or a device's record, on LDXFD.
         jr c,.bad
-        ld hl,(KC_F)            ; zx-ux+: its console's width (flags, bit 4)
+        ld hl,(KC_F)            ; zx-ux: its console's width (flags, bit 4)
         ld bc,4
         add hl,bc
         ld a,(hl)
@@ -2033,7 +2033,7 @@ boot:
         ld b,a
         call zfill
         IF PTOWN
-        ld hl,proctab           ; zx-ux+: the process table, the platform's
+        ld hl,proctab           ; zx-ux: the process table, the platform's
         ld b,PTSZ
         call zfill
         ENDIF

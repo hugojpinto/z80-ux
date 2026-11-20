@@ -176,7 +176,7 @@ tput:   push af
         cp 64
         ret c
         jr tnl
-; tput8: zx-ux+: a narrow console's character (32 columns: platform/
+; tput8: zx-ux: a narrow console's character (32 columns: platform/
 ; screen-kinds.md): the platform's 8x8 font (HAL_FONT8) on a whole cell,
 ; at an even column (after a wide one: the next), its own attribute.
 tput8:  ld hl,tcol
@@ -467,7 +467,7 @@ cblnk:  ld hl,cblink
         jr cxoff
 
 ; stdraw: 124 bytes. Paint status. The screen loves a little gossip.
-; zx-ux+: a cell each slot, STCELL columns before the clock's (STCLOCK):
+; zx-ux: a cell each slot, STCELL columns before the clock's (STCLOCK):
 ; 12 for four, as before; narrower for more, the name cut to fit.
 STCLOCK equ 56
         IF STCLOCK / NPROC >= 12

@@ -32,7 +32,7 @@ and the FDD3000 image came out as before. Since then (`DESIGN.md`: the
 drivers, the device table, memory per platform) the Spectrum build is no
 longer the tape byte for byte; it is held to **behaving** as the tape does
 (`test/spectrum/golden.py`), and `build.py upstream` still rebuilds
-upstream's own sources into the tape exactly (`../ZX-UX-PLUS.md`).
+upstream's own sources into the tape exactly (`../ZX-UX.md`).
 
 ## Capabilities
 

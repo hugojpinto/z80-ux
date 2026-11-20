@@ -1,4 +1,4 @@
-/* zx-ux+ test: beep() with no screen - three short beeps (a terminal's
+/* zx-ux test: beep() with no screen - three short beeps (a terminal's
  * bell on the FDD3000, at most one every fifth of a second), then a line. */
 #include <c48.h>
 

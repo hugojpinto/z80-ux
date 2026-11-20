@@ -5,7 +5,7 @@
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
 ; C48 startup: kernel stack holds argc, argv and strings. No mystery guests. (ZX-UX SDK)
-; zx-ux+: @scrstart is the console's (libux/console.asm: claim a display
+; zx-ux: @scrstart is the console's (libux/console.asm: claim a display
 ; file; libux/tty.asm: nothing, the program writes to the terminal).
 ; ENV1 is an empty process-owned BSS byte, separate from ARG1/KARGS. exec resets it.
 ; __c48_env1 aliases ENV1 for tests, not a getenv API. Nice try.

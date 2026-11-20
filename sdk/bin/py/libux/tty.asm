@@ -3,7 +3,7 @@
 ; Copyright (c) 2026 Supratim Sanyal of SANYALnet Labs.
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
-; zx-ux+: the stream and console kinds (platform/screen-kinds.md).
+; zx-ux: the stream and console kinds (platform/screen-kinds.md).
 ; =====================================================================
 ; C48 text through the terminal: the program writes to file 1, the kernel's
 ; console draws it (screen64 on a Spectrum, the terminal on the FDD3000).

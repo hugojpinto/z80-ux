@@ -1,5 +1,5 @@
 ; =====================================================================
-; zx-ux+: the float engine, a clean-room implementation of the ZX
+; zx-ux: the float engine, a clean-room implementation of the ZX
 ; Spectrum's five-byte floating point (platform/float.md).
 ; =====================================================================
 ;
