@@ -29,6 +29,7 @@ SUITES = [
 ] + [('fdd3000/' + t, ['fdd3000/test/test_%s.py' % t], False) for t in FDD] + [
     ('fp/engine', ['test/fp/fptest.py', '300'], True),
     ('fp/strings', ['test/fp/strtest.py'], True),
+    ('tc3256/probe', ['tc3256/test/test_probe.py'], False),
     ('basic/romdiff', ['test/basic/romdiff.py', '40'], True),
     ('basic/romdiff-clean', ['test/basic/romdiff.py', '20', 'RST28'], True),
 ]
