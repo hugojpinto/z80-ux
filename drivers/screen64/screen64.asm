@@ -467,6 +467,20 @@ cblnk:  ld hl,cblink
         jr cxoff
 
 ; stdraw: 124 bytes. Paint status. The screen loves a little gossip.
+; z80-ux: a cell each slot, STCELL columns before the clock's (STCLOCK):
+; 12 for four, as before; narrower for more, the name cut to fit.
+STCLOCK equ 56
+        IF STCLOCK / NPROC >= 12
+STCELL  equ 12
+        ELSE
+STCELL  equ STCLOCK / NPROC
+        ENDIF
+        IF STCELL - 3 < STNAME  ; "n:", the name, a gap
+STNSHOW equ STCELL - 3
+        ELSE
+STNSHOW equ STNAME
+        ENDIF
+        ASSERT STNSHOW >= 4
 stdraw:
         xor a
         ld (stdirty),a
@@ -506,25 +520,23 @@ stdraw:
         call stc
         ld a,c
         call stname
-        ld c,8
+        ld c,STNSHOW
 .n:     ld a,(hl)
         inc hl
         call stc
         dec c
         jr nz,.n
 .pn:    pop bc
-        ld a,c
-        inc a
-        ld c,a
-        add a,a
-        add a,c
-        add a,a
-        add a,a
-        ld d,a                  ; 12 * slot.
+        inc c
+        xor a
+        ld b,c
+.m:     add a,STCELL
+        djnz .m
+        ld d,a                  ; STCELL * slot.
         ld a,c
         cp NPROC
         jr c,.p
-        ld d,56                 ; time hh:mm:ss at column 56.
+        ld d,STCLOCK            ; time hh:mm:ss at column STCLOCK.
         ld b,0
         ld a,(tod_h)
         call st2d

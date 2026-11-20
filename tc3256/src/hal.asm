@@ -365,6 +365,7 @@ devtab: db DEV_TTY, DEV_TTY
         ALIGN 256
 BUFMEM:                         ; the disks' cache (blk.asm): NBUF sectors
         ds NBUF*256
+proctab: ds PTSZ                ; the process table (kvars.inc): a page's start
 
 halend:
 

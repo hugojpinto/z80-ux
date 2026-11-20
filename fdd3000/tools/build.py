@@ -98,7 +98,7 @@ def platform(target):
     caps = {}
     with open(os.path.join(PLATFORMS, name, 'platform.inc')) as f:
         for line in f:
-            m = re.match(r'^(HAL_\w+)\s+equ\s+(\d+)', line)
+            m = re.match(r'^(HAL_\w+|NPROC)\s+equ\s+(\d+)', line)
             if m:
                 caps[m.group(1)] = int(m.group(2))
             m = re.match(r'^\s+DEFINE\s+(HAL_\w+)\s+"([^"]*)"', line)
@@ -247,9 +247,12 @@ def kbdtab_inc():
     return '\n'.join(out) + '\n'
 
 
-def bootinfo(top, kbytes, free):
+NPROC = 4                       # processes, if a platform does not say (const.inc)
+
+
+def bootinfo(top, kbytes, free, nproc=NPROC):
     with open(os.path.join(top, 'out', 'bootinfo.inc'), 'w') as f:
-        f.write('        db "%dB free=%dB procs=4 ",0\n' % (kbytes, free))
+        f.write('        db "%dB free=%dB procs=%d ",0\n' % (kbytes, free, nproc))
 
 
 def assemble(src, main, defines=()):
@@ -366,7 +369,7 @@ def kernel(target, defines=(), placed=None):
     fs = root_fs(target)
     state, seen = (8192, 0), set()
     while True:
-        bootinfo(top, *state)
+        bootinfo(top, *state, nproc=platform(target).get('NPROC', NPROC))
         sym = assemble(src, 'unix.asm', defines)
         img, free = fs.image(sym['ITAB'], sym['WINDOW'])
         now = (sym['kend'] - sym['KBASE'], free)

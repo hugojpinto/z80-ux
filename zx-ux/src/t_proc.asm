@@ -7,26 +7,25 @@
 
 ; =====================================================================
 ;  ps, top - process status from the kernel tables, read through
-;  /dev/mem as early UNIX ps did (the tables live in the printer
-;  buffer at 5B00h, the names in the dead BASIC area)
+;  /dev/mem as early UNIX ps did (the process table at p_stat - the
+;  printer buffer at 5B00h on the Spectrum, the platform's own block for
+;  more than four slots: kvars.inc - idlet, the names at stline)
 ; =====================================================================
-PSKSZ   equ idlet+2-KV          ; the part of the kernel globals used:
-        ASSERT p_stat < idlet && p_pid < idlet && p_ppid < idlet
-        ASSERT p_brk < idlet && p_cpu+2*NPROC <= idlet
-PSK     equ TV                  ; copy of the kernel globals (PSKSZ).
-PSN     equ PSK+PSKSZ           ; copy of the process names (32).
-PSO     equ PSN+32              ; top: previous CPU ticks (4 words).
-PSOI    equ PSO+8               ; top: previous idle ticks.
+PSKSZ   equ PTEND-p_stat        ; the process table (NPROC slots)
+PSK     equ TV                  ; copy of the process table (PSKSZ).
+K_IDLE  equ PSK+PSKSZ           ; ... of idlet.
+PSN     equ K_IDLE+2            ; copy of the process names (NPROC x STNAME).
+PSO     equ PSN+NPROC*STNAME    ; top: previous CPU ticks (NPROC words).
+PSOI    equ PSO+2*NPROC         ; top: previous idle ticks.
 PST     equ PSOI+2              ; top: tick total of the interval. The timer will not accept an IOU.
 PSF     equ PST+2               ; /dev/mem fd.
 PSEND   equ PSF+2
 
-K_STAT  equ PSK+p_stat-KV
-K_PID   equ PSK+p_pid-KV
-K_PPID  equ PSK+p_ppid-KV
-K_BRK   equ PSK+p_brk-KV
-K_CPU   equ PSK+p_cpu-KV
-K_IDLE  equ PSK+idlet-KV
+K_STAT  equ PSK+p_stat-p_stat
+K_PID   equ PSK+p_pid-p_stat
+K_PPID  equ PSK+p_ppid-p_stat
+K_BRK   equ PSK+p_brk-p_stat
+K_CPU   equ PSK+p_cpu-p_stat
 
 s_mem:  db "/dev/mem",0
 
@@ -36,25 +35,33 @@ psread: ld hl,s_mem
         call sc_open
         ret c
         ld (PSF),hl
-        ld de,KV
-        ld bc,0
-        call sc_seek
-        ld hl,(PSF)
-        ld de,PSK
-        ld bc,PSKSZ
-        call sc_read
-        ld hl,(PSF)
+        ld de,p_stat
+        ld bc,PSK
+        ld hl,PSKSZ
+        call .rd
+        ld de,idlet
+        ld bc,K_IDLE
+        ld hl,2
+        call .rd
         ld de,stline
-        ld bc,0
-        call sc_seek
-        ld hl,(PSF)
-        ld de,PSN
-        ld bc,32
-        call sc_read
+        ld bc,PSN
+        ld hl,NPROC*STNAME
+        call .rd
         ld hl,(PSF)
         call sc_close
         or a
         ret
+
+; psread.rd: HL bytes of kernel memory at DE into BC (/dev/mem, PSF).
+.rd:    push hl
+        push bc
+        ld hl,(PSF)
+        ld bc,0
+        call sc_seek
+        pop de
+        pop bc
+        ld hl,(PSF)
+        jp sc_read
 
 ; kw: HL = table, A = slot → HL = word.
 kw      equ getw2
@@ -319,7 +326,8 @@ pct:    ld de,100
 topsave:
         ld hl,K_CPU
         ld de,PSO
-        call ldir8
+        ld bc,2*NPROC
+        ldir
         ld hl,(K_IDLE)
         ld (PSOI),hl
         ret

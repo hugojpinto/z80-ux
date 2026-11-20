@@ -44,6 +44,8 @@ is not a flag: it is the platform's choice of drivers (below).
 |---|---|---|---|
 | `HAL_HZ` | ticks a second: the clock counts this many `ktick` calls to a second | 50 | 50 |
 | `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
+| `NPROC` | processes at once (const.inc: 4 if unset, at most 8); more than 4 needs `HAL_PTAB` | 4 | 6 |
+| `HAL_PTAB` | the process table in the layer's own page-aligned block (`proctab`, `PTSZ` bytes: kvars.inc) rather than the kernel-variable page at 5B00h, which holds only four | — | 1 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`): `drivers/blk` over the machine's sector I/O | 0 | 1 |
 | `HAL_BLKVOL` | ZXFS volumes inside another disk format: the machine's `blkvol` (zmount asks it) | — | 0 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |

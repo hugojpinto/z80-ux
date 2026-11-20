@@ -49,6 +49,7 @@ IDLEDLY equ 150                 ; kidle's wait: 150 x 13 T ...
 IDLECOST equ (IDLEDLY*13+170)/16 ; ... plus the key poll and the count.
 
         org HALBASE
+proctab: ds PTSZ                ; the process table (kvars.inc): a page's start
 halstart:
 
 ; ---------------------------------------------------------------------

@@ -8,20 +8,39 @@
 ; =====================================================================
 ;  kernel globals - live in the ZX printer buffer (5B00-5BFF)
 ; =====================================================================
-p_stat  equ KV+0        ; Four slots. Each gets exactly one state.
-        ASSERT (p_stat & 0FFh) == 0 && NPROC <= 256
-p_wchan equ KV+4        ; Four places to wait. No line-cutting.
-p_sig   equ KV+8        ; Four pending signals. BREAK can be pushy.
-p_pid   equ KV+12       ; Four process IDs. Everyone gets a number.
-p_ppid  equ KV+20       ; Four parent IDs. Family ties come in pairs.
-p_sp    equ KV+28       ; Four saved stacks. All their own baggage.
-p_brk   equ KV+36       ; Four break points. Memory has its limits.
-p_xst   equ KV+44       ; Four exit scores. Nobody gets an encore.
-p_tick  equ KV+52       ; Four sleep counters. Even naps are tracked.
-p_save  equ KV+60       ; Four saved images. The swap bill comes due.
-p_img   equ KV+68       ; Four image slots. No hidden fifth seat.
-p_cpu   equ KV+76       ; Four CPU clocks. Fairness needs numbers.
+; z80-ux: the process table, NPROC slots (const.inc: the platform's), at
+; PTBASE - KV here, as on the Spectrum, for four; a platform with more
+; gives it a page-aligned block of its own (HAL_PTAB 1: the label proctab,
+; PTSZ bytes, in its layer).  p_stat starts a page: H = p_stat >> 8, L = slot.
+        IF EXIST HAL_PTAB
+PTOWN   equ HAL_PTAB
+        ELSE
+PTOWN   equ 0
+        ENDIF
+        IF PTOWN
+PTBASE  equ proctab
+        ELSE
+PTBASE  equ KV
+        ENDIF
+p_stat  equ PTBASE      ; Four slots. Each gets exactly one state.
+p_wchan equ p_stat+NPROC        ; Four places to wait. No line-cutting.
+p_sig   equ p_wchan+NPROC       ; Four pending signals. BREAK can be pushy.
+p_pid   equ p_sig+NPROC         ; Four process IDs. Everyone gets a number.
+p_ppid  equ p_pid+2*NPROC       ; Four parent IDs. Family ties come in pairs.
+p_sp    equ p_ppid+2*NPROC      ; Four saved stacks. All their own baggage.
+p_brk   equ p_sp+2*NPROC        ; Four break points. Memory has its limits.
+p_xst   equ p_brk+2*NPROC       ; Four exit scores. Nobody gets an encore.
+p_tick  equ p_xst+2*NPROC       ; Four sleep counters. Even naps are tracked.
+p_save  equ p_tick+2*NPROC      ; Four saved images. The swap bill comes due.
+p_img   equ p_save+2*NPROC      ; Four image slots. No hidden fifth seat.
+p_cpu   equ p_img+2*NPROC       ; Four CPU clocks. Fairness needs numbers.
+PTEND   equ p_cpu+2*NPROC
+STNAME  equ 8                   ; a process's name on the status line, ps
+        ASSERT (p_stat & 0FFh) == 0 && PTEND - p_stat <= 256
 idlet   equ KV+84       ; Idle time counts, too. No paid holiday.
+        IF !PTOWN
+        ASSERT PTEND <= idlet   ; (KV's own: four slots fit before idlet)
+        ENDIF
 runrun  equ KV+86       ; A request to swap jobs. No union break.
 quant   equ KV+87       ; The remaining time slice. Clock is ticking.
 ticks   equ KV+88       ; A 1/50-second tick. The clock has a tiny ruler.
@@ -76,7 +95,13 @@ ZLO3    equ TTYBUF+TTYBSZ ; 17 between the tty line and KARGS.
 ; second kernel data area in the dead BASIC / IF1 area. Ticks are not a savings account.
 KV2     equ 05CEBh
 ttyring equ KV2+0       ; 32 keys of waiting room. Please form a line.
+        IF PTOWN
+stline  equ PTEND       ; the names, with the table (STNAME bytes a slot)
+PTSZ    equ PTEND - p_stat + NPROC*STNAME   ; proctab's size, for the layer
+        ASSERT PTSZ < 256       ; (cleared at boot by a byte count)
+        ELSE
 stline  equ KV2+32      ; Four names, eight bytes apiece. No long introductions.
+        ENDIF
 chslot  equ KV2+64      ; Child process seat. No family discounts.
 sw_lo   equ KV2+65      ; Saved data address. Remember where it went.
 sw_hi   equ KV2+67      ; Saved stack address. Do not lose the ladder.

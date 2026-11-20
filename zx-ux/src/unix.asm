@@ -321,9 +321,11 @@ swtch:
         call kmode
 .pick:  ld a,(cur)
         ld b,NPROC
-.rr:    inc a
-        and NPROC-1
-        ld c,a
+.rr:    inc a                   ; the next slot, round (any NPROC)
+        cp NPROC
+        jr c,.rw
+        xor a
+.rw:    ld c,a
         call isrun
         jr z,.got
         ld a,c
@@ -962,6 +964,7 @@ release:
         jp relimg
 
 ; stname: 9 bytes. HL = eight-byte name, A = slot; update status text. Eight letters of fame.
+        ASSERT STNAME == 8      ; (x 8: three shifts)
 stname: add a,a
         add a,a
         add a,a
@@ -2013,6 +2016,11 @@ boot:
         ld hl,KV
         ld b,a
         call zfill
+        IF PTOWN
+        ld hl,proctab           ; z80-ux: the process table, the platform's
+        ld b,PTSZ
+        call zfill
+        ENDIF
         ld hl,MEMBOT            ; kernel scratch in MEMBOT: BASIC's.
         ld b,15                 ; calculator left values there.
         call zfill

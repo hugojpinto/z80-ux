@@ -9,7 +9,9 @@
 ; =====================================================================
 
 HAL_HZ       equ 50             ; the SCLD's frame interrupt (PAL)
-HAL_KMAX     equ 8192           ; the kernel (KBASE..kend) at most
+HAL_KMAX     equ 8192
+NPROC        equ 6              ; processes (const.inc; 4 if a platform says none)
+HAL_PTAB     equ 1              ; their table: proctab, in the layer (kvars.inc)           ; the kernel (KBASE..kend) at most
         include "memmap48.inc"  ; the memory map: the Spectrum's (the ABI's)
 mem_swapout  equ wsave          ; a process window: copied to and from
 mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)

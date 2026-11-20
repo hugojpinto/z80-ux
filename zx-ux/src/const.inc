@@ -102,7 +102,10 @@ DV_SEQ  equ 01h             ; devtab flags: a sequential device - one record a
                             ; name (exec DEV/NAME: /etc/ldx; HAL_SEQDEV)
 
 ; ---------------------------------------------------------------- processes
+        IF !EXIST NPROC         ; z80-ux: the platform's (platform.inc); else
 NPROC   equ 4               ; Four processes maximum. Not much of a crowd.
+        ENDIF
+        ASSERT NPROC >= 2 && NPROC <= 8   ; (a byte of bits a slot: conar, scrown)
 NFILES  equ 12              ; Twelve system file slots. No standing room.
 NUFILE  equ 10              ; Ten file handles per process. Keep count.
 QUANT   equ 4               ; Four 50 Hz ticks per turn. The clock does not play favorites.

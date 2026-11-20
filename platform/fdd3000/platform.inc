@@ -7,7 +7,9 @@
 ; =====================================================================
 
 HAL_HZ       equ 50             ; ticks a second (the WD1770 clock, the soft clock)
-HAL_KMAX     equ 8192           ; the kernel (KBASE..kend) at most
+HAL_KMAX     equ 8192
+NPROC        equ 6              ; processes (const.inc; 4 if a platform says none)
+HAL_PTAB     equ 1              ; their table: proctab, in the layer (kvars.inc)           ; the kernel (KBASE..kend) at most
         include "memmap48.inc"  ; the memory map: the Spectrum's above 5B00h
                                 ; (IM 1: FFF4h-FFFFh, above HAL_TOP, unused)
 KIY          equ 0              ; IY in the kernel: no ROM wants 5C3Ah here
