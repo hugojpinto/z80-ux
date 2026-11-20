@@ -60,7 +60,8 @@ Sixteen files differ from upstream's. The changes:
   (`NPROC`, at most 8: 4 on the Spectrum, 6 on the FDD3000 and the
   TC3256); several terminals (`HAL_NTTY`): each its own line discipline,
   a controlling terminal per process, `/dev/tty1` and up, a `getty` on
-  each from `init` (the FDD3000's second, its RS-232 port:
+  each from `init` (the second on the FDD3000 its WD2123, on the TC3256
+  its bit-banged RS-232 port; both VT52, `drivers/vt52`:
   `platform/terminals.md`);
 - the resident programs: placed in whatever free places the machine has
   (`build.py place()`), and the few lines they share with programs a

@@ -11,7 +11,9 @@
 HAL_HZ       equ 50             ; the SCLD's frame interrupt (PAL)
 HAL_KMAX     equ 8192
 NPROC        equ 6              ; processes (const.inc; 4 if a platform says none)
-HAL_PTAB     equ 1              ; their table: proctab, in the layer (kvars.inc)           ; the kernel (KBASE..kend) at most
+HAL_PTAB     equ 1              ; their table: proctab, in the layer (kvars.inc)
+HAL_NTTY     equ 2              ; terminals: the console, RS-232 (tc3256/src/rs232.asm)
+DEV_TTY1     equ 3              ; /dev/tty1           ; the kernel (KBASE..kend) at most
         include "memmap48.inc"  ; the memory map: the Spectrum's (the ABI's)
 mem_swapout  equ wsave          ; a process window: copied to and from
 mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
@@ -21,7 +23,7 @@ HAL_BLKDEV   equ 1              ; /dev/fd0-3: the FDD3000's drives, through TOS 
 HAL_BLKVOL   equ 1              ; ZXFS volumes in a TOS file too (blkvol)
 HAL_ROM48K   equ 0              ; no 48K ROM: programs built for it are refused
 HAL_SEQDEV   equ 0              ; no cassette
-        DEFINE HAL_DEVFILES "tty:1 mem:2 fd0:8 fd1:9 fd2:10 fd3:11 rd:12"  ; /dev (build.py)
+        DEFINE HAL_DEVFILES "tty:1 mem:2 tty1:3 fd0:8 fd1:9 fd2:10 fd3:11 rd:12"  ; /dev (build.py)
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
 HAL_SSXFILE  equ 1              ; SSX1 programs from files
 HAL_BOOTMNT  equ 1              ; init: HAL_SYSDEV on HAL_SYSMNT, its etc/rc
@@ -42,9 +44,11 @@ SV_BORDCR    equ 05C48h         ; the border's colour, where the console and
         call hinit              ; IM 1, the frame interrupt at 0038h (hal.asm)
         ENDM
         MACRO HAL_START
+        call rsinit             ; the RS-232 line idle (rs232.asm)
         ENDM
         MACRO HAL_IDLE
-        halt                    ; the next frame interrupt
+        call rsidle             ; the next frame interrupt; then the RS-232
+                                ; line listened to (rs232.asm)
         ENDM
         MACRO HAL_ENTER
         ENDM

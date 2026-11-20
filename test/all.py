@@ -34,6 +34,7 @@ SUITES = [
     ('tc3256/disk', ['tc3256/test/test_disk.py'], False),
     ('tc3256/ramdisk', ['tc3256/test/test_ramdisk.py'], False),
     ('tc3256/programs', ['tc3256/test/test_programs.py'], False),
+    ('tc3256/tty', ['tc3256/test/test_tty.py'], False),
     ('basic/romdiff', ['test/basic/romdiff.py', '40'], True),
     ('basic/romdiff-clean', ['test/basic/romdiff.py', '20', 'RST28'], True),
 ]

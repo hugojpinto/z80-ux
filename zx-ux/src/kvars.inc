@@ -113,8 +113,8 @@ KV2     equ 05CEBh
         IF NTTY == 1
 ttyring equ KV2+0       ; 32 keys of waiting room. Please form a line.
         ELSE
-TTSV    equ 4+3+2+TTYBSZ ; a terminal's line state: ttymode .. ttyrdy,
-                        ; ttat .. ttp1, trow and tcol (dev.asm), TTYBUF
+TTSV    equ 4+3+TTYBSZ  ; a terminal's line state: ttymode .. ttyrdy, ttat
+                        ; .. ttp1, TTYBUF
 ttyhd   equ ttyarea             ; NTTY ring heads (the ISR's side)
 ttytl   equ ttyhd+NTTY          ; ... tails
 ttyring equ ttytl+NTTY          ; ... rings, TTRING keys each
@@ -122,7 +122,8 @@ ttsave  equ ttyring+NTTY*TTRING ; ... line states, TTSV each
 p_tty   equ ttsave+NTTY*TTSV    ; each process's terminal (inherited at fork)
 p_ttr   equ p_tty+NPROC         ; ... the one it is reading (ttgetc)
 ttyc    equ p_ttr+NPROC         ; the terminal whose line state is loaded
-TTSZ    equ ttyc+1-ttyarea      ; ttyarea's size, for the layer
+ttykt   equ ttyc+1              ; the terminal a key came from (ttrawn: the click)
+TTSZ    equ ttykt+1-ttyarea     ; ttyarea's size, for the layer
         ENDIF
         IF PTOWN
 stline  equ PTEND       ; the names, with the table (STNAME bytes a slot)

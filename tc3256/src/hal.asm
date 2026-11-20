@@ -221,6 +221,7 @@ isr:    push af
         push bc
         push de
         push hl
+        call rstx               ; RS-232 bytes out: first (rs232.asm)
         call kbtick             ; the keys and BREAK (kbd.asm)
         call s64tick            ; the status line and the cursor (screen64)
         call ktick              ; the kernel's part of the tick
@@ -345,12 +346,17 @@ devtab: db DEV_TTY, DEV_TTY
         db DEV_MEM, DEV_MEM
         dw memrd, memwr, 0
         db 0
+        db DEV_TTY1, DEV_TTY1           ; /dev/tty1: RS-232 (rs232.asm)
+        dw ttread, ttwrite, ttopen
+        db 0
         db DEV_FD0, DEV_FD0+NDRV-1      ; /dev/fd0-3 (tosdisk.asm, blk.asm)
         dw fdread, fdwrite, hdopen
         db 0
         db 0
 
         include "kbd.asm"       ; the keyboard, clean room
+        include "vt52.asm"      ; the terminals' language (drivers/vt52)
+        include "rs232.asm"     ; the second terminal, RS-232
         include "screen64.asm"  ; the console on the screen; sys screen
         include "link.asm"      ; the FDD3000 link: the boot, the disks
         include "tosdisk.asm"   ; the disks through TOS ...
@@ -366,6 +372,7 @@ devtab: db DEV_TTY, DEV_TTY
 BUFMEM:                         ; the disks' cache (blk.asm): NBUF sectors
         ds NBUF*256
 proctab: ds PTSZ                ; the process table (kvars.inc): a page's start
+ttyarea: ds TTSZ                ; the terminals' rings and line states (kvars.inc)
 
 halend:
 

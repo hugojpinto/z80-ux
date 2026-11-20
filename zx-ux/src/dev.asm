@@ -171,6 +171,9 @@ ttrawn:
         jr nz,.t
 .st:    ld b,a
         ld a,e
+        IF NTTY > 1
+        ld (ttykt),a
+        ENDIF
         call ttq                ; HL: its head, DE: its tail, BC: its ring
         push bc
         ld c,a                  ; (the key)
@@ -187,7 +190,13 @@ ttrawn:
         pop hl
         call addhla
         ld (hl),c
+        IF NTTY > 1
+        ld a,(ttykt)            ; the key click, if the machine has one:
+        or a                    ; the console's keys only
+        call z,kclick
+        ELSE
         call kclick             ; the key click, if the machine has one.
+        ENDIF
         ld a,WC_TTY
         jp kwakeup
 .full:  pop af
@@ -284,8 +293,9 @@ ttflsn: push bc
 
         IF NTTY > 1
 ; ttsel: terminal A's line state in the variables (the one there saved):
-; ttymode .. ttyrdy, ttat .. ttp1, trow and tcol, TTYBUF.  Keeps BC, DE,
-; HL.
+; ttymode .. ttyrdy, ttat .. ttp1, TTYBUF.  Keeps BC, DE, HL.  (The
+; print position, trow and tcol, is the console's: its cursor blinks in
+; the frame interrupt; drivers/vt52 keeps its terminals' own.)
 ttsel:  push hl
         ld hl,ttyc
         cp (hl)
@@ -323,9 +333,6 @@ ttsel:  push hl
         call .xb
         ld hl,ttat
         ld b,3
-        call .xb
-        ld hl,trow
-        ld b,2
         call .xb
         ld hl,TTYBUF
         ld b,TTYBSZ
@@ -749,7 +756,6 @@ ENOTTY  equ 25
 ; program's BEEP uses). The clock keeps counting while we argue.
 trow    equ MEMBOT+8            ; print position: row (trow, tcol adjacent).
 tcol    equ MEMBOT+9            ; column 0-63.
-        ASSERT tcol == trow+1   ; (ttsel swaps them as a pair)
 tinv    equ MEMBOT+10           ; F0h: INVERSE 1.
 cvis    equ MEMBOT+11           ; cursor wanted (waiting for a key). One keystroke, one chance to behave.
 cdrawn  equ MEMBOT+12           ; cursor is on the screen.

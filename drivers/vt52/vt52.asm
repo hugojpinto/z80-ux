@@ -14,9 +14,11 @@
 ;    09h TAB to the next column of 8     7Fh (the Spectrum's (c)) -> "(c)"
 ;    10h, 11h, 13h INK, PAPER, BRIGHT n: no colour - taken and dropped
 ;  The terminal is the one whose line state is loaded (ttyc: dev.asm's
-;  ttsel swaps the AT state, ttat .. ttp1, and the position, trow and
-;  tcol, with the rest).  Its bytes go out through the platform's ttput
-;  (A to terminal C, as it is).  Its keys come in through vtkey.
+;  ttsel swaps the AT state, ttat .. ttp1, with the rest); its position
+;  is kept here (vtpos: not trow and tcol, which are a screen console's,
+;  its cursor's in the frame interrupt).  Its bytes go out through the
+;  platform's ttput (A to terminal C, as it is).  Its keys come in
+;  through vtkey.
 ; =====================================================================
 
 VT_COLS equ 64                  ; the Spectrum console's columns
@@ -67,7 +69,7 @@ vtputc: push hl
         jr .x
 .raw:   call vtout
         jr .x
-.bs:    ld hl,tcol
+.bs:    call vtpc
         ld a,(hl)
         or a
         jr z,.x
@@ -76,7 +78,8 @@ vtputc: push hl
         jr .raw
 .tab:   ld a,' '
         call vtcol
-        ld a,(tcol)
+        call vtpc
+        ld a,(hl)
         and 7
         jr nz,.tab
         jr .x
@@ -118,9 +121,10 @@ vtputc: push hl
         ld a,c
         cp VT_COLS
         jr nc,.x
-        ld (tcol),a
-        ld a,b
-        ld (trow),a
+        call vtp
+        ld (hl),b
+        inc hl
+        ld (hl),c
         ld a,'Y'
         call vtesc
         ld a,b
@@ -133,16 +137,17 @@ s_copy: db "(c)",0
 
 ; vtcol: print A in the next column; wrap after the last.
 vtcol:  call vtout
-        ld hl,tcol
+        call vtpc
         inc (hl)
         ld a,(hl)
         cp VT_COLS
         ret c
 ; vtnl: a new line.
-vtnl:   xor a
-        ld (tcol),a
-        ld hl,trow
+vtnl:   call vtp
         ld a,(hl)
+        inc hl
+        ld (hl),0               ; column 0
+        dec hl
         cp TROWS-1
         jr nc,.b
         inc (hl)
@@ -152,9 +157,11 @@ vtnl:   xor a
         jr vtout
 
 ; vtcls: clear the terminal, home the cursor.
-vtcls:  xor a
-        ld (tcol),a
-        ld (trow),a
+vtcls:  call vtp
+        xor a
+        ld (hl),a
+        inc hl
+        ld (hl),a
         ld a,'H'
         call vtesc
         ld a,'J'
@@ -182,6 +189,24 @@ vtout:  push bc
         pop de
         pop bc
         ret
+
+; vtp: HL = the terminal in use's position, its row (then its column:
+; vtpc).  Keeps the rest.
+vtpc:   call vtp
+        inc hl
+        ret
+vtp:    push af
+        IF NTTY > 1
+        ld a,(ttyc)
+        add a,a
+        ELSE
+        xor a
+        ENDIF
+        ld hl,vtpos
+        call addhla
+        pop af
+        ret
+vtpos:  ds 2*NTTY               ; each terminal's row, column
 
 ; ---------------------------------------------------------------------
 ; Keys.  A VT52's codes become the ones ZX-UX's line discipline knows

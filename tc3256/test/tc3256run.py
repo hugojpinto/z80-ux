@@ -247,6 +247,73 @@ def run_disk(path, keys='', quit=QUIT, dumps=((0x4000, 0x1800),), keep=None):
         return out
 
 
+RS232_BAUD = 1200        # the line's speed (tc3256/src/rs232.asm: RS_BAUD)
+
+
+def run_serial(path, script, quit, dumps=((0x4000, 0x1800),), poll=0.05, wait=600):
+    """Fuse's TC3256 on the disk at PATH (Disk start), a terminal on its
+    RS-232 port (the fork's FUSE_RS232_*): SCRIPT is (text, keys) pairs -
+    once TEXT has come out on the line (after the last one found), KEYS
+    are sent (the far end holds them while the TC3256's RTS is down).
+    Fuse stops at frame QUIT -> (the dumps, the line's output, its trace:
+    [(frame, 'OUT' or 'IN', byte)], the texts never seen)."""
+    import time
+    with tempfile.TemporaryDirectory() as t:
+        d = os.path.join(t, 'a.dsk')
+        with open(path, 'rb') as f, open(d, 'wb') as g:
+            g.write(f.read())
+        out, inp, trace = (os.path.join(t, n) for n in ('out', 'in', 'trace'))
+        open(inp, 'wb').close()
+        files = {(a, n): os.path.join(t, 'd%04X' % a) for a, n in dumps}
+        env = dict(os.environ, FUSE_AUTOKEY='%d:4' % MENU_KEY, FUSE_AUTOQUIT=str(quit),
+                   FUSE_AUTODUMP=';'.join('%X:%X:%s' % (a, n, files[a, n]) for a, n in dumps),
+                   FUSE_RS232_OUT=out, FUSE_RS232_IN=inp, FUSE_RS232_TRACE=trace,
+                   FUSE_RS232_BAUD=str(RS232_BAUD))
+        p = subprocess.Popen([FUSE, '--machine', 'tc3256', '--no-sound', '--speed', SPEED,
+                              '--timex-fdd', '--timex_fdddisk', d], env=env,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        missed, pos, end = [], 0, time.time() + wait
+
+        def line():
+            try:
+                with open(out, 'rb') as f:
+                    return f.read().decode('latin-1')
+            except FileNotFoundError:
+                return ''
+        for text, keys in script:
+            while True:
+                k = line().find(text, pos)
+                if k >= 0:
+                    pos = k + len(text)
+                    break
+                if p.poll() is not None or time.time() > end:
+                    missed.append(text)
+                    break
+                time.sleep(poll)
+            if missed:
+                break
+            with open(inp, 'ab') as f:
+                f.write(keys.encode('latin-1'))
+        try:
+            p.wait(timeout=max(1, end - time.time()))
+        except subprocess.TimeoutExpired:
+            p.kill()
+            raise SystemExit('fuse: did not stop at frame %d' % quit)
+        got = {}
+        for k, f in files.items():
+            if os.path.exists(f):
+                with open(f, 'rb') as g:
+                    got[k] = g.read()
+        tr = []
+        if os.path.exists(trace):
+            with open(trace) as f:
+                for ln in f:
+                    w = ln.split()
+                    if len(w) >= 4:
+                        tr.append((int(w[0]), w[2], int(w[3], 16)))
+        return got, line(), tr, missed
+
+
 if __name__ == '__main__':
     with open(sys.argv[1], 'rb') as f:
         boot = f.read()

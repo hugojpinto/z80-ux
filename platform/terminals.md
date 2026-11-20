@@ -32,8 +32,10 @@ Design agreed 2026-11-20; being built in this order:
    at column 64) moved out of its layer into `drivers/vt52` (`vtputc`;
    its keys, `vtkey`: ^C the BREAK, CR/LF ENTER, BS/DEL DELETE, ESC/^D
    EDIT). It writes to whichever terminal is in use through the
-   platform's `ttput` (A, as it is, to terminal C); the position (`trow`,
-   `tcol`) is part of a terminal's line state, swapped by `ttsel`. The
+   platform's `ttput` (A, as it is, to terminal C); each terminal's
+   position is the driver's own (`vtpos`) - `trow` and `tcol` stay a
+   screen console's, whose cursor blinks from the frame interrupt
+   whatever terminal is loaded. The
    kernel's `ttout` sends every terminal but the console through it; the
    FDD3000's console is the same driver (`kputc equ vtputc`, its bytes
    over the link). The serial line's time goes on the FDD3000's soft
@@ -46,13 +48,32 @@ Design agreed 2026-11-20; being built in this order:
 4. **Programs that draw, started from `tty1`, are refused** - done with
    step 2 (`drivers/ssxfile/ssx.asm`: a process whose terminal is not the
    console is refused a program that declares no kind or a drawing one).
-5. **The serial lines**, a machine's `serput` / `serpoll` / `serlisten`:
-   - TC3256: bit-banged on port FDh (D0 TX/RX, D7 the handshake out / CTS
-     in), 1200 baud; it listens only when idle - the handshake raised, a
-     start bit awaited, the byte read with interrupts off - so a terminal
-     honouring CTS per character holds its bytes while programs run.
-     Tested in Fuse: `FUSE_RS232_OUT`, `FUSE_RS232_IN`, `FUSE_RS232_BAUD`
-     (the fork's `peripherals/tc3256_rs232.c`).
+5. **The serial lines** - done: a machine's `ttput` and its keys to
+   `vtkey`:
+   - TC3256 (`tc3256/src/rs232.asm`): bit-banged on port FDh (out D0 the
+     line, inverted by its driver; D7 our handshake, RTS on CN5's DTR pin;
+     in D0 the line, D7 CTS), 1200 baud, every timing derived from the
+     Z80's clock and the baud rate. The frame interrupt is never missed
+     for it - a bit-banged byte runs with interrupts off, so the line is
+     worked around the frame: `ttput` queues (32 bytes); the interrupt,
+     first thing, sends up to two (8-N-1) while CTS is up (`RS_TXFR`,
+     from the frame's 69,888 T-states less a budget for the rest of the
+     interrupt, measured at ~4,600); a full queue waits for the frame,
+     or drops with CTS down - no terminal there never hangs the system.
+     It listens only when idle (`HAL_IDLE`: `rsidle`), after a frame that
+     sent nothing: the line idle with RTS down (an unconnected line
+     reads SPACE: no listening), RTS up, the first SPACE a start bit, for
+     as long as a byte still ends before the next frame; then RTS down -
+     a terminal honouring CTS per character holds its next byte. Typing
+     comes in at ~12 characters a second (one a frame, the echo the
+     next); output at ~100. 1,168 bytes of arena (17,926 left). Tested
+     in Fuse (`tc3256/test/test_tty.py`, `tc3256run.run_serial`: the
+     fork's `FUSE_RS232_OUT`, `_IN`, `_TRACE`; a line sent once the
+     prompt is out): login, echo, `hello`, ^C, `top` in VT52, and the
+     clock against Fuse's frames while `top` keeps the line busy. The
+     far end in Fuse was fixed to start a byte no earlier than it is
+     in its input file (it began one when RTS last rose, the receiver
+     joining it mid-byte).
    - FDD3000: the WD2123 dual UART, polled where the console link is
      (`kpoll`, `kidle`), 9600 baud, RTS/CTS. Its ports, as TOS - which ran
      on the machine - uses them (its channel descriptors, TOS image 251Dh:
