@@ -3,7 +3,7 @@
 Branch `portable-hal` of github.com/hugojpinto/zx-ux (a fork of
 tuklusan/ZX-UX-The-ZX-Spectrum-48K-Unix-Project; `main` there is the
 Timex FDD3000 port). Where the fork stands against upstream:
-`../ZX-UX+.md`.
+`../ZX-UX-PLUS.md`.
 
 The capability seam (`platform/README.md`, `platform.inc`) took the
 machines' names out of the kernel while keeping the Spectrum build equal
