@@ -3,3 +3,5 @@ libtty.ssa
 librbc.ssa
 librom.ssa
 librbccon.ssa
+libc48rom.ssa
+libc48norom.ssa
