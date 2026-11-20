@@ -1,5 +1,5 @@
 ; =====================================================================
-; ZX-UX on the Timex FDD3000: /bin/dd - copy blocks, disks included.
+; ZX-UX block devices: /bin/dd - copy blocks, disks included.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
 ; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
 ; =====================================================================

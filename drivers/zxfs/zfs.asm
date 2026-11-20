@@ -25,6 +25,10 @@ ZI_DIND equ 20                  ; double indirect
 ZS_FREE equ 20                  ; superblock: free blocks, free i-nodes
 ZS_IFREE equ 22
 
+ZBLKVOL = 0                     ; the machine says where volumes are (zmount;
+        IF EXIST HAL_BLKVOL     ; built as a module: kabi.inc only, no)
+ZBLKVOL = HAL_BLKVOL
+        ENDIF
 zfsops: dw zmount, ziload, zistore, zread, zwrite, ztrunc, zialloc, zifree
         dw zsync
 
@@ -70,7 +74,9 @@ zsig:   db "ZXFS",1,1
 ; ---------------------------------------------------------------------
 ; zmount: is a ZXFS on drive (vdrv)?  Its superblock is at sector 0 of
 ; the disk, or where a ZX-UX system disk's boot sector says ("FS" at
-; F8h, then the first sector).  Fills IY's entry; CF if not.
+; F8h, then the first sector), or (HAL_BLKVOL) where the machine says one
+; is (blkvol: A = the drive -> DE = the first sector; CF none).  Fills
+; IY's entry; CF if not.
 zmount: ld a,(vdrv)
         ld (iy+M_DRV),a
         xor a
@@ -85,18 +91,29 @@ zmount: ld a,(vdrv)
         add hl,de
         ld a,(hl)
         cp 'F'
-        jr nz,.no
+        jr nz,.vol
         inc hl
         ld a,(hl)
         cp 'S'
-        jr nz,.no
+        jr nz,.vol
         inc hl
         ld a,(hl)
         ld (iy+M_BASE),a
         inc hl
         ld a,(hl)
         ld (iy+M_BASE+1),a
-        ld hl,0
+        jr .chk
+.vol:
+        IF ZBLKVOL
+        ld a,(iy+M_DRV)         ; the machine's say: where a volume is
+        call blkvol             ; on it (the TC3256: in a TOS file)
+        jr c,.no
+        ld (iy+M_BASE),e
+        ld (iy+M_BASE+1),d
+        ELSE
+        jr .no
+        ENDIF
+.chk:   ld hl,0
         call zbget
         ret c
         call zmagic

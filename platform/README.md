@@ -44,7 +44,8 @@ is not a flag: it is the platform's choice of drivers (below).
 |---|---|---|---|
 | `HAL_HZ` | ticks a second: the clock counts this many `ktick` calls to a second | 50 | 50 |
 | `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
-| `HAL_BLKDEV` | disk block devices (`/dev/fdN`); device read/write go to the layer | 0 | 1 |
+| `HAL_BLKDEV` | disk block devices (`/dev/fdN`): `drivers/blk` over the machine's sector I/O | 0 | 1 |
+| `HAL_BLKVOL` | ZXFS volumes inside another disk format: the machine's `blkvol` (zmount asks it) | — | 0 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
 | `HAL_ROM48K` | the 48K ROM at 0000h: programs built for it (`--rom48k`, or older binaries) may run; 0 refuses them at load | 1 | 0 |
 | `HAL_SEQDEV` | sequential devices (devtab `DV_SEQ`: one record a transfer, no seeking): exec of `DEV/NAME` runs `/etc/ldx`, which finds NAME on DEV (the cassette's `/dev/cassette/NAME`); the device hold (`dhold`: its process keeps the CPU between records); `tar` | 1 | 0 |
@@ -153,9 +154,14 @@ module loader, `/etc/mount`, `/etc/umount`), `drivers/zxfs` (ZXFS,
 platform with disks provides: `blkunit` (A = a device number → A = its
 unit; CF if not a block device), `blkprobe` (A = a unit: what medium is
 there), and the buffer cache by unit — `bget` (sector DE of unit A → HL,
-B = the buffer), `bdirty` (buffer B written; NC), `bflush`, `binval`; the
-FDD3000's are in `fd.asm` (units are its drives). Seeking a block device
-in sectors (seek origins 3–5) is `hseek`, `fhclr`.
+B = the buffer), `bdirty` (buffer B written; NC), `bflush`, `binval`.
+These, `/dev/fdN` as byte streams, their seeks in sectors (seek origins
+3–5: `hseek`, `fhclr`) and `/bin/dd` are shared, `drivers/blk`, over a
+machine's sector I/O: `fio` (a sector in or out), `fprobe` (what disk a
+drive has), `fsize` - the FDD3000's WD1770 (`fdd3000/src/fd.asm`), the
+TC3256's TOS over the link (`tc3256/src/tosdisk.asm`). With `HAL_BLKVOL`
+the machine also says where a ZXFS volume is on a disk that is not all
+ZXFS (`blkvol`: the TC3256's is a TOS file on the TOS system disk).
 
 ## The ABI: what binaries pin, and what they do not
 

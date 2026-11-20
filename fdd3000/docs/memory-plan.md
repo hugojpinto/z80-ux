@@ -19,7 +19,7 @@ FDD3000 build (`build/fdd3000/kernel.json`):
 |---|---|---|---|
 | 0000–0067h | 104 B | restart vectors; RST 38h = WD1770 INTRQ (`hint38`) | no |
 | 0068–0FFFh | ~4 KB | ROM trap zone: Spectrum ROM calls land on RST 30h, the program is stopped; BEEP/BEEPER stubs | could shrink (see §8) |
-| 1000–17FFh | 2 KB | buffer cache, 8 × 256 B (`fd.asm` NBUF, BUFMEM) | NBUF could drop to 4 |
+| 1000–17FFh | 2 KB | buffer cache, 8 × 256 B (`fd.asm` NBUF, BUFMEM; the cache: `drivers/blk`) | NBUF could drop to 4 |
 | 1800–3EFFh | 9,983 B | hardware layer (HAL): console/VT52, keys, disk driver, vfs/inode cache, type table, built-in ZXFS, mirror (+ FONT at 305Ch), WD1770 clock, `dd`. **Full: 1 byte spare** | layout is ours |
 | 3F00–5AFFh | 7,168 B | boot sector at power-on, then the old Spectrum display file (6,912 B at 4000h): SDK programs draw here, the mirror reads it back | ours (FDD only) |
 | 5B00–5D97h | ~660 B | kernel variables (KV 5B00h, `fsp` 5B98h, MEMBOT 5C92h, KV2 5CEBh) | **no: ABI** |

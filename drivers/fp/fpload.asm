@@ -5,7 +5,7 @@
 ; 42 into a fixed arena block and shared; each process holding it has a
 ; bit in fpown (a child inherits its parent's); the block goes back to
 ; the arena when the last of them ends or execs.  Needs HAL_VFS (the
-; module loader: fsmod.asm mhdr, mimg) and mbit (the slot's bit).
+; module loader: fsmod.asm mhdr, mimg) and conbit (the slot's bit: unix.asm).
 ; =====================================================================
 
 K_FPM   equ 8                   ; arena kind: the float engine (fixed)
@@ -22,7 +22,7 @@ fpget:  ld hl,(fpblk)
         call mimg
         ret c
         ld (fpblk),hl
-.own:   call mbit
+.own:   call conbit
         ld hl,fpown
         or (hl)
         ld (hl),a
@@ -31,7 +31,7 @@ fpget:  ld hl,(fpblk)
         ret
 
 ; fprel: the running process lets go (it ends, or execs).
-fprel:  call mbit
+fprel:  call conbit
         cpl
         ld hl,fpown
         and (hl)
@@ -50,7 +50,7 @@ fprel:  call mbit
 ; DE, HL.
 fpfork: push bc
         push hl
-        call mbit
+        call conbit
         ld hl,fpown
         and (hl)
         jr z,.x

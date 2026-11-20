@@ -87,10 +87,10 @@ images on the host (its docstring is the format's specification).
 |---|---|
 | `src/boot.asm` | the boot sector: the FDD3000 boot ROM loads it to 3F00h; it loads the system from track 1 |
 | `src/hal.asm` | the hardware layer: vectors, the console on the link (CBIOS A1.1's protocol) as a VT52, keys, the soft clock |
-| `src/fd.asm` | the WD1770 driver, the buffer cache, `/dev/fd0-3` |
+| `src/fd.asm`, `../drivers/blk/blk.asm` | the WD1770 driver; the buffer cache, `/dev/fd0-3` (shared) |
 | `../drivers/vfs/vfs.asm`, `fsmod.asm`; `../drivers/zxfs/zfs.asm` | mounts and the i-node cache; the type table and the module loader; ZXFS (shared subsystems: `../platform/README.md`) |
 | `../drivers/tos/tfs.asm` | TOS's disks: a file system module (`/etc/fs/tos`) |
-| `../drivers/ssxfile/ssx.asm`, `src/t_dd.asm`, `../drivers/vfs/t_fs.asm`, `../drivers/zxfs/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
+| `../drivers/ssxfile/ssx.asm`, `../drivers/blk/t_dd.asm`, `../drivers/vfs/t_fs.asm`, `../drivers/zxfs/t_mkfs.asm` | SSX1 from files; `dd`; `mount`, `umount`; `mkfs` |
 | `src/screen.asm` | no screen: system calls 39 and 41 say so (a terminal, no display file) |
 | `src/tmr.asm` | the 50 Hz clock from the WD1770 (drive D's select line) |
 | `tools/` | `build.py`, `fddimage.py` (the disk), `zxfs.py` (the RAM file system image), `zxdfs.py` (ZXFS), `fsmod.py` (file system modules), `tosfs.py` (TOS disks), `dsk.py` |

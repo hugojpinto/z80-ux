@@ -120,6 +120,7 @@ WC_TIME equ 3
 EPERM   equ 1
 ENOENT  equ 2
 EIO     equ 5
+ENXIO   equ 6               ; z80-ux: no such device (a drive with no disk)
 EBADF   equ 9
 ECHILD  equ 10
 EAGAIN  equ 11
@@ -138,6 +139,7 @@ EINTR   equ 4
 EFBIG   equ 27
 EDOM    equ 33
 ERANGE  equ 34
+EROFS   equ 30              ; z80-ux: a read-only file system (a protected disk)
 
 ; ---------------------------------------------------------------- syscalls
 SYS     equ KBASE+3         ; System calls enter at KBASE+3. A gets the call number.

@@ -199,6 +199,8 @@ tcleft: dw 0                    ; the rest's bytes still to read
 TC_BORDER equ 0                 ; black
 TC_INK    equ 7                 ; BORDCR's ink, white (bits 2-0; the border 5-3)
 hinit:  im 1
+        ld a,1                  ; the link may let interrupts in between blocks
+        ld (lkint),a
         ld a,TC_BORDER
         out (0FEh),a
         ld a,TC_BORDER << 3 | TC_INK
@@ -336,13 +338,6 @@ hhex:   push af
         inc hl
         ret
 
-; fpget: sys 42 - no float engine yet (phase 4: drivers/fp, loaded).
-fpget:  ld a,ENOENT
-        scf
-        ret
-fprel:
-fpfork: ret
-
 ; devtab: the TC3256's devices (dev.asm)
 devtab: db DEV_TTY, DEV_TTY
         dw ttread, ttwrite, 0
@@ -350,12 +345,26 @@ devtab: db DEV_TTY, DEV_TTY
         db DEV_MEM, DEV_MEM
         dw memrd, memwr, 0
         db 0
+        db DEV_FD0, DEV_FD0+NDRV-1      ; /dev/fd0-3 (tosdisk.asm, blk.asm)
+        dw fdread, fdwrite, hdopen
+        db 0
         db 0
 
         include "kbd.asm"       ; the keyboard, clean room
         include "screen64.asm"  ; the console on the screen; sys screen
-        include "link.asm"      ; the FDD3000 link (the boot; disks later)
+        include "link.asm"      ; the FDD3000 link: the boot, the disks
+        include "tosdisk.asm"   ; the disks through TOS ...
+        include "blk.asm"       ; ... their cache and devices (drivers/blk)
+        include "vfs.asm"       ; mounted file systems ...
+        include "fsmod.asm"     ; ... of types built in or loaded ...
+        include "zfs.asm"       ; ... ZXFS, built in.
+        include "ssx.asm"       ; SSX1 programs from files.
+        include "fpload.asm"    ; the float engine, a module (sys 42).
         include "font8.inc"     ; the 8x8 font (drivers/font8)
+
+        ALIGN 256
+BUFMEM:                         ; the disks' cache (blk.asm): NBUF sectors
+        ds NBUF*256
 
 halend:
 

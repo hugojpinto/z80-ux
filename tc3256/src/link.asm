@@ -20,6 +20,10 @@
 ;    the host's registers AF, BC, DE, HL, IX, IY, which TOS loads; the
 ;    reply is a C0h block the same shape, lkcom = 80h and A the status,
 ;    perhaps after D0h blocks of data (lkdat).
+;  A block moves with interrupts off: TOS waits only so long for each
+;  handshake, and a frame interrupt between two would lose it the block.
+;  Between blocks - while TOS reads a disk - they are on again, once the
+;  kernel runs (lkint, set by hinit; tcboot, before, keeps them off).
 ; =====================================================================
 
 LINK    equ 0EFh                ; the link (bit 7 in: also the FDC's DRQ)
@@ -78,7 +82,10 @@ lkreply: ld hl,LKWAIT
 
 ; lksend: a block - A = its type, B = its length (0: 256), HL = the
 ; payload -> CF: not acknowledged in LKTRIES tries.  Keeps HL.
-lksend: ld (lkhdr),a
+lksend: di
+        call lksend0
+        jr lkei
+lksend0: ld (lkhdr),a
         ld a,b
         ld (lkhdr+1),a
         ld a,LKTRIES
@@ -126,7 +133,16 @@ lksend: ld (lkhdr),a
 ; lkrecv: a block from TOS - a command into lkcom, data into lkdat ->
 ; A = its type, lkdlen its length; CF: none came (or not whole, LKTRIES
 ; times).
-lkrecv: ld a,LKTRIES
+lkrecv: di
+        call lkrecv0
+lkei:   push af                 ; interrupts on again, if the kernel runs
+        ld a,(lkint)
+        or a
+        jr z,.x
+        ei
+.x:     pop af
+        ret
+lkrecv0: ld a,LKTRIES
         ld (lktry),a
 .again: ld c,0
         ld hl,lkhdr
@@ -264,6 +280,7 @@ lkhs:   push bc
 ; the link's buffers
 lkhdr:  db 0,0,0                ; a block's type, length, marker
 lktry:  db 0
+lkint:  db 0                    ; interrupts may be on between blocks (hinit)
 lkdlen: db 0                    ; the last data block's length (0: 256)
 lkcom:  ds LKCLEN               ; a command, a reply
 lkdat:  ds 256                  ; a data block

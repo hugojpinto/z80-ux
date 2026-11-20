@@ -677,12 +677,9 @@ devtab: db DEV_TTY, DEV_TTY
         db 0
         db 0
 kclick  equ hret                ; no key click: port FEh is the drive latch
-; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
-nodev:  ld a,EIO
-        scf
-        ret
 
         include "fd.asm"        ; the floppy disk driver.
+        include "blk.asm"       ; ... its cache and devices (drivers/blk).
         include "vfs.asm"       ; mounted file systems ...
         include "fsmod.asm"     ; ... of types built in or loaded ...
         include "zfs.asm"       ; ... ZXFS, built in.

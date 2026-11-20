@@ -31,6 +31,7 @@ SUITES = [
     ('fp/strings', ['test/fp/strtest.py'], True),
     ('tc3256/probe', ['tc3256/test/test_probe.py'], False),
     ('tc3256/boot', ['tc3256/test/test_boot.py'], False),
+    ('tc3256/disk', ['tc3256/test/test_disk.py'], False),
     ('basic/romdiff', ['test/basic/romdiff.py', '40'], True),
     ('basic/romdiff-clean', ['test/basic/romdiff.py', '20', 'RST28'], True),
 ]

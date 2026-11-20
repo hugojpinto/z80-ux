@@ -162,9 +162,10 @@ def keys(lines, first):
     return ','.join(out), f
 
 
-def run_disk(path, keys='', quit=QUIT, dumps=((0x4000, 0x1800),)):
+def run_disk(path, keys='', quit=QUIT, dumps=((0x4000, 0x1800),), keep=None):
     """Fuse's TC3256 on the disk at PATH: key 4 (Disk start), then KEYS
-    (FUSE_AUTOKEY entries, frame:key, comma separated) -> the dumps."""
+    (FUSE_AUTOKEY entries, frame:key, comma separated) -> the dumps; KEEP:
+    where to put the disk as it was left."""
     if keys and len(keys.split(',')) + 1 > AUTOKEY_MAX:
         raise SystemExit('%d keys: Fuse takes %d' % (len(keys.split(',')) + 1, AUTOKEY_MAX))
     with tempfile.TemporaryDirectory() as t:
@@ -184,6 +185,9 @@ def run_disk(path, keys='', quit=QUIT, dumps=((0x4000, 0x1800),)):
                 raise SystemExit('fuse: no dump %04X\n%s%s' % (k[0], r.stdout, r.stderr))
             with open(p, 'rb') as f:
                 out[k] = f.read()
+        if keep:                        # drive A as Fuse wrote it back (AUTOQUIT)
+            with open(d, 'rb') as f, open(keep, 'wb') as g:
+                g.write(f.read())
         return out
 
 
