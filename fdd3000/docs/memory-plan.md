@@ -176,8 +176,8 @@ Runtime: keep the page in `@scrhi`; `or 40h` → `add a,(@scrhi)`, `or 58h` →
 (Spectrum addressing puts only the high byte's top bits in the base).
 
 **Pros**
-- Spectrum kernel and system untouched (byte-identical gate holds); new SSX1
-  binaries still run there (call 41 fails → 40h).
+- Spectrum kernel and system untouched (byte-identical gate holds, as it then
+  stood); new SSX1 binaries still run there (call 41 fails → 40h).
 - One SDK binary portable to any ZX-UX port; a natural thing to offer upstream
   together with the "platform seam" (see the email draft).
 - On the FDD3000 the screen can live anywhere the kernel has room.
@@ -269,6 +269,9 @@ FDD3000 the disk is there anyway; the shell already searches `/mnt/a/bin`.
 
 - **Spectrum byte-identical gate** (`build.py spectrum`): kernel, lowk, fs must
   stay identical to `ZX-UX.tzx`; every change in shared sources IFDEF FDD3000.
+  *(As planned then. Since lifted (`platform/DESIGN.md`): upstream's own
+  sources rebuild the tape byte for byte; this tree's Spectrum build is held
+  to its behaviour, `test/spectrum/golden.py`.)*
 - **SDK reproducibility**: keep the original runtime able to rebuild the
   shipped `.ssx` (proof that nothing changed for the Spectrum); new runtime
   side by side, not instead.

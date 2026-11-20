@@ -56,10 +56,11 @@ Proposed as design rules, in the book's style of short imperatives:
    machine is behind a capability or is a hook; the machine's facts are in
    its `platform.inc`. (The book's "the hardware boundary has to be
    explicit", made a file.)
-2. **The reference platform is reproduced byte for byte.** Every change to
-   the seam is proven on the Spectrum by rebuilding the shipped tape
-   exactly. A seam that changes Spectrum bytes is a change to ZX-UX, not a
-   port.
+2. **The reference platform keeps its behaviour.** The shipped tape stays
+   reproducible from its own sources, byte for byte; the seamed Spectrum
+   build is held to behaving as the tape does, session by session (the
+   seam first went in byte-identical; drivers and memory per platform then
+   moved bytes, not behaviour).
 3. **Hardware is a choice of drivers; flags switch subsystems only.** A
    platform says what it *is* by the drivers it includes (rom48,
    screen64, a terminal, a disk driver); `HAL_VFS`, `HAL_SSXFILE` say which
@@ -71,7 +72,7 @@ Proposed as design rules, in the book's style of short imperatives:
    programs are relocatable and resident programs are rebuilt with the
    kernel, so the rest of the memory map — the kernel's place, the window,
    the arena — is the platform's to lay out. The Spectrum keeps its map
-   because it must equal the shipped tape.
+   (`memmap48.inc`): it is the reference.
 5. **Time is counted in ticks of `HAL_HZ`.** Nothing assumes 50.
 6. **Interrupt vectors are the platform's.** The ROM-FFh trick is the 48K
    platform's choice; others place a vector table in RAM.
@@ -93,15 +94,15 @@ Proposed as design rules, in the book's style of short imperatives:
 | **Ch. 6** *Cassettes*, **ch. 29** | Scope to sequential devices (`HAL_SEQDEV`; the Spectrum's cassette, rom48): `DEV/NAME` runs the program NAME found on DEV, `tar` archives to it. A sidebar: with `HAL_SSXFILE`, an SSX1 program is a file; `/etc/ldx` reads either from a descriptor. A machine with neither has no `tar`. |
 | **Ch. 7** *The software clock* | Ticks are `HAL_HZ`; mention a platform without a frame interrupt (the FDD3000's WD1770 clock, the soft clock). |
 | **Ch. 12, 33** (SDK, C48) | The runtime draws at 4000h; note the planned screen-page call (41) that lets a platform place the screen, and a terminal console for text programs (`fdd3000/docs/memory-plan.md`). |
-| **Ch. 19** *The machine beneath* | The pivot chapter. Keep the Spectrum's address space, ROM and heartbeat as *the reference platform*; add a section **"Platforms"**: capabilities, hooks, the machine layer, the one rule, the byte-identical proof. State that the IM 2 trick depends on two ROM bytes. |
+| **Ch. 19** *The machine beneath* | The pivot chapter. Keep the Spectrum's address space, ROM and heartbeat as *the reference platform*; add a section **"Platforms"**: capabilities, hooks, the machine layer, the one rule, and how the reference platform is held to its behaviour. State that the IM 2 trick depends on two ROM bytes. |
 | **Ch. 20** *Booting* | Boot becomes: platform init (`HAL_INIT`) → interrupt setup (Spectrum: IM 2) → clock (`HAL_START`) → init (+ `HAL_BOOTMNT`: mount the system volume, run its rc). The build section: one source tree, a `platform.inc` per target. |
 | **Ch. 21** *System-call boundary* | `sysent`/`sysx` gain hooks (`HAL_ENTER`, `HAL_LEAVE`): what a machine layer may and may not do there (no allocation, keep the registers the call returns). |
 | **Ch. 23** *Clock and scheduler* | What the handler does is split into the machine's part (keys, vectors) and the kernel's (clock, accounting, quantum, signals) — the planned shared `ktick`. `HAL_IDLE`: `halt` needs an interrupt to come back; a platform without one polls. |
 | **Ch. 24, 25** *Memory, window, arena* | The memory map becomes per platform (table, Appendix C). The window/arena relation stays; note what paging platforms change (128K: one bank per process instead of copying the window; TC3256: windows in RAM-disk sectors). New fixed arena kind for loaded modules (K_FSM). |
 | **Ch. 26, 27** *File system, byte I/O* | With `HAL_VFS`: mounted file systems, i-numbers ≥ 1000h, the i-node cache, types built in or loaded; seek origins 3–5 in sectors. The RAM file system stays the root everywhere. |
 | **Ch. 28** *Devices, terminal, display, keyboard* | Two console drivers (screen64, a terminal) behind one interface (`kputc`, `kcls`, `curon`, `curoff`, sys screen); block devices with `HAL_BLKDEV`; the device-number space per platform. |
-| **Ch. 34** *Testing* | The four kinds of checking gain a fifth axis: **per platform**. The Spectrum's gate (byte-identical) proves the seam; each other platform has its emulator tests (the FDD3000's `fdd3000/test`). |
-| **Ch. 35** *What the machine cannot do* | Split into "what the Spectrum cannot do" (as now) and "what a platform may add" (disks, paging, a terminal); the *what to examine before changing the kernel* list gains: "does it name a machine?", "does the Spectrum still build byte for byte?" |
+| **Ch. 34** *Testing* | The four kinds of checking gain a fifth axis: **per platform**. The Spectrum's gates (the tape rebuilt byte for byte from its sources; this tree's build replaying sessions recorded on it) prove the seam; each other platform has its emulator tests (the FDD3000's `fdd3000/test`). |
+| **Ch. 35** *What the machine cannot do* | Split into "what the Spectrum cannot do" (as now) and "what a platform may add" (disks, paging, a terminal); the *what to examine before changing the kernel* list gains: "does it name a machine?", "does the Spectrum still behave as the tape?" |
 | **Appendix A, H** | Calls 21/22 (mount/umount) and reserved 41 (screen page), per platform. |
 | **Appendix C** | Constants and addresses per platform; capability table. |
 | **Appendix D, G** | `platform/` and the machine-layer files in the atlas. |
@@ -114,7 +115,7 @@ Proposed as design rules, in the book's style of short imperatives:
 | Invariant | Practical check | Source |
 |---|---|---|
 | Platform neutrality | No kernel line names a machine; machine lines are behind a `HAL_*` capability or hook. | `zx-ux/src`, `platform/*/platform.inc` |
-| Reference build | The Spectrum system rebuilds byte for byte as `ZX-UX.tzx`. | `build.py spectrum` |
+| Reference build | Upstream's sources rebuild byte for byte as `ZX-UX.tzx`; the seamed Spectrum build replays the sessions recorded on it. | `build.py upstream`, `test/spectrum/golden.py` |
 | ABI pins | 6003h, the call numbers, SSX1 (and 5BE4h, the screen, the ROM calculator's variables where programs use them) unchanged on every platform; the rest of the map is the platform's. | `const.inc`, `sdk/bin/py/lib` |
 | Tick rate | Every time computation uses ticks of `HAL_HZ`. | `unix.asm` (`clk1`), machine layers |
 | Machine layer bounds | The machine layer fits its platform's region and never covers ABI regions. | `hal.asm` `ASSERT`, platform map |

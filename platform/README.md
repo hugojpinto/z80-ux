@@ -10,7 +10,7 @@ platform/
   README.md            this file: the contract
   hardware-notes.md    research on the future targets (TC3256, 128K, TC/TS2068)
   manual-notes.md      what the seam changes in the design book's guidelines
-  spectrum48/          the 48K Spectrum: ZX-UX as shipped (byte for byte)
+  spectrum48/          the 48K Spectrum: the reference platform (behaves as shipped)
   fdd3000/             the Timex FDD3000; its machine layer is fdd3000/src
 ```
 
@@ -25,12 +25,14 @@ anything else.
 for one machine is in a driver or the machine layer, or is a hook
 (`HAL_IDLE`), and the machine's facts live in its `platform.inc`.
 
-The proof that the seam changed nothing: `build.py spectrum` rebuilds the
-Spectrum system from the seamed sources with `spectrum48/platform.inc` and
-compares it **byte for byte** with the shipped `ZX-UX.tzx` (kernel, low
-kernel, root file system). When the seam went in (branch `hal-seams`), the
-FDD3000 system image also came out byte-identical to the one built before
-it, and every FDD3000 test passed unchanged.
+The proof, first: when the seam went in (branch `hal-seams`), `build.py
+spectrum` rebuilt the Spectrum system from the seamed sources **byte for
+byte** as the shipped `ZX-UX.tzx` (kernel, low kernel, root file system),
+and the FDD3000 image came out as before. Since then (`DESIGN.md`: the
+drivers, the device table, memory per platform) the Spectrum build is no
+longer the tape byte for byte; it is held to **behaving** as the tape does
+(`test/spectrum/golden.py`), and `build.py upstream` still rebuilds
+upstream's own sources into the tape exactly (`../Z80-UX.md`).
 
 ## Capabilities
 

@@ -10,8 +10,10 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
 
 ## What runs
 
-- The ZX-UX kernel, shell and its 38 resident programs, unchanged in
-  behaviour: four processes, the RAM file system, `vi`, `ps`, `top`, `tar`...
+- The ZX-UX kernel, shell and its resident programs, unchanged in
+  behaviour: four processes, the RAM file system, `vi`, `ps`, `top`... -
+  40 of them, with the disk's (`mount`, `mkfs`, `dd`...) and without the
+  cassette's (`tar`/`tap`: there is no cassette).
 - **Disks**: `/dev/fd0` – `/dev/fd3` (drives A–D, 40/80 tracks, one or two
   sides, probed when opened); `/bin/dd` copies sectors.
 - **ZXFS**, a disk file system mounted into the RAM tree (`/etc/mkfs`,
@@ -41,12 +43,14 @@ fdd3000/tools/fetch-sjasmplus.sh     # sjasmplus v1.21.0 into fdd3000/tools/bin
 python3 fdd3000/tools/build.py       # spectrum gate + build/fdd3000/ZX-UX-FDD3000.dsk
 ```
 
-`build.py spectrum` rebuilds the shipped Spectrum system from `zx-ux/src` and
-checks it **byte for byte** against `zx-ux/tzx/ZX-UX.tzx` (upstream ships no
-builder). The shared sources name no machine: what differs sits behind a
-platform capability or hook (`platform/README.md`; this port's settings
-are `platform/fdd3000/platform.inc`), and this gate proves the Spectrum
-system untouched.
+`build.py upstream` rebuilds upstream's own sources (`f302288`) and checks
+them **byte for byte** against `zx-ux/tzx/ZX-UX.tzx` (upstream ships no
+builder); `build.py spectrum` builds this tree's Spectrum system, held to
+behaving as the tape does (`test/spectrum/golden.py`). The shared sources
+name no machine: what differs sits behind a platform capability or hook
+(`platform/README.md`; this port's settings are
+`platform/fdd3000/platform.inc`). Where the fork stands against upstream:
+`../Z80-UX.md`.
 
 In Fuse (the LoadZX fork, `TC3256/EMUL`): machine **TT3000**, the disk in
 Timex FDD drive A (`--timex_fdddisk`); Machine › Timex FDD Reset if the
@@ -257,7 +261,8 @@ says so here.
 
 **Checking** (ch. 34 distinguishes four kinds, each answering a different
 question): the assembled-image size and symbol layout — `build.py` (the 8 KB
-`ASSERT`, the HAL's bounds) and the byte-identical Spectrum gate; simulator
+`ASSERT`, the HAL's bounds), the byte-identical upstream gate and the
+Spectrum's golden sessions; simulator
 tests — `test/*.py` on the FDD3000 model, the port's analogue of `rvm`,
 with `test_bound.py` taking the book's boundary cases to the disk side
 (unlink while open, a full disk, long seeks and holes, paths across
