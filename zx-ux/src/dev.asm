@@ -127,11 +127,24 @@ memwr:  ld de,(u_off)
         jp ttwrite.xj1_13  
 
 
+; TTYC: A = the terminal whose line state is loaded (always 0 with one).
+        MACRO TTYC
+        IF NTTY > 1
+        ld a,(ttyc)
+        ELSE
+        xor a
+        ENDIF
+        ENDM
+
 ; ---------------------------------------------------------------------
 ; tty input - ISR side. The keyboard has no rewind switch.
+; z80-ux: NTTY terminals (kvars.inc): each its own ring; the console is 0.
 ; ---------------------------------------------------------------------
-; ttrawin: 89 bytes. A = key code from ROM KEY-INPUT (ISR). One keystroke, one chance to behave.
+; ttrawin: 89 bytes. A = key code from ROM KEY-INPUT (ISR): the console's.
+; ttrawn: A = a key, E = its terminal.  One keystroke, one chance to behave.
 ttrawin:
+        ld e,0
+ttrawn:
         cp 0Dh                  ; ENTER.
         jr z,.st
         cp 0Ch                  ; DELETE.
@@ -157,24 +170,68 @@ ttrawin:
         inc hl
         jr nz,.t
 .st:    ld b,a
-        ld a,(ttyhd)
-        ld c,a
+        ld a,e
+        call ttq                ; HL: its head, DE: its tail, BC: its ring
+        push bc
+        ld c,a                  ; (the key)
+        ld a,(hl)
+        push af
         inc a
-        and 31
-        ld hl,ttytl
+        and TTRING-1
+        ex de,hl
         cp (hl)
-        ret z                   ; ring full.
-        ld (ttyhd),a
-        ld hl,ttyring
-        ld a,c
+        ex de,hl
+        jr z,.full
+        ld (hl),a
+        pop af                  ; the old head: the key goes there
+        pop hl
         call addhla
-        ld (hl),b
+        ld (hl),c
         call kclick             ; the key click, if the machine has one.
         ld a,WC_TTY
         jp kwakeup
+.full:  pop af
+        pop bc
+        ret                     ; ring full.
 
-; ttintr: 50 bytes. BREAK signals every live process (UNIX v1 DEL). The key does not negotiate.
+; ttq: A = a terminal -> HL = its ring's head, DE = its tail, BC = its
+; ring; A = the key that came in B, as it was.  (A terminal < 8.)
+        IF NTTY > 1
+ttq:    push af
+        ld hl,ttytl
+        call addhla
+        ex de,hl
+        pop af
+        push af
+        ld hl,ttyhd
+        call addhla
+        pop af
+        push hl
+        rrca                    ; x TTRING (32)
+        rrca
+        rrca
+        ld hl,ttyring
+        call addhla
+        ld a,b
+        ld b,h
+        ld c,l
+        pop hl
+        ret
+        ASSERT TTRING == 32
+        ELSE
+ttq:    ld hl,ttyhd             ; (one terminal: its ring)
+        ld de,ttytl
+        ld a,b
+        ld bc,ttyring
+        ret
+        ENDIF
+
+; ttintr: 50 bytes. BREAK on the console.  ttintn: on terminal E.  Every
+; live process of that terminal gets the interrupt (UNIX v1 DEL; with one
+; terminal, every live process).  The key does not negotiate.
 ttintr:
+        ld e,0
+ttintn:
         ld b,0
 .l:     ld a,b
         ld l,a                  ; p_stat is page aligned (KV).
@@ -184,6 +241,14 @@ ttintr:
         jr z,.n
         cp SZOMB
         jr z,.n
+        IF NTTY > 1
+        ld a,b
+        ld hl,p_tty
+        call addhla
+        ld a,(hl)
+        cp e
+        jr nz,.n
+        ENDIF
         ld a,b
         ld hl,p_sig
         call addhla
@@ -193,7 +258,8 @@ ttintr:
         ld (hl),1
 .n:     call nxslot
         jr c,.l
-        call ttyflush           ; discard stale keys after BREAK. The input line is not a parking lot.
+        ld a,e
+        call ttflsn             ; discard stale keys after BREAK. The input line is not a parking lot.
         ld a,WC_TTY
         call kwakeup
         ld a,WC_WAIT
@@ -202,10 +268,133 @@ ttintr:
         jp kwakeup
 
 ; ttyflush: 7 bytes. Flush raw keys after a foreground child; leave background readers alone. No stale votes.
+; (the terminal in use; ttflsn: terminal A's)
 ttyflush:
-        ld a,(ttyhd)
-        ld (ttytl),a
+        TTYC
+ttflsn: push bc
+        push de
+        push hl
+        call ttq
+        ld a,(hl)
+        ld (de),a
+        pop hl
+        pop de
+        pop bc
         ret
+
+        IF NTTY > 1
+; ttsel: terminal A's line state in the variables (the one there saved):
+; ttymode .. ttyrdy, ttat .. ttp1, TTYBUF.  Keeps BC, DE, HL.
+ttsel:  push hl
+        ld hl,ttyc
+        cp (hl)
+        jr z,.x
+        push de
+        push bc
+        push af
+        ld a,(hl)
+        call .sv                ; HL: its save area
+        ex de,hl
+        call .cp                ; the variables -> it
+        pop af
+        ld (ttyc),a
+        call .sv
+        ex de,hl
+        call .cp                ; ... and back, the other way
+        pop bc
+        pop de
+.x:     pop hl
+        ret
+; .sv: A = a terminal -> HL = its save area
+.sv:    ld hl,ttsave
+        or a
+        ret z
+        ld b,a
+.m:     push bc
+        ld bc,TTSV
+        add hl,bc
+        pop bc
+        djnz .m
+        ret
+; .cp: swap the variables with DE (TTSV bytes)
+.cp:    ld hl,ttymode
+        ld b,4
+        call .xb
+        ld hl,ttat
+        ld b,3
+        call .xb
+        ld hl,TTYBUF
+        ld b,TTYBSZ
+.xb:    ld a,(de)
+        ld c,(hl)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc hl
+        inc de
+        djnz .xb
+        ret
+
+; ttnum: A = a terminal's device number -> A = the terminal (DEV_TTY:
+; the running process's own).
+ttnum:  cp DEV_TTY
+        jr nz,.n
+        ld a,(cur)
+        push hl
+        ld hl,p_tty
+        call addhla
+        ld a,(hl)
+        pop hl
+        ret
+.n:     sub DEV_TTY1-1
+        ret
+
+; ttopen: an open of terminal i-number L (DEV_TTY1 ...): the running
+; process's terminal from now on (its children's too).  Keeps HL, DE,
+; BC, IX.
+ttopen: push hl
+        ld a,l
+        call ttnum
+        push af
+        ld a,(cur)
+        ld hl,p_tty
+        call addhla
+        pop af
+        ld (hl),a
+        pop hl
+        or a
+        ret
+
+; ttself: the running process's terminal loaded (for what the kernel
+; says to it: kputs).
+ttself: ld a,DEV_TTY
+        call ttnum
+        jr ttsel
+
+; ttdisp: system call 41 (the platform's sysdisp) - a process whose
+; terminal is not the console is told of a terminal: D = 0 (no display
+; file), E = 1 (a terminal), TTCOLS x TTROWS (TTNARROW for a narrow
+; console); HL = 1, a claim: EINVAL.
+TTCOLS  equ 80
+TTROWS  equ 24
+TTNARROW equ 32
+ttdisp: push hl
+        ld a,DEV_TTY
+        call ttnum
+        pop hl
+        or a
+        jp z,sysdisp
+        ld a,h
+        or l
+        ld a,EINVAL
+        jp nz,syserr
+        call connar
+        ld de,1
+        ld hl,TTROWS*256+TTCOLS
+        jp z,sysok
+        ld l,TTNARROW
+        jp sysok
+        ENDIF
 
 ; ---------------------------------------------------------------------
 ; tty input - process side (canonical line discipline, echo) DELETE erases, ENTER ends the line, EDIT = EOT
@@ -215,44 +404,82 @@ ttyflush:
 ttgetc:                         ; → A = key; CF if interrupted (ignored). The keyboard insists on being
                                 ; heard.
 .l:     di
+        IF NTTY > 1
+        ld a,(cur)              ; (another terminal may have been in use
+        ld hl,p_ttr             ; while this one slept)
+        call addhla
+        ld a,(hl)
+        call ttsel
+        ENDIF
         call sigck
         jr c,.int
-        ld a,(ttytl)
-        ld hl,ttyhd
+        TTYC
+        call ttq
+        ld a,(de)
         cp (hl)
         jr nz,.have
-        call curon
+        call ttcuron
         ld a,WC_TTY
         call ksleep
         ei
         jr .l
-.have:  ld hl,ttyring
-        call addhla
+.have:  ld h,b
+        ld l,c
+        call addhla             ; (A: HL's low byte now)
         ld b,(hl)
-        ld a,(ttytl)
+        ld a,(de)               ; the tail, again
         inc a
-        and 31
-        ld (ttytl),a
+        and TTRING-1
+        ld (de),a
         ei
-        call curoff
+        call ttcuroff
         ld a,b
         or a
         ret
 .int:   ei
-        call curoff
+        call ttcuroff
         scf
         ret
 
+; ttcuron, ttcuroff: the cursor - the console's only.
+        IF NTTY > 1
+ttcuron:
+        TTYC
+        or a
+        ret nz
+        jp curon
+ttcuroff:
+        TTYC
+        or a
+        ret nz
+        jp curoff
+        ELSE
+ttcuron equ curon
+ttcuroff equ curoff
+        ENDIF
+
 ; ttread: 244 bytes. Read the terminal line. The keyboard gets a turn.
+; (A = the device: /dev/tty, the process's own; z80-ux: /dev/ttyN)
 ttread:
+        IF NTTY > 1
+        call ttnum
+        push af
+        ld a,(cur)
+        ld hl,p_ttr
+        call addhla
+        pop af
+        ld (hl),a
+        call ttsel
+        ENDIF
         ld a,(ttymode)
         and TT_RAW
         jr z,.can
         ld a,(ttymode)          ; z80-ux: TT_NOWAIT - no key waiting, nothing read
         and TT_NOWAIT
         jr z,.raw
-        ld a,(ttytl)
-        ld hl,ttyhd
+        TTYC
+        call ttq
+        ld a,(de)
         cp (hl)
         jr nz,.raw
         ld hl,0
@@ -299,12 +526,12 @@ ttread:
         and TT_ECHO
         jr z,.col
         ld a,8
-        call kputc
+        call ttout
         ld a,' '
-        call kputc
+        call ttout
         ld a,8
 .xj0_42:
-        call kputc
+        call ttout
         jr .col
 .nl:    ld a,(ttycnt)
         ld hl,TTYBUF
@@ -313,7 +540,7 @@ ttread:
         ld hl,ttycnt
         inc (hl)
         ld a,10
-        call kputc
+        call ttout
         jr .done
 .eot:   ld a,(ttycnt)
         or a
@@ -359,7 +586,7 @@ ttread:
         ld a,(ttymode)
         and TT_RAW
         ld a,10
-        call z,kputc
+        call z,ttout
         ld a,EINTR
         scf
         ret
@@ -368,7 +595,12 @@ ttread:
 ; tty output. The keys have the last word.
 ; ---------------------------------------------------------------------
 ; ttwrite: 29 bytes. Put text on screen. Pixels have a tight schedule.
+; (A = the device, as ttread's)
 ttwrite:
+        IF NTTY > 1
+        call ttnum
+        call ttsel
+        ENDIF
         ld hl,(u_base)
         ld bc,(u_count)
 .l:     ld a,b
@@ -377,7 +609,7 @@ ttwrite:
         ld a,(hl)
         push hl
         push bc
-        call kputc
+        call ttout
         pop bc
         pop hl
         inc hl
@@ -388,15 +620,35 @@ ttwrite:
 .d:     ld hl,(u_count)
         jp iadv
 
+; ttout: A to the terminal in use: the console's kputc, or the platform's
+; other terminals' (ttput: A, its number in C - 1 .. NTTY-1).
+        IF NTTY > 1
+ttout:  push af
+        TTYC
+        or a
+        jr z,.k
+        ld c,a
+        pop af
+        jp ttput
+.k:     pop af
+        jp kputc
+        ELSE
+ttout   equ kputc
+        ENDIF
+
 ; kputs: 11 bytes. Print a string. The screen charges by the character.
-kputs:  ld a,(hl)
+kputs:
+        IF NTTY > 1
+        call ttself             ; z80-ux: the running process's terminal
+        ENDIF
+.l:     ld a,(hl)
         or a
         ret z
         push hl
-        call kputc
+        call ttout
         pop hl
         inc hl
-        jr kputs
+        jr .l
 
 ; ---------------------------------------------------------------------
 ;  64 x 24 text screen in a 4 x 8 font (rows 0-22 text, row 23 status)
@@ -456,12 +708,35 @@ sysgtty:
         jp sysok
 
 ; ckty: 10 bytes. HL = fsp entry → CF if it is not the terminal. Other devices need not apply.
-ckty:   ld a,(hl)
+; (z80-ux: a terminal - /dev/tty, /dev/ttyN - its line state loaded.
+; Keeps HL, DE.)
+ckty:
+        IF NTTY > 1
+        inc hl
+        ld a,(hl)
+        dec hl
+        or a
+        jr nz,.no
+        ld a,(hl)
+        cp DEV_TTY
+        jr z,.y
+        cp DEV_TTY1
+        jr c,.no
+        cp DEV_TTY1+NTTY-1
+        jr nc,.no
+.y:     call ttnum
+        call ttsel
+        or a
+        ret
+.no:
+        ELSE
+        ld a,(hl)
         dec a
         inc hl
         or (hl)
         dec hl
         ret z
+        ENDIF
         ld a,ENOTTY
         scf
         ret

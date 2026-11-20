@@ -46,6 +46,7 @@ is not a flag: it is the platform's choice of drivers (below).
 | `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
 | `NPROC` | processes at once (const.inc: 4 if unset, at most 8); more than 4 needs `HAL_PTAB` | 4 | 6 |
 | `HAL_PTAB` | the process table in the layer's own page-aligned block (`proctab`, `PTSZ` bytes: kvars.inc) rather than the kernel-variable page at 5B00h, which holds only four | — | 1 |
+| `HAL_NTTY` | terminals (const.inc: 1 if unset, at most 8): the console, then the platform's serial lines (`/dev/tty1`... from `DEV_TTY1`, its `ttput`, keys through `ttrawn`); more than 1 needs the layer's `ttyarea` (`TTSZ` bytes: kvars.inc) | — | 2 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`): `drivers/blk` over the machine's sector I/O | 0 | 1 |
 | `HAL_BLKVOL` | ZXFS volumes inside another disk format: the machine's `blkvol` (zmount asks it) | — | 0 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
@@ -137,6 +138,7 @@ layer:
 | **Keys** | a key for the kernel: `ttrawin` (A = the key); BREAK: `ttintr` — from the tick | `r48keys` (rom48: KEYBOARD, KEY-INPUT, BREAK-KEY) | `hkeys` (the link) |
 | **Time** | its interrupt handler calls the kernel's `ktick` once per tick, every register saved, interrupts off; `ktick` keeps the clock and sleepers, CPU accounting, a device's hold on the CPU, the time slice (switch now in user mode, at the call's way out in the kernel), signals for a program in user mode (may not return) | `isr` (machine.asm): `r48keys`, `s64tick` (status line, cursor), `ktick` | `tint` (WD1770), `stick` (soft clock) |
 | **Console** | `kputc` (A; the kernel's AT/INVERSE codes), `kcls`, `curon`, `curoff`; keys come back through the kernel's `ttrawin`, BREAK through `ttintr`; `stdirty` marks the status line | screen64 | the VT52 terminal (hal.asm) |
+| **Other terminals** (`HAL_NTTY` > 1) | `ttput` (A to terminal C); its keys to the kernel's `ttrawn` (A, E = the terminal), BREAK `ttintn` (E); `DEV_TTY1` and the devtab entry (`ttread`, `ttwrite`, `ttopen`) | — | `serial.asm`: the WD2123's channel A, polled (`serpoll`) |
 | **Program screen** | `sysscreen`, `scrrel`, `cstrip` (sys screen, 39) | screen64 | none: `screen.asm` refuses (a terminal) |
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
 | **Memory** | `mem_swapout` (A = slot: the window as it is becomes that slot's image), `mem_swapin` (A = slot: its image into the window) — the scheduler's lazy hand-over, fork, exec | `equ wsave`, `wload`: a copy to and from the slot's SAVE block in the arena | the same |

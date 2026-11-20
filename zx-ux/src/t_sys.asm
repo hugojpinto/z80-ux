@@ -18,8 +18,18 @@
 ; v1 init: fork a getty on the terminal, wait for it, do it again. Time does not wait for a slow branch.
 STK_INIT equ 160                ; switch frames, "/etc/init" argv, wait. The scheduler has a very small
                                 ; watch.
+        IF NTTY > 1
+IN_PID  equ U_T+2               ; z80-ux: each terminal's getty (NTTY words;
+                                ; U_T: the boot's rc, HAL_BOOTMNT)
+IN_T    equ IN_PID+2*NTTY       ; a terminal (the one being seen to)
+IN_NAME equ R_BUF               ; /dev/ttyN, built for a child
+        ASSERT IN_T < R_FD      ; (inside init's own variables)
+t_init: db 18h,6
+        dw STK_INIT, IN_NAME+10-UDATA, init_m
+        ELSE
 t_init: db 18h,6
         dw STK_INIT, U_T+2-UDATA, init_m        ; only U_T is used.
+        ENDIF
 ; init_m: 90 bytes. Start a terminal worker. And again after it leaves.
 init_m:
         ld hl,0                 ; init ignores interrupts.
@@ -70,6 +80,88 @@ init_m:
         ld hl,1
         jp exitc
         ENDIF
+        IF NTTY > 1
+; z80-ux: a getty on each terminal, started again when it ends.
+.l:     xor a
+.t:     ld (IN_T),a
+        call .pp
+        ld a,(hl)
+        inc hl
+        or (hl)
+        jr nz,.tn               ; it has one
+        call sc_fork
+        jr c,.again
+        ld a,h
+        or l
+        jr z,.child
+        ex de,hl
+        call .pp
+        ld (hl),e
+        inc hl
+        ld (hl),d
+.tn:    ld a,(IN_T)
+        inc a
+        cp NTTY
+        jr c,.t
+.w:     call sc_wait                ; any child: whose getty was it?
+        jr c,.l
+        ex de,hl
+        xor a
+.f:     ld (IN_T),a
+        call .pp
+        ld a,(hl)
+        cp e
+        jr nz,.fn
+        inc hl
+        ld a,(hl)
+        cp d
+        jr nz,.fn
+        xor a                   ; that terminal's: another getty
+        ld (hl),a
+        dec hl
+        ld (hl),a
+        jr .l
+.fn:    ld a,(IN_T)
+        inc a
+        cp NTTY
+        jr c,.f
+        jr .w
+.again: ld hl,50
+        call sc_sleep
+        jr .l
+; .pp: HL = the getty pid of terminal (IN_T)
+.pp:    ld a,(IN_T)
+        add a,a
+        ld hl,IN_PID
+        jp adda
+.child: ld hl,1
+        call sc_intr
+        ld hl,s_tty             ; the console: /dev/tty ...
+        ld a,(IN_T)
+        or a
+        jr z,.op
+        push af                 ; ... another: /dev/ttyN
+        ld de,IN_NAME
+        ld bc,s_ttyl
+        ldir
+        pop af
+        add a,'0'
+        ld (de),a
+        inc de
+        xor a
+        ld (de),a
+        ld hl,IN_NAME
+.op:    push hl
+        ld de,0
+        call sc_open                ; fd 0 (its terminal, from now on)
+        pop hl
+        push hl
+        ld de,1
+        call sc_open                ; fd 1.
+        pop hl
+        ld de,1
+        call sc_open                ; fd 2.
+        ELSE
 .l:     call sc_fork
         jr c,.again
         ld a,h
@@ -97,12 +189,15 @@ init_m:
         ld hl,s_tty
         ld de,1
         call sc_open                ; fd 2.
+        ENDIF
         ld hl,s_getty
         ld de,a_getty
         call sc_exec
         ld hl,s_initerr
         jp login_m.xj0_32  
-s_tty:  db "/dev/tty",0
+s_tty:  db "/dev/tty"
+s_ttyl  equ $-s_tty             ; (the others: this, their number)
+        db 0
 s_getty: db "/etc/getty",0
 a_getty: dw s_getty1,0
 s_getty1 equ s_getty+5          ; "getty".

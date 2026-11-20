@@ -690,7 +690,11 @@ systab:
         dw sysgetuid, sysstime, sysok, sysintr, sysfstat, sysok
         dw sysmdate, sysstty, sysgtty, sysok, syssleep, syskill
         dw sysgetpid, syszx, systicks, sysscreen, sysssxl
+        IF NTTY > 1
+        dw ttdisp               ; 41: the process's terminal, or the console's (the platform's)
+        ELSE
         dw sysdisp              ; 41: the console, a display file (the platform's)
+        ENDIF
         dw sysfp                ; 42: the float engine (the platform's)
 
 ; ---------------------------------------------------------------------
@@ -787,6 +791,18 @@ sysfork:
         ld hl,p_sig
         call addhla
         ld (hl),0
+        IF NTTY > 1
+        ld a,(cur)              ; z80-ux: the parent's terminal
+        ld hl,p_tty
+        call addhla
+        ld a,(hl)
+        push af
+        ld a,c
+        ld hl,p_tty
+        call addhla
+        pop af
+        ld (hl),a
+        ENDIF
 ; copy name for the status line.
         ld a,(cur)
         call stname

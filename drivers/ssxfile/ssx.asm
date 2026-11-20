@@ -60,6 +60,18 @@ hssx:   ld a,(ix+0)
         bit SSXB_DECL,c
         jr z,.ref
         ENDIF
+        IF NTTY > 1
+        ld a,DEV_TTY            ; started from another terminal than the
+        call ttnum              ; console: no screen there to draw on
+        or a
+        jr z,.con
+        ld hl,s_tdraw
+        bit SSXB_DECL,c
+        jr z,.ref
+        bit SSXB_DRAWS,c
+        jr nz,.ref
+.con:
+        ENDIF
         IF HAL_SCREEN == 0
         ld hl,s_draws           ; a screen to draw on
         bit SSXB_DECL,c
@@ -87,6 +99,9 @@ hssx:   ld a,(ix+0)
         ret
 .ref:   call kputs
         jr .nx
+        IF NTTY > 1
+s_tdraw: db "this program draws: it needs the screen, not a terminal",10,0
+        ENDIF
         IF HAL_ROM48K == 0
 s_rom:  db "this program needs the 48K ROM",10,0
         ENDIF

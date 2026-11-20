@@ -17,10 +17,12 @@ mem_swapout  equ wsave          ; a process window: copied to and from
 mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 
 ; --- optional subsystems
+HAL_NTTY     equ 2              ; terminals: the console, /dev/tty1 (serial.asm)
+DEV_TTY1     equ 3              ; /dev/tty1's device number
 HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)
 HAL_ROM48K   equ 0              ; no 48K ROM: programs built for it are refused
 HAL_SEQDEV   equ 0              ; sequential devices: none (no cassette)
-        DEFINE HAL_DEVFILES "tty:1 mem:2 fd0:8 fd1:9 fd2:10 fd3:11"  ; /dev (build.py)
+        DEFINE HAL_DEVFILES "tty:1 mem:2 tty1:3 fd0:8 fd1:9 fd2:10 fd3:11"  ; /dev (build.py)
 HAL_BLKVOL   equ 0              ; ZXFS volumes: at sector 0, or the boot sector's "FS"
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
 HAL_SSXFILE  equ 1              ; ssx.asm, /etc/ldx's file part
@@ -41,6 +43,7 @@ HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are
         call hinit              ; restart vectors, IM 1, drives idle (hal.asm).
         ENDM
         MACRO HAL_START
+        call serinit            ; the serial terminal's UART (serial.asm).
         call tinit              ; the 50 Hz clock from the WD1770 (tmr.asm).
         ENDM
         MACRO HAL_IDLE

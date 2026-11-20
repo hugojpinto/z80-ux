@@ -22,7 +22,7 @@ BUILDS = [
     ('build', ['fdd3000/tools/build.py']),
     ('libux', ['sdk/bin/py/libux/build.py']),
 ]
-FDD = ['fd', 'zfs', 'boot', 'ssx', 'tmr', 'bound', 'fsmod', 'tfs', 'kinds', 'basic']
+FDD = ['fd', 'zfs', 'boot', 'ssx', 'tmr', 'bound', 'fsmod', 'tfs', 'kinds', 'basic', 'tty']
 SUITES = [
     ('spectrum/golden', ['test/spectrum/golden.py', 'check'], False),
     ('spectrum/kinds', ['test/spectrum/kinds.py'], False),

@@ -8,6 +8,20 @@
 ; =====================================================================
 ;  kernel globals - live in the ZX printer buffer (5B00-5BFF)
 ; =====================================================================
+; z80-ux: terminals - the console (0) and the platform's others (HAL_NTTY;
+; 1 if unset).  Each its own key ring (ttrawn) and line state; the line
+; state of the one in use (ttyc) is in the variables below (ttymode,
+; ttycnt, ttypos, ttyrdy, ttat, ttcc, ttp1, TTYBUF), the others' saved
+; (ttsel swaps).  With more than one, their rings, saved states and the
+; processes' terminals are in the layer's block ttyarea (TTSZ bytes).
+        IF EXIST HAL_NTTY
+NTTY    equ HAL_NTTY
+        ELSE
+NTTY    equ 1
+        ENDIF
+        ASSERT NTTY >= 1 && NTTY <= 8
+TTRING  equ 32                  ; a key ring (a power of two)
+
 ; z80-ux: the process table, NPROC slots (const.inc: the platform's), at
 ; PTBASE - KV here, as on the Spectrum, for four; a platform with more
 ; gives it a page-aligned block of its own (HAL_PTAB 1: the label proctab,
@@ -52,8 +66,10 @@ wown    equ KV+98       ; Window owner. Only one renter at a time.
 scrown  equ KV+99       ; Screen owners. The pixels run a shared flat.
 fticks  equ KV+100      ; Frame counter. Fifty ticks, no refunds.
 a_dst   equ KV+102      ; Next compaction spot. No parking sideways.
+        IF NTTY == 1
 ttyhd   equ KV+104      ; ISR writes the raw-key head. Queue starts here.
 ttytl   equ KV+105      ; Raw-key tail. The queue ends here.
+        ENDIF
 ttymode equ KV+106      ; Terminal settings. Keys follow house rules.
 ttycnt  equ KV+107      ; Characters in a line. No overflow seating.
 ttypos  equ KV+108      ; Next line character. The queue moves along.
@@ -94,7 +110,20 @@ ZLO3    equ TTYBUF+TTYBSZ ; 17 between the tty line and KARGS.
 
 ; second kernel data area in the dead BASIC / IF1 area. Ticks are not a savings account.
 KV2     equ 05CEBh
+        IF NTTY == 1
 ttyring equ KV2+0       ; 32 keys of waiting room. Please form a line.
+        ELSE
+TTSV    equ 4+3+TTYBSZ  ; a terminal's line state: ttymode .. ttyrdy, ttat
+                        ; .. ttp1, TTYBUF
+ttyhd   equ ttyarea             ; NTTY ring heads (the ISR's side)
+ttytl   equ ttyhd+NTTY          ; ... tails
+ttyring equ ttytl+NTTY          ; ... rings, TTRING keys each
+ttsave  equ ttyring+NTTY*TTRING ; ... line states, TTSV each
+p_tty   equ ttsave+NTTY*TTSV    ; each process's terminal (inherited at fork)
+p_ttr   equ p_tty+NPROC         ; ... the one it is reading (ttgetc)
+ttyc    equ p_ttr+NPROC         ; the terminal whose line state is loaded
+TTSZ    equ ttyc+1-ttyarea      ; ttyarea's size, for the layer
+        ENDIF
         IF PTOWN
 stline  equ PTEND       ; the names, with the table (STNAME bytes a slot)
 PTSZ    equ PTEND - p_stat + NPROC*STNAME   ; proctab's size, for the layer

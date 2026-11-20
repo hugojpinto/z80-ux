@@ -50,6 +50,7 @@ IDLECOST equ (IDLEDLY*13+170)/16 ; ... plus the key poll and the count.
 
         org HALBASE
 proctab: ds PTSZ                ; the process table (kvars.inc): a page's start
+ttyarea: ds TTSZ                ; the terminals' rings and line states (kvars.inc)
 halstart:
 
 ; ---------------------------------------------------------------------
@@ -550,20 +551,23 @@ hkeys0: in a,(LINK)
         call lrecv
         ld hl,kgot
         ld (hl),h               ; (non-zero: kidle returns)
-        cp 03h
-        jp z,ttintr
+        ld e,0                  ; the console's: terminal 0
+; hkey: a VT52 terminal's key A, for terminal E: ^C its BREAK, the rest
+; as the kernel takes them (keytab).  The console's; the serial one's.
+hkey:   cp 03h
+        jp z,ttintn
         ld hl,keytab
 .k:     ld c,(hl)
         inc c
         dec c
-        jp z,ttrawin
+        jp z,ttrawn
         inc hl
         cp c
         ld c,(hl)
         inc hl
         jr nz,.k
         ld a,c
-        jp ttrawin
+        jp ttrawn
 keytab: db 0Dh,0Dh, 0Ah,0Dh, 08h,0Ch, 7Fh,0Ch, 1Bh,07h, 04h,07h, 0
 
 ; ---------------------------------------------------------------------
@@ -578,6 +582,7 @@ kpoll:  push hl
         push de
         push bc
         call hkeys
+        call serpoll            ; ... and the serial terminal's
         ld hl,SYSCOST
         call htime
         pop bc
@@ -593,6 +598,7 @@ kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
         jr z,.soft
         ei
         halt
+        call serpoll
         jp hkeys
 .soft:  ld hl,ZCOST
         call htime
@@ -600,6 +606,7 @@ kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
         ld (ksnap),a
 .l:     xor a
         ld (kgot),a
+        call serpoll
         call hkeys
         ld a,(kgot)
         or a
@@ -618,6 +625,7 @@ kidle:  ld a,(tmron)            ; the WD1770 clock runs: wait for its tick,
 ; that wakes a reader makes zpoll stop the packing.  Keeps BC, DE.
 hzpoll: push bc
         push de
+        call serpoll
         call hkeys
         ld hl,ZPCOST
         call htime
@@ -673,12 +681,16 @@ devtab: db DEV_TTY, DEV_TTY
         db DEV_MEM, DEV_MEM
         dw memrd, memwr, 0
         db 0
+        db DEV_TTY1, DEV_TTY1           ; /dev/tty1: the serial terminal (serial.asm)
+        dw ttread, ttwrite, ttopen
+        db 0
         db DEV_FD0, DEV_FD0+NDRV-1      ; /dev/fd0-3 (fd.asm)
         dw fdread, fdwrite, hdopen
         db 0
         db 0
 kclick  equ hret                ; no key click: port FEh is the drive latch
 
+        include "serial.asm"    ; the second terminal, the WD2123.
         include "fd.asm"        ; the floppy disk driver.
         include "blk.asm"       ; ... its cache and devices (drivers/blk).
         include "vfs.asm"       ; mounted file systems ...

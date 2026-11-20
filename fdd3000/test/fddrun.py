@@ -94,6 +94,68 @@ class FDC(machine.FDC):
         return super().read_data()
 
 
+class WD2123:
+    """One channel of the FDD3000's WD2123 dual UART, an 8251 as TOS drives
+    it: after a reset (or a command with bit 6, an internal reset) the
+    control port takes a mode byte, then commands (bit 0 transmit on,
+    2 receive on, 4 errors cleared, 5 RTS); status: bit 0 a byte may be
+    sent, 1 one has come, 3-5 parity / overrun / framing, 7 DSR (the far
+    end there).  The rate generator takes a code of the WD1943 ladder.
+    The far end: bytes in `keys` come one a character time apart, while
+    RTS is up (a terminal honouring it); one not read before the next
+    comes is overrun.  Bytes sent collect in `out`."""
+
+    RATES = (50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2000, 2400, 3600, 4800,
+             7200, 9600, 19200)
+    OE = 0x10
+
+    def __init__(self, m):
+        from collections import deque
+        self.m = m
+        self.keys = deque()
+        self.out = bytearray()
+        self.rate = None
+        self.moded = False
+        self.cmd = 0
+        self.rx = None
+        self.err = 0
+        self.due = 0
+
+    def control(self, v):
+        if not self.moded:
+            self.moded = True               # the mode byte
+            return
+        if v & 0x40:                        # internal reset: a mode byte next
+            self.moded = False
+            self.cmd = 0
+            return
+        self.cmd = v
+        if v & 0x10:
+            self.err = 0
+
+    def status(self):
+        return (0x80 | (1 if self.cmd & 1 else 0) | (2 if self.rx is not None else 0)
+                | self.err)
+
+    def read(self):
+        v, self.rx = self.rx, None
+        return 0 if v is None else v
+
+    def write(self, v):
+        if self.cmd & 1:
+            self.out.append(v)
+
+    def tick(self, t):
+        if not self.keys or self.rate is None or not (self.cmd & 0x04) or not (self.cmd & 0x20):
+            return
+        if t < self.due:
+            return
+        if self.rx is not None:
+            self.err |= self.OE             # not read in time
+        self.rx = self.keys.popleft()
+        self.due = t + int(HZ * 10 / self.RATES[self.rate])
+
+
 class FDDUX(machine.Machine):
     """The FDD3000 with a terminal on its link."""
 
@@ -102,17 +164,34 @@ class FDDUX(machine.Machine):
         super().__init__(drives, max_instr=1 << 62)
         self.fdc = FDC(self)
         self.link = Link()
+        self.uart = (WD2123(self), WD2123(self))   # channels A (80h), B (40h)
         self.tstates = 0
         self.stopped = None
+
+    # The WD2123 (TOS's channel descriptors): channel A at 80h-9Fh, B at
+    # 40h-5Fh (A0: data 0, control/status 1), the rate generator at 00h-1Fh
+    # (A0: the channel).
+    UART_GROUP = {0x80: 0, 0x40: 1}
 
     def port_in(self, port):
         if port & 0xE0 == 0x20:
             return (0x80 if self.fdc.drq else 0) | self.link.read()
+        u = self.UART_GROUP.get(port & 0xE0)
+        if u is not None:
+            ch = self.uart[u]
+            return ch.status() if port & 1 else ch.read()
         return super().port_in(port)
 
     def port_out(self, port, v):
         if port & 0xFF == 0x2F:
             self.link.write(v)
+            return
+        u = self.UART_GROUP.get(port & 0xE0)
+        if u is not None:
+            ch = self.uart[u]
+            ch.control(v) if port & 1 else ch.write(v)
+        elif port & 0xE0 == 0x00:
+            self.uart[port & 1].rate = v & 0x0F
         else:
             super().port_out(port, v)
 
@@ -156,6 +235,8 @@ class FDDUX(machine.Machine):
                     sp0 = c.sp
                     ops[op]()
                     self.tstates += _tstates(m, pc, op, c.pc, c, sp0)
+            for ch in self.uart:
+                ch.tick(self.tstates)
             if len(link.out) != nout:
                 nout, last_out = len(link.out), self.tstates
             elif quiet and not link.keys and self.tstates - last_out > quiet * HZ:

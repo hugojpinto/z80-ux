@@ -39,7 +39,7 @@ Every build runs this gate.
 **The kernel sources (`zx-ux/src`)** are shared by every machine and no
 longer name one: what a machine does differently is a capability or a
 hook its `platform/<machine>/platform.inc` sets (`platform/README.md`).
-Fourteen files differ from upstream's. The changes:
+Sixteen files differ from upstream's. The changes:
 - the machine out of the kernel: the Spectrum's keyboard, screen, ROM and
   tape into drivers (`drivers/rom48`, `drivers/screen64`); a device table
   (`devtab`) for the devices, with their kinds (sector devices
@@ -56,12 +56,18 @@ Fourteen files differ from upstream's. The changes:
   whether it needs the 48K ROM - the kernel refuses what the machine
   cannot give (`HAL_ROM48K`, `HAL_SCREEN`);
   a raw terminal read that does not wait (`TT_NOWAIT`);
+- processes and terminals: the process table sized by the platform
+  (`NPROC`, at most 8: 4 on the Spectrum, 6 on the FDD3000 and the
+  TC3256); several terminals (`HAL_NTTY`): each its own line discipline,
+  a controlling terminal per process, `/dev/tty1` and up, a `getty` on
+  each from `init` (the FDD3000's second, its RS-232 port:
+  `platform/terminals.md`);
 - the resident programs: placed in whatever free places the machine has
   (`build.py place()`), and the few lines they share with programs a
   machine leaves out (`tar` without a cassette) made independent of them.
 
 **The Spectrum build of this tree is no longer the shipped tape byte for
-byte** (kernel 7,523 bytes, 10,736 free in the arena). It is held to
+byte** (kernel 7,544 bytes, 10,704 free in the arena). It is held to
 **behaving** as the shipped tape does: `test/spectrum/golden.py` replays
 sessions recorded on `ZX-UX.tzx` (shell, files, processes, `zxpack`,
 `vi`, `tar` on the cassette, SDK programs from the cassette) and compares
