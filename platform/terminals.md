@@ -27,8 +27,22 @@ Design agreed 2026-11-20; being built in this order:
    `fdd3000/test/fddrun.py` (`fdd3000/test/test_tty.py`: a login on each
    terminal, echo, BREAK on one leaving the other's processes, a drawing
    program refused on `tty1`).
-3. **VT52 on `tty1`**: the FDD3000's console-code-to-VT52 translation
-   moved out of its layer into a shared driver.
+3. **VT52 on `tty1`** - done: the FDD3000 console's translation of the
+   kernel's console codes (AT, INVERSE, clear, new line, TAB, wrapping
+   at column 64) moved out of its layer into `drivers/vt52` (`vtputc`;
+   its keys, `vtkey`: ^C the BREAK, CR/LF ENTER, BS/DEL DELETE, ESC/^D
+   EDIT). It writes to whichever terminal is in use through the
+   platform's `ttput` (A, as it is, to terminal C); the position (`trow`,
+   `tcol`) is part of a terminal's line state, swapped by `ttsel`. The
+   kernel's `ttout` sends every terminal but the console through it; the
+   FDD3000's console is the same driver (`kputc equ vtputc`, its bytes
+   over the link). The serial line's time goes on the FDD3000's soft
+   clock (`SERCOST`, from the baud rate). The layer's unused shared
+   bottom rows (`clbuf`: nothing sets `ttop` on a machine without a
+   screen) went with it: 200 bytes back. `test_tty` checks `top` on
+   `tty1` (ESC H ESC J, ESC Y, no Spectrum codes on the line) and a long
+   line wrapping at its own terminal's column 64 while the console types
+   in the middle of it.
 4. **Programs that draw, started from `tty1`, are refused** - done with
    step 2 (`drivers/ssxfile/ssx.asm`: a process whose terminal is not the
    console is refused a program that declares no kind or a drawing one).

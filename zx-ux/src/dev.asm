@@ -284,7 +284,8 @@ ttflsn: push bc
 
         IF NTTY > 1
 ; ttsel: terminal A's line state in the variables (the one there saved):
-; ttymode .. ttyrdy, ttat .. ttp1, TTYBUF.  Keeps BC, DE, HL.
+; ttymode .. ttyrdy, ttat .. ttp1, trow and tcol, TTYBUF.  Keeps BC, DE,
+; HL.
 ttsel:  push hl
         ld hl,ttyc
         cp (hl)
@@ -322,6 +323,9 @@ ttsel:  push hl
         call .xb
         ld hl,ttat
         ld b,3
+        call .xb
+        ld hl,trow
+        ld b,2
         call .xb
         ld hl,TTYBUF
         ld b,TTYBSZ
@@ -369,7 +373,7 @@ ttopen: push hl
 ; says to it: kputs).
 ttself: ld a,DEV_TTY
         call ttnum
-        jr ttsel
+        jp ttsel
 
 ; ttdisp: system call 41 (the platform's sysdisp) - a process whose
 ; terminal is not the console is told of a terminal: D = 0 (no display
@@ -620,16 +624,15 @@ ttwrite:
 .d:     ld hl,(u_count)
         jp iadv
 
-; ttout: A to the terminal in use: the console's kputc, or the platform's
-; other terminals' (ttput: A, its number in C - 1 .. NTTY-1).
+; ttout: A to the terminal in use: the console's kputc, or for the
+; others, VT52s, drivers/vt52's vtputc (the platform's ttput below it).
         IF NTTY > 1
 ttout:  push af
         TTYC
         or a
         jr z,.k
-        ld c,a
         pop af
-        jp ttput
+        jp vtputc
 .k:     pop af
         jp kputc
         ELSE
@@ -746,6 +749,7 @@ ENOTTY  equ 25
 ; program's BEEP uses). The clock keeps counting while we argue.
 trow    equ MEMBOT+8            ; print position: row (trow, tcol adjacent).
 tcol    equ MEMBOT+9            ; column 0-63.
+        ASSERT tcol == trow+1   ; (ttsel swaps them as a pair)
 tinv    equ MEMBOT+10           ; F0h: INVERSE 1.
 cvis    equ MEMBOT+11           ; cursor wanted (waiting for a key). One keystroke, one chance to behave.
 cdrawn  equ MEMBOT+12           ; cursor is on the screen.

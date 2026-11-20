@@ -21,6 +21,9 @@ SER_CTL  equ 81h
 SER_RGEN equ 10h                ; its rate generator
 SER_MODE equ 4Eh                ; 8 bits, no parity, 1 stop bit, x16 clock
 SER_RATE equ 0Eh                ; 9600 baud: the WD1943 ladder's code (TOS page 3)
+SER_BAUD equ 9600               ; ... the speed it is
+SERCOST  equ FDDHZ*10/SER_BAUD/16 ; a byte's time on the line (10 bits), in
+                                ; the soft clock's units (hal.asm)
 SER_IRES equ 47h                ; an internal reset (the mode byte next)
 SER_ON   equ 37h                ; transmit, receive, DTR, RTS on; errors cleared
 SER_TXRDY equ 01h               ; status: a byte may be sent ...
@@ -44,7 +47,8 @@ serinit: xor a
         ret
 
 ; serpoll: a byte from the terminal, if one has come: to terminal 1's
-; ring (hkey: mapped as the console's, ^C its BREAK).  Uses A, BC, DE, HL.
+; ring (vtkey: mapped as the console's, ^C its BREAK); kgot set, so that
+; kidle returns.  Uses A, BC, DE, HL.
 serpoll: in a,(SER_CTL)
         bit 1,a                 ; SER_RXRDY
         ret z
@@ -55,16 +59,14 @@ serpoll: in a,(SER_CTL)
         in a,(SER_DATA)
         ret
 .ok:    in a,(SER_DATA)
+        ld hl,kgot
+        ld (hl),h
         ld e,1
-        jp hkey
+        jp vtkey
 
-; ttput: A to terminal C (1: this channel): a new line as CR LF; waits
-; while the UART cannot take a byte (the terminal's CTS), so long.
-ttput:  cp 10
-        jr nz,serout
-        ld a,13
-        call serout
-        ld a,10
+; serout: A to the terminal (hal.asm's ttput, vt52.asm's bytes); waits
+; while the UART cannot take a byte (the terminal's CTS), so long; the
+; byte's time goes on the clock.  Keeps BC, DE, HL.
 serout: push bc
         push af
         ld bc,SER_WAIT
@@ -80,4 +82,10 @@ serout: push bc
 .go:    pop af
         out (SER_DATA),a
         pop bc
+        push de
+        push hl
+        ld hl,SERCOST
+        call htime
+        pop hl
+        pop de
         ret

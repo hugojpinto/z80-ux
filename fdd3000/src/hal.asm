@@ -124,8 +124,11 @@ hbeep:  push af
         jr c,.x
         ld a,(fticks)
         ld (hl),a
+        IF NTTY > 1
+        call ttself             ; the program's own terminal
+        ENDIF
         ld a,7
-        call hout
+        call vtputc
 .x:     pop hl
         pop af
         ret
@@ -318,205 +321,19 @@ lrecv0: call .get
         ret
 
 ; ---------------------------------------------------------------------
-; The console: kputc's language on a VT52.  ZX-UX writes 64 columns and
-; 23 text rows; the terminal has 80 x 24, so the text keeps its Spectrum
-; geometry (lines wrap at column 64) and AT row,col lands where it did.
-;   16h AT r,c  -> ESC Y r+32 c+32      14h INVERSE n -> ESC L / ESC M
-;   0Ch (cls)   -> ESC H ESC J          0Ah -> CR LF     08h, 07h as they are
-;   09h TAB to the next column of 8     7Fh (the Spectrum's (c)) -> "(c)"
+; The console: a VT52 (drivers/vt52: kputc's language translated), its
+; bytes over the link.
 ; ---------------------------------------------------------------------
-; hputc: A = a character or a control (kputc).  Keeps every register.
-hputc:  push hl
-        push de
-        push bc
-        push af
-        call cstrip             ; the screen's owner: its console text is
-        jp nz,hputc.x           ; not shown (as on the Spectrum)
-        pop af
-        push af
-        ld hl,ttat
-        inc (hl)
-        dec (hl)
-        jr nz,.prm
-        cp 16h                  ; AT row,col.
-        jr z,.at
-        cp 14h                  ; INVERSE n.
-        jr z,.inv
-        cp 10h                  ; INK, PAPER, BRIGHT n: no colour on the
-        jr z,.inv               ; terminal - taken, and dropped
-        cp 11h
-        jr z,.inv
-        cp 13h
-        jr z,.inv
-        cp 10
-        jr z,.nl
-        cp 9
-        jr z,.tab
-        cp 8
-        jr z,.bs
-        cp 12
-        jr z,.ff
-        cp 7
-        jr z,.raw
-        cp 7Fh
-        jr z,.copy
-        jr nc,.x
-        cp 20h
-        call nc,hcol
-.x:     pop af
-        pop bc
-        pop de
-        pop hl
-        ret
-.nl:    call hnl
-        jr .x
-.ff:    call hcls
-        jr .x
-.raw:   call hout
-        jr .x
-.bs:    ld hl,tcol
-        ld a,(hl)
-        or a
-        jr z,.x
-        dec (hl)
-        ld a,8
-        jr .raw
-.tab:   ld a,' '
-        call hcol
-        ld a,(tcol)
-        and 7
-        jr nz,.tab
-        jr .x
-.copy:  ld hl,s_copy
-.cp:    ld a,(hl)
-        or a
-        jr z,.x
-        call hcol
-        inc hl
-        jr .cp
-.at:    ld (hl),2
-        jr .ctl
-.inv:   ld (hl),1
-.ctl:   ld (ttcc),a
-        jr .x
-.prm:   dec (hl)                ; a parameter byte.
-        jr z,.pend
-        ld (ttp1),a
-        jr .x
-.pend:  ld c,a
-        ld a,(ttcc)
-        cp 16h
-        jr z,.pat
-        cp 14h
-        jr nz,.x                ; (INK, PAPER, BRIGHT)
-        ld a,c                  ; INVERSE 0/1: bit 0.
-        rrca
-        ld a,'M'
-        jr nc,.esc
-        ld a,'L'
-.esc:   call hesc
-        jr .x
-.pat:   ld a,(ttp1)             ; AT: text rows and columns only.
-        cp TROWS
-        jr nc,.x
-        ld b,a
-        ld a,c
-        cp 64
-        jr nc,.x
-        ld (tcol),a
-        ld a,b
-        ld (trow),a
-        ld a,'Y'
-        call hesc
-        ld a,b
-        add a,32
-        call hout
-        ld a,c
-        add a,32
-        jr .raw
-s_copy: db "(c)",0
-
-; hcol: print A in the next column; wrap after column 63.
-hcol:   ld c,a
-        ld a,(ttop)
-        or a
-        ld a,c
-        jr z,.t
-        ld a,(tcol)             ; console shared: row 22, by address,
-        ld hl,clbuf             ; and kept for its move to row 21
-        call addhla
-        ld (hl),c
-        call hc22
-        ld a,c
-.t:     call hout
-        ld hl,tcol
-        inc (hl)
-        ld a,(hl)
-        cp 64
-        ret c
-; hnl: a new line.
-hnl:    ld a,(ttop)
-        or a
-        jr z,.t
-        ld a,'Y'                ; console shared: rows 21-22 scroll
-        call hesc
-        ld a,21+32
-        call hout
-        ld a,32
-        call hout
-        ld hl,clbuf
-        ld a,(tcol)
-        or a
-        jr z,.e
-        ld b,a
-.c:     ld a,(hl)
-        call hout
-        inc hl
-        djnz .c
-.e:     ld a,'K'
-        call hesc
-        xor a
-        ld (tcol),a
-        call hc22
-        ld a,'K'
-        jp hesc
-.t:     xor a
-        ld (tcol),a
-        ld hl,trow
-        ld a,(hl)
-        cp TROWS-1
-        jr nc,.b
-        inc (hl)
-.b:     ld a,13
-        call hout
-        ld a,10
-        jr hout
-; hc22: the cursor to row 22, column tcol (the shared console's line).
-hc22:   ld a,'Y'
-        call hesc
-        ld a,22+32
-        call hout
-        ld a,(tcol)
-        add a,32
-        jp hout
-
 ; cstrip: Z: console output may go to the terminal - always: no process
 ; owns a screen here (screen.asm).
 cstrip: xor a
         ret
 
-; hcls: clear the terminal, home the cursor.
-hcls:   xor a
-        ld (tcol),a
-        ld (trow),a
-        ld a,'H'
-        call hesc
-        ld a,'J'
-; hesc: ESC, then A.
-hesc:   push af
-        ld a,1Bh
-        call hout
-        pop af
+; ttput: A to terminal C as it is (vt52.asm): 0 the console, over the
+; link; 1 the serial terminal (serial.asm).  Keeps BC, DE, HL.
+ttput:  inc c
+        dec c
+        jp nz,serout
 ; hout: A to the terminal; the time it takes goes on the clock.
 hout:   push bc
         push de
@@ -530,11 +347,8 @@ hout:   push bc
         ret
 
 ; ---------------------------------------------------------------------
-; Keys.  The terminal keeps a key until the FDD asks for it.  Its codes
-; become the ones ZX-UX's line discipline knows (dev.asm ttrawin):
-;   CR, LF -> 0Dh ENTER     BS, DEL -> 0Ch DELETE
-;   ESC, ^D -> 07h (EDIT: vi's escape, end of file on a line)
-;   ^C -> BREAK: every live process gets the interrupt (ttintr).
+; Keys.  The terminal keeps a key until the FDD asks for it; vt52.asm's
+; vtkey maps it (^C the BREAK).
 ; ---------------------------------------------------------------------
 ; hkeys: take a key if the terminal has one.  Uses A, BC, DE, HL.  The
 ; whole of it holds lbusy: a tick must not take the key it has seen.
@@ -552,23 +366,7 @@ hkeys0: in a,(LINK)
         ld hl,kgot
         ld (hl),h               ; (non-zero: kidle returns)
         ld e,0                  ; the console's: terminal 0
-; hkey: a VT52 terminal's key A, for terminal E: ^C its BREAK, the rest
-; as the kernel takes them (keytab).  The console's; the serial one's.
-hkey:   cp 03h
-        jp z,ttintn
-        ld hl,keytab
-.k:     ld c,(hl)
-        inc c
-        dec c
-        jp z,ttrawn
-        inc hl
-        cp c
-        ld c,(hl)
-        inc hl
-        jr nz,.k
-        ld a,c
-        jp ttrawn
-keytab: db 0Dh,0Dh, 0Ah,0Dh, 08h,0Ch, 7Fh,0Ch, 1Bh,07h, 04h,07h, 0
+        jp vtkey
 
 ; ---------------------------------------------------------------------
 ; Time.  No interrupt counts the frames, so the kernel counts them: a
@@ -663,14 +461,14 @@ stick:  push bc
 ; the kernel's console interface (dev.asm): the terminal
 ; ---------------------------------------------------------------------
 ;  FDD3000: the console is the Timex terminal (VT52) on the link, so
-;  kputc and kcls are hal.asm's hputc and hcls (AT and INVERSE become
-;  ESC Y and ESC L / M).  The terminal draws its own cursor.
+;  kputc and kcls are drivers/vt52's vtputc and vtcls (AT and INVERSE
+;  become ESC Y and ESC L / M).  The terminal draws its own cursor.
 ; ---------------------------------------------------------------------
-kputc   equ hputc
+kputc   equ vtputc
 curon   equ hret
 curoff  equ hret
 ; kcls: 6 bytes. Clear the terminal; setdirty shares the tail.
-kcls:   call hcls
+kcls:   call vtcls
         ld a,1
 .xj0_0: ld (stdirty),a
         ret
@@ -690,6 +488,7 @@ devtab: db DEV_TTY, DEV_TTY
         db 0
 kclick  equ hret                ; no key click: port FEh is the drive latch
 
+        include "vt52.asm"      ; the terminals' language (drivers/vt52).
         include "serial.asm"    ; the second terminal, the WD2123.
         include "fd.asm"        ; the floppy disk driver.
         include "blk.asm"       ; ... its cache and devices (drivers/blk).
@@ -710,7 +509,6 @@ latsh:  db LATIDLE              ; the drive latch, which cannot be read.
 lchr:   db 0                    ; the character being sent.
 lbusy:  db 0                    ; the link's users (lsend, lrecv, hkeys)
 kgot:   db 0                    ; hkeys took a key.
-clbuf:  ds 64                   ; the shared console's line (cstrip)
 ksnap:  db 0                    ; kidle: fticks when it began.
 lbeep:  db -BEEPGAP             ; hbeep: fticks at the last bell
 

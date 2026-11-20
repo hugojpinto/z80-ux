@@ -113,8 +113,8 @@ KV2     equ 05CEBh
         IF NTTY == 1
 ttyring equ KV2+0       ; 32 keys of waiting room. Please form a line.
         ELSE
-TTSV    equ 4+3+TTYBSZ  ; a terminal's line state: ttymode .. ttyrdy, ttat
-                        ; .. ttp1, TTYBUF
+TTSV    equ 4+3+2+TTYBSZ ; a terminal's line state: ttymode .. ttyrdy,
+                        ; ttat .. ttp1, trow and tcol (dev.asm), TTYBUF
 ttyhd   equ ttyarea             ; NTTY ring heads (the ISR's side)
 ttytl   equ ttyhd+NTTY          ; ... tails
 ttyring equ ttytl+NTTY          ; ... rings, TTRING keys each

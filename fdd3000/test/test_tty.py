@@ -14,7 +14,13 @@ Checked:
     console's (a sleep there still running, as ps shows);
   - an SDK program (hello, from /mnt/a/bin) runs on the serial terminal;
   - a program that draws (mandel, the bitmap kind, from drive B), started
-    there, is refused: its terminal has no screen.
+    there, is refused: its terminal has no screen;
+  - the serial terminal speaks VT52 (drivers/vt52, step 3): top's clear
+    screen and AT 0,0 arrive as ESC H ESC J and ESC Y, no Spectrum codes
+    (0Ch, 16h) on the line, and its table is where AT put it;
+  - each terminal keeps its own column: a line typed on the serial
+    terminal with the console typing in the middle of it wraps at column
+    64 of its own, and the console's line is whole.
 """
 import os
 import subprocess
@@ -87,6 +93,29 @@ def main():
     t = serial('/mnt/b/mandel\r')
     check('needs the screen, not a terminal' in t or 'needs a screen' in t,
           'mandel from the serial terminal was not refused: %r' % t)
+    n = len(ser.out)                             # top: VT52, not Spectrum codes
+    serial('top\r', settle=6.0)
+    serial('\x03', settle=2.0)
+    raw = bytes(ser.out[n:])
+    check(b'\x1bH\x1bJ' in raw, 'top on the serial terminal: no ESC H ESC J (clear): %r' % raw[:80])
+    check(b'\x1bY  ' in raw, 'top on the serial terminal: no ESC Y for AT 0,0: %r' % raw[:80])
+    check(not any(c in raw for c in b'\x0c\x16\x14'), 'Spectrum codes on the serial line: %r' % raw[:80])
+    shown = fddrun.vt52(raw.decode('latin-1')).split('\n')
+    check(any('PID' in line for line in shown[:4]), 'top\'s table not at the top: %r' % shown[:6])
+    serial('\r', settle=1.0)
+    m.type('\x03', settle=2.0)                   # the console's sleep: its own ^C
+    n = len(ser.out)                             # each terminal its own column
+    long = 'y' * 70
+    serial('echo ' + long[:30], settle=0.5)
+    m.type('echo half', settle=0.5)
+    serial(long[30:] + '\r', settle=2.0)
+    m.type('way\r')
+    lines = fddrun.vt52(bytes(ser.out[n:]).decode('latin-1')).split('\n')
+    check('y' * 64 in lines and 'y' * 6 in lines,
+          'the serial terminal did not wrap its 70 y at its own column 64: %r' % lines)
+    shown = fddrun.vt52(m.screen()).split('\n')
+    check('# echo halfway' in shown and 'halfway' in shown,
+          'the console\'s line was broken by the serial terminal\'s: %r' % shown[-4:])
     print(bytes(ser.out).decode('latin-1')[-600:])
     if m.stopped is not None:
         fails.append('the FDD3000 halted at %04X' % m.stopped)
