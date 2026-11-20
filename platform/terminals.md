@@ -16,7 +16,10 @@ Design agreed 2026-11-20; being built in this order:
    (`p_tty`: inherited at fork, set by opening `/dev/ttyN`) and the one
    it reads (`p_ttr`); `/dev/tty` is a process's own terminal,
    `/dev/tty1` (`DEV_TTY1`) and up the others. BREAK on a terminal
-   (`ttintn`) signals only its processes. Output goes through `ttout`:
+   (`ttintn`) signals only its processes; a key wakes only its
+   terminal's readers (a wait channel each: `WC_TTY`, `WC_TTY1` - 1 + n
+   - not every terminal's, which cost two process switches, window
+   copies with interrupts off, a key). Output goes through `ttout`:
    the console's `kputc`, or the platform's `ttput` (A, C = the
    terminal); keys come in through `ttrawn` (A, E = the terminal). System
    call 41 (`ttdisp`) tells a process on a terminal it has no display
@@ -58,15 +61,19 @@ Design agreed 2026-11-20; being built in this order:
      worked around the frame: `ttput` queues (32 bytes); the interrupt,
      first thing, sends up to two (8-N-1) while CTS is up (`RS_TXFR`,
      from the frame's 69,888 T-states less a budget for the rest of the
-     interrupt, measured at ~4,600); a full queue waits for the frame,
-     or drops with CTS down - no terminal there never hangs the system.
-     It listens only when idle (`HAL_IDLE`: `rsidle`), after a frame that
-     sent nothing: the line idle with RTS down (an unconnected line
+     interrupt, measured at ~4,600) - none in a frame that also draws
+     the console's status line (`stdirty`: ~56,000 T-states, measured;
+     `RS_TXFRS`); a full queue waits for the frame, or drops with CTS
+     down - no terminal there never hangs the system. It listens only
+     when idle (`HAL_IDLE`: `rsidle`), after a frame that sent nothing
+     and drew no status line: the line idle with RTS down (an unconnected line
      reads SPACE: no listening), RTS up, the first SPACE a start bit, for
      as long as a byte still ends before the next frame; then RTS down -
      a terminal honouring CTS per character holds its next byte. Typing
      comes in at ~12 characters a second (one a frame, the echo the
-     next); output at ~100. 1,168 bytes of arena (17,926 left). Tested
+     next); output at ~100. 1,168 bytes of arena (17,442 left since,
+     with the keyboard queue of the link's cut-short interrupt:
+     `platform/tc3256.md` §7). Tested
      in Fuse (`tc3256/test/test_tty.py`, `tc3256run.run_serial`: the
      fork's `FUSE_RS232_OUT`, `_IN`, `_TRACE`; a line sent once the
      prompt is out): login, echo, `hello`, ^C, `top` in VT52, and the

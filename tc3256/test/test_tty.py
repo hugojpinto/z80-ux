@@ -15,14 +15,18 @@ come out).  Checked:
   - the clock keeps time while the line is busy (the bytes are sent in
     the frame interrupt, a whole frame's worth at most): top's own clock,
     its first refresh's against its last, with the frames Fuse counted
-    between them (top is resident: no disk read, which runs with
-    interrupts off, in the stretch);
+    between them (top is resident: no disk read in the stretch);
+  - the clock keeps time across disk reads (link.asm: the frame
+    interrupt cut short while a command is under way, its ticks given
+    after): date, wc of a file of BIG bytes on the system volume, date,
+    against Fuse's frames (before, ~70% of the ticks were lost there);
   - the console's screen still has its own login, and none of the line's
     text.
 """
 import os
 import re
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -31,9 +35,12 @@ import tc3256run  # noqa: E402
 
 DISK = os.path.join(ROOT, 'build', 'tc3256', 'ZX-UX-TC3256.dsk')
 HZ = 50                 # frames a second (platform.inc HAL_HZ)
-QUIT = 15000            # frames: the whole session, with room to spare
+QUIT = 18000            # frames: the whole session, with room to spare
+BIG = 12000             # bytes read from disk in the timed stretch
 REFRESH = 6             # top's refreshes timed (2 s each)
-SLACK = 1               # seconds the clock may differ by (date's own rounding)
+SLACK = 1.5             # seconds the clock may differ by: date's whole seconds
+                        # (up to 1), and the frames the kernel's own window
+                        # copies hold interrupts off over
 PROMPT = '# '
 
 
@@ -42,6 +49,9 @@ def main():
         ('login: ', 'root\r'),
         (PROMPT, 'echo on the serial line\r'),
         (PROMPT, 'hello\r'),
+        (PROMPT, 'date\r'),
+        (PROMPT, 'wc /mnt/a/big\r'),
+        (PROMPT, 'date\r'),
         (PROMPT, 'sleep 100\r'),
         ('sleep 100\r\n', '\x03'),
         (PROMPT, 'top\r'),
@@ -49,7 +59,10 @@ def main():
         ('\x1bY', '\x03'),                          # ... then ^C
         (PROMPT, ''),
     ]
-    got, line, trace, missed = tc3256run.run_serial(DISK, script, QUIT)
+    with tempfile.TemporaryDirectory() as t:
+        disk = tc3256run.with_files(DISK, {'/big': bytes(32 + i % 95 if i % 64 else 10 for i in range(BIG))},
+                                    os.path.join(t, 'big.dsk'))
+        got, line, trace, missed = tc3256run.run_serial(disk, script, QUIT)
     print(line[-1500:])
     fails = []
 
@@ -71,15 +84,25 @@ def main():
 
     outs = [f for f, what, _ in trace if what == 'OUT']   # the frame of each byte out
     sec = lambda t: sum(int(x) * m for x, m in zip(t.split(':'), (3600, 60, 1)))
-    heads = [(m.end(), m.group(1)) for m in re.finditer(r'top  (\d\d:\d\d:\d\d)', line)]
-    if len(heads) >= REFRESH and len(outs) == len(line):
-        (i0, t0), (i1, t1) = heads[0], heads[-1]
+
+    def timed(i0, t0, i1, t1, what):
         kernel = sec(t1) - sec(t0)
         frames = (outs[i1 - 1] - outs[i0 - 1]) / HZ
-        print('clock over %d refreshes: the kernel %d s, Fuse %.1f s' % (len(heads), kernel, frames))
-        check(abs(kernel - frames) <= SLACK, 'the clock lost time: %d s against %.1f' % (kernel, frames))
+        print('clock %s: the kernel %d s, Fuse %.1f s' % (what, kernel, frames))
+        check(abs(kernel - frames) <= SLACK, 'the clock lost time %s: %d s against %.1f' % (what, kernel, frames))
+    if len(outs) != len(line):
+        fails.append('the trace has %d bytes, the line %d' % (len(outs), len(line)))
+        outs = [0] * len(line)
+    dates = [(m.end(), m.group(1)) for m in re.finditer(r'date\r\n\w+ \w+ +\d+ (\d\d:\d\d:\d\d)', line)]
+    if len(dates) == 2:
+        timed(dates[0][0], dates[0][1], dates[1][0], dates[1][1], 'across disk reads')
     else:
-        fails.append('top: %d refreshes timed (%d bytes, %d traced)' % (len(heads), len(line), len(outs)))
+        fails.append('date: %d times, not 2' % len(dates))
+    heads = [(m.end(), m.group(1)) for m in re.finditer(r'top  (\d\d:\d\d:\d\d)', line)]
+    if len(heads) >= REFRESH:
+        timed(heads[0][0], heads[0][1], heads[-1][0], heads[-1][1], 'over %d top refreshes' % len(heads))
+    else:
+        fails.append('top: %d refreshes timed' % len(heads))
 
     screen = got.get((0x4000, 0x1800))
     if screen is None:

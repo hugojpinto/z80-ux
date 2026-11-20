@@ -118,6 +118,8 @@ SZOMB   equ 3
 WC_TTY  equ 1               ; Wait for terminal input. Fingers, your move.
 WC_WAIT equ 2
 WC_TIME equ 3
+WC_TTY1 equ 10h                 ; z80-ux: terminal n > 0 (HAL_NTTY) waits on
+                                ; WC_TTY1 - 1 + n: a key wakes its own readers
 
 ; ---------------------------------------------------------------- errors
 EPERM   equ 1

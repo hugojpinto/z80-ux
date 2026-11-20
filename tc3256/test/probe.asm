@@ -192,6 +192,7 @@ gw:     push iy
 gwlen   equ $-gwsrc
 
         include "../src/link.asm"
+lktick: ret                     ; (no kernel here: lkint stays 0)
 
 pend:
         ASSERT pend <= 4000h

@@ -207,8 +207,12 @@ hinit:  im 1
         ld (SV_BORDCR),a
         ret
 
-; isr: the frame interrupt (IM 1, 0038h).
+; isr: the frame interrupt (IM 1, 0038h).  While a link block moves
+; (lkbusy, link.asm) only its tick is counted, for lktick.
 isr:    push af
+        ld a,(lkbusy)
+        or a
+        jr nz,.held
         push bc
         push de
         push hl
@@ -238,6 +242,57 @@ isr:    push af
         pop bc
         pop af
         ei
+        ret
+.held:  push bc                  ; the keys: their matrix queued (kbd.asm)
+        push de
+        push hl
+        call kbheld
+        pop hl
+        pop de
+        pop bc
+        ld a,(lkpend)
+        inc a
+        ld (lkpend),a
+        pop af
+        ei
+        ret
+
+; lktick: the frames a link command held (lkpend), now that it is done
+; (TOS waits for the next): the keys they queued (kbdrain), then the
+; kernel's tick for each.  Interrupts off (lkei turns them on).  Keeps
+; every register.
+lktick: di
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+        ld iy,KIY
+        exx
+        ex af,af'
+        push af
+        push bc
+        push de
+        push hl
+        call kbdrain
+.t:     ld a,(lkpend)
+        or a
+        jr z,.e
+        dec a
+        ld (lkpend),a
+        call ktick
+        jr .t
+.e:     pop hl
+        pop de
+        pop bc
+        pop af
+        ex af,af'
+        exx
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
         ret
 
 ; ---------------------------------------------------------------------

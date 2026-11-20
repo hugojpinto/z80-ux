@@ -194,10 +194,12 @@ ttrawn:
         ld a,(ttykt)            ; the key click, if the machine has one:
         or a                    ; the console's keys only
         call z,kclick
+        ld a,(ttykt)            ; its own terminal's readers
+        call ttwc
         ELSE
         call kclick             ; the key click, if the machine has one.
-        ENDIF
         ld a,WC_TTY
+        ENDIF
         jp kwakeup
 .full:  pop af
         pop bc
@@ -269,7 +271,12 @@ ttintn:
         jr c,.l
         ld a,e
         call ttflsn             ; discard stale keys after BREAK. The input line is not a parking lot.
+        IF NTTY > 1
+        ld a,e                  ; (that terminal's readers)
+        call ttwc
+        ELSE
         ld a,WC_TTY
+        ENDIF
         call kwakeup
         ld a,WC_WAIT
         call kwakeup
@@ -346,6 +353,16 @@ ttsel:  push hl
         djnz .xb
         ret
 
+; ttwc: A = a terminal -> A = its wait channel (WC_TTY for the console;
+; WC_TTY1 - 1 + n): a key wakes only the readers of its terminal.
+ttwc:   or a
+        jr z,.c
+        add a,WC_TTY1-1
+        ret
+.c:     ld a,WC_TTY
+        ret
+        ASSERT WC_TTY1 > WC_TIME && WC_TTY1+NTTY-2 < 256
+
 ; ttnum: A = a terminal's device number -> A = the terminal (DEV_TTY:
 ; the running process's own).
 ttnum:  cp DEV_TTY
@@ -414,14 +431,15 @@ ttdisp: push hl
 ; ttgetc: 55 bytes. Pull one character from the line. No queue jumping.
 ttgetc:                         ; → A = key; CF if interrupted (ignored). The keyboard insists on being
                                 ; heard.
-.l:     di
+.l:
         IF NTTY > 1
         ld a,(cur)              ; (another terminal may have been in use
-        ld hl,p_ttr             ; while this one slept)
-        call addhla
-        ld a,(hl)
+        ld hl,p_ttr             ; while this one slept: its state swapped
+        call addhla             ; with interrupts on - the interrupt touches
+        ld a,(hl)               ; only the rings)
         call ttsel
         ENDIF
+        di
         call sigck
         jr c,.int
         TTYC
@@ -430,7 +448,12 @@ ttgetc:                         ; → A = key; CF if interrupted (ignored). The 
         cp (hl)
         jr nz,.have
         call ttcuron
+        IF NTTY > 1
+        TTYC                    ; (its own terminal's channel)
+        call ttwc
+        ELSE
         ld a,WC_TTY
+        ENDIF
         call ksleep
         ei
         jr .l

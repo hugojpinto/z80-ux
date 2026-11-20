@@ -20,10 +20,18 @@
 ;    the host's registers AF, BC, DE, HL, IX, IY, which TOS loads; the
 ;    reply is a C0h block the same shape, lkcom = 80h and A the status,
 ;    perhaps after D0h blocks of data (lkdat).
-;  A block moves with interrupts off: TOS waits only so long for each
-;  handshake, and a frame interrupt between two would lose it the block.
-;  Between blocks - while TOS reads a disk - they are on again, once the
-;  kernel runs (lkint, set by hinit; tcboot, before, keeps them off).
+;  TOS waits only so long for each handshake - and, with a reply ready,
+;  for the host to ask for it: the frame interrupt's whole work (keys,
+;  console, kernel, RS-232 bytes) in the middle of a command would lose
+;  it.  So while a command or a block is under way (lkbusy, a count: a
+;  command's blocks nest in it) the interrupt is cut short - its tick
+;  counted (lkpend), nothing else, a few dozen T-states - and the ticks
+;  are the kernel's when the command is done and TOS is back waiting for
+;  the next (lktick, the includer's): the clock keeps time across disk
+;  reads.  (The keys are not read meanwhile, as they were not before,
+;  with interrupts off.)  Before the kernel runs (lkint, set by hinit;
+;  tcboot) a block moves with interrupts off, as there is no tick to
+;  keep.
 ; =====================================================================
 
 LINK    equ 0EFh                ; the link (bit 7 in: also the FDC's DRQ)
@@ -54,7 +62,10 @@ LKCLEN  equ 13
 ; lkcmd: send lkcom to TOS and wait for its reply (into lkcom; data blocks
 ; on the way into lkdat, the last one's length in lkdlen) -> A = the
 ; status (0: done), Z; CF: the link failed, or the reply was not one.
-lkcmd:  ld a,LK_CMD
+lkcmd:  call lkon                ; (held to the reply: lkei)
+        call lkcmd0
+        jp lkei
+lkcmd0: ld a,LK_CMD
         ld b,LKCLEN
         ld hl,lkcom
         call lksend
@@ -82,7 +93,7 @@ lkreply: ld hl,LKWAIT
 
 ; lksend: a block - A = its type, B = its length (0: 256), HL = the
 ; payload -> CF: not acknowledged in LKTRIES tries.  Keeps HL.
-lksend: di
+lksend: call lkon
         call lksend0
         jr lkei
 lksend0: ld (lkhdr),a
@@ -133,14 +144,46 @@ lksend0: ld (lkhdr),a
 ; lkrecv: a block from TOS - a command into lkcom, data into lkdat ->
 ; A = its type, lkdlen its length; CF: none came (or not whole, LKTRIES
 ; times).
-lkrecv: di
+lkrecv: call lkon
         call lkrecv0
-lkei:   push af                 ; interrupts on again, if the kernel runs
+; lkei: a block or a command done (or rdsys's system mode left): once
+; the last is, the interrupt whole again, the ticks it held given
+; (lktick), interrupts on - if the kernel runs.  Keeps every register.
+lkei:   push af
         ld a,(lkint)
         or a
         jr z,.x
-        ei
+        ld a,(lkbusy)
+        or a
+        jr z,.on                ; (none under way: rdsys's)
+        dec a
+        jr nz,.in               ; a command's block: still held
+        di                      ; (no whole interrupt before what was held:
+        ld (lkbusy),a           ; the keys queued come first)
+        ld a,(lkpend)
+        or a
+        call nz,lktick
+.on:    ei
 .x:     pop af
+        ret
+.in:    ld (lkbusy),a
+        pop af
+        ret
+; lkon: a command or a block begins: the interrupt cut short - and on,
+; whatever the caller had (the kernel runs) - or off (before it does).
+; Keeps every register (A: lksend's block type).
+lkon:   push af
+        ld a,(lkint)
+        or a
+        jr nz,.k
+        di
+        pop af
+        ret
+.k:     ld a,(lkbusy)
+        inc a
+        ld (lkbusy),a
+        pop af
+        ei                      ; (the interrupt only counts, now: on)
         ret
 lkrecv0: ld a,LKTRIES
         ld (lktry),a
@@ -280,7 +323,9 @@ lkhs:   push bc
 ; the link's buffers
 lkhdr:  db 0,0,0                ; a block's type, length, marker
 lktry:  db 0
-lkint:  db 0                    ; interrupts may be on between blocks (hinit)
+lkint:  db 0                    ; the kernel runs: interrupts on (hinit)
+lkbusy: db 0                    ; commands, blocks under way: the interrupt cut short ...
+lkpend: db 0                    ; ... the ticks it held
 lkdlen: db 0                    ; the last data block's length (0: 256)
 lkcom:  ds LKCLEN               ; a command, a reply
 lkdat:  ds 256                  ; a data block

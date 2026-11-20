@@ -17,7 +17,7 @@
 ;    rest of its work still done before the next frame.  A full queue
 ;    waits for the frame; with CTS down (no terminal there) it drops.
 ;  - receiving: only when nothing runs (HAL_IDLE: rsidle), after a frame
-;    in which nothing was sent, the line idle (MARK) with RTS down - an
+;    in which nothing was sent nor the status line drawn, the line idle (MARK) with RTS down - an
 ;    unconnected line reads SPACE: RTS up, the first SPACE a start bit
 ;    (a terminal may begin as RTS rises), watched for as long as
 ;    a byte would still end before the next frame; then RTS down, which
@@ -47,6 +47,11 @@ RS_ISRT  equ 10000              ; the rest of the frame interrupt (keys,
                                 ; console, kernel), at most: a budget
 RS_TXFR  equ (TC_FRAME-RS_ISRT)/RS_BYTE  ; bytes the interrupt sends a frame
         ASSERT RS_TXFR >= 1
+RS_STDRAW equ 58000             ; the console's status line drawn (screen64's
+                                ; stdraw, when stdirty: ~56,000 measured in
+                                ; Fuse, 2026-11-20 - no byte fits beside it)
+RS_TXFRS equ (TC_FRAME-RS_ISRT-RS_STDRAW)/RS_BYTE  ; ... a frame that draws it
+        ASSERT RS_TXFRS < RS_TXFR
 RS_RXT   equ RS_BIT*10+2000     ; a byte in, from its start bit to the
                                 ; kernel's ring (the stop bit sampled at 9.5)
 RS_POLLT equ 48                 ; rsidle's watch: T-states a poll
@@ -97,10 +102,20 @@ ttput:  push bc
         ret
 
 ; rstx: the frame interrupt's part, first thing: up to RS_TXFR bytes
-; out.  rssent: how many.  Uses A, BC, D, HL.
+; out - RS_TXFRS when the status line is to be drawn too (stdirty:
+; rsheavy).  rssent: how many.  Uses A, BC, D, HL.
 rstx:   xor a
         ld (rssent),a
         ld b,RS_TXFR
+        ld a,(stdirty)
+        ld (rsheavy),a
+        or a
+        jr z,.l
+        IF RS_TXFRS == 0
+        ret
+        ELSE
+        ld b,RS_TXFRS
+        ENDIF
 .l:     push bc
         call rsnext
         pop bc
@@ -159,8 +174,9 @@ rsdlyd: dec d
 ; nothing (the frame mostly left), listen.  A byte -> terminal 1's ring
 ; (vtkey).  Returns with interrupts off when it listened.
 rsidle: halt
-        ld a,(rssent)
-        or a
+        ld a,(rssent)           ; a frame mostly gone already (bytes sent,
+        ld hl,rsheavy           ; the status line drawn): not this one
+        or (hl)
         ret nz
         di
         in a,(RS_PORT)          ; the line idle (MARK) while RTS is down?
@@ -207,4 +223,5 @@ rsidle: halt
 rshd:   db 0                    ; the send queue: its head (ttput's) ...
 rstl:   db 0                    ; ... its tail (the interrupt's)
 rssent: db 0                    ; bytes the last frame sent
+rsheavy: db 0                   ; ... and whether it drew the status line
 rsq:    ds RS_TXQ
