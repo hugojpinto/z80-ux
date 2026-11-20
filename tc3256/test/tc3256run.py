@@ -124,6 +124,44 @@ def screen_text(d):
     return '\n'.join(out)
 
 
+FONT8 = os.path.join(ROOT, 'drivers', 'font8', 'font8.txt')  # the 32-column console's
+
+
+def screen_text8(d):
+    """The narrow console's 32 columns x 24 rows: 8x8 characters of
+    drivers/font8 (a cell a byte column), '?' where a cell is none."""
+    glyphs, cur = {}, None
+    with open(FONT8) as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if not line or line.startswith(';'):
+                continue
+            if line.startswith('= '):
+                cur = int(line[2:], 16)
+                glyphs[cur] = []
+            else:
+                glyphs[cur].append(int(line.replace('#', '1').replace('.', '0'), 2))
+    table = {}
+    for c, rows in sorted(glyphs.items(), reverse=True):
+        table[tuple(rows)] = chr(c)
+    out = []
+    for row in range(24):
+        line = ''
+        for col in range(32):
+            cell = []
+            for k in range(8):
+                y = row * 8 + k
+                cell.append(d[((y & 0xC0) << 5) | ((y & 7) << 8) | ((y & 0x38) << 2) | col])
+            line += table.get(tuple(cell), '?')
+        out.append(line.rstrip())
+    return '\n'.join(out)
+
+
+def pixel(d, x, y):
+    """The display file's pixel at x (0-255), y (0-191, from the top)."""
+    return d[((y & 0xC0) << 5) | ((y & 7) << 8) | ((y & 0x38) << 2) | (x >> 3)] >> (7 - (x & 7)) & 1
+
+
 def _keyboard():
     sys.path.insert(0, os.path.join(ROOT, 'sdk', 'bin', 'py'))
     import importlib.util
