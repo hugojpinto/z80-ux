@@ -2,7 +2,7 @@
 
 For the SDK (`sdk/bin/py`) and the kernel, z80-ux branch `portable-hal`.
 
-**Status.** Built: the kinds, `rcc --ux` (`sdk/bin/py/libux`: the
+**Status.** Built: the kinds, `rcc --no-rom`/`--rom48k` (`sdk/bin/py/libux`: the
 terminal runtime `libtty.ssa`, the relocatable bitmap runtime), the
 console's colour codes, call 41, the FDD3000 system disk's programs
 built this way, and on the FDD3000 the display file in the arena with
@@ -41,14 +41,36 @@ graphical demos and games (`mandel`, `3dpaint`, `invaders`, `orcattack`,
 
 ```
 flags bit 0   (as today)
-      bit 3      1: the kind below is declared (rcc --ux); 0: an older
+      bit 3      1: the kind below is declared (rcc, rbc --no-rom or
+                 --rom48k); 0: an older
                  binary, which claims the screen and draws at 4000h
       bits 2-1   00 stream   01 console   10 bitmap   11 bitmap, fixed at
                                                          4000h (the program
                                                          writes it itself)
       bit 4      with the console kind: its console is 32 columns wide
-                 (rbc --ux, a BASIC program: see "A narrow console" below)
+                 (rbc, a BASIC program: see "A narrow console" below)
+      bit 5      the program needs the 48K ROM (--rom48k)
 ```
+
+**Two choices, two switches** (`rcc`, `rbc`; with neither, the original
+SDK's program, flags 0):
+- `--no-rom` / `--rom48k`: the libux runtime without the 48K ROM
+  (`libux/norom.asm`: floats through call 42 only, a clean-room `beep()`;
+  BASIC's routines all clean room) or with it where libux has none
+  (`libux/rom48k.asm`: the ROM calculator on a kernel without call 42,
+  the ROM's BEEP; `librom.ssa` for BASIC) - bit 5;
+- `--kind=...`: the screen kind (`rcc`: stream, console, bitmap, fixed;
+  `rbc`: console, bitmap); by default worked out from the program.
+
+**The kernel refuses, at load, what the machine cannot give**
+(`drivers/ssxfile/ssx.asm`; the names in `const.inc`, `SSX*`):
+
+| The program | needs | refused where |
+|---|---|---|
+| bit 5, or flags bit 3 clear (an older binary) | the 48K ROM | `HAL_ROM48K` 0: "this program needs the 48K ROM" |
+| the bitmap or fixed kind, or an older binary | a screen | `HAL_SCREEN` 0: "this program draws: it needs a screen" |
+| the fixed kind, or an older binary | the screen at 4000h | `HAL_SCR4000` 0 |
+
 
 *As built:* bit 3 was added so that a declared stream program (00) and an
 older binary (flags 0, but drawing at 4000h) can be told apart - which a
@@ -64,7 +86,7 @@ platform that uses 4000h-5AFFh for something else must do.
 
 ## 2. The linker decides (`rld`)
 
-*As built:* the classification is done in `rcc --ux` from what the
+*As built:* the classification is done in `rcc` (libux) from what the
 program references (its own objects and the library members it pulls,
 not the console's internals), not by kind marks in the runtime's members:
 `lib/build.py` cuts the runtime into members at labels, and the screen's

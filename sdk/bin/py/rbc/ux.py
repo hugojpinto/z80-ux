@@ -4,7 +4,7 @@
 # Non-commercial use only under the repository LICENSE.
 # Commercial use prohibited without separate written permission.
 # =====================================================================
-"""rbc --ux: a compiled BASIC program without the 48K ROM (platform/basic.md).
+"""rbc (libux): a compiled BASIC program without the 48K ROM (platform/basic.md).
 
 The checked HiSoft source (native_rbc_cli.compile_native) calls the ROM
 by address: CALL nnnn, JP nnnn, RST n.  Here each of those becomes a
@@ -41,9 +41,10 @@ DJNZ = re.compile(r'^(\s*)([A-Za-z_.][\w.]*:?\s+)?djnz\s+(\S+)\s*(;.*)?$', re.I)
 
 WORK = 512                  # the stack's region grows by this: the workspace and
                             # the calculator stack are there (@rinit: from @end)
-KIND_FIXED = 0x0E           # SSX1 flags: declared, bitmap fixed at 4000h
-KIND_BITMAP = 0x0C          # declared, bitmap on any page (call 41)
-KIND_CONSOLE = 0x1A         # declared, console, 32 columns (bit 4): the kernel's console
+# SSX1 flags (rld.py): the kinds a BASIC program is
+KIND_BITMAP = rld.FLAG_DECLARED | 2 << 1        # bitmap, on any page (call 41)
+KIND_CONSOLE = rld.FLAG_DECLARED | 1 << 1 | rld.FLAG_NARROW   # the kernel's console,
+                                                # 32 columns: BASIC's screen
 
 # A BASIC program with none of these draws no pixels: the console kind
 # (libux/rbc/con: PRINT through the kernel's console).  POKE or PEEK of
@@ -299,8 +300,10 @@ def needs_tokens(basic):
         for m in TOKEN_ESCAPE.finditer(basic))
 
 
-def link(text, stack, kind=KIND_BITMAP, tokens=True):
-    """The --ux program -> (source, ssx, report)."""
+def link(text, stack, kind=KIND_BITMAP, tokens=True, rom48k=False):
+    """The program on libux (rbc --no-rom, --rom48k) -> (source, ssx, report).
+    rom48k: it may use the ROM's routines where libux has none yet
+    (librom.ssa), and says it needs the ROM (SSX1 flags bit 5)."""
     if CLAIMED not in text:
         raise UxError('the wrapper does not claim the screen (call 39)')
     if kind == KIND_CONSOLE:            # no screen to claim: the console's
@@ -317,7 +320,8 @@ def link(text, stack, kind=KIND_BITMAP, tokens=True):
         objs.append(rld.Obj(ras.assemble_text(NO_TOKENS, 'notokens'), 'notokens.sso'))
     try:
         ssx, bss, ent, gaddr, chosen = rld.link(objs, libs,
-                                                entry='start', stack=stack + WORK, flags=kind)
+                                                entry='start', stack=stack + WORK,
+                                                flags=kind | (rld.FLAG_ROM48K if rom48k else 0))
     except rld.LinkError as e:
         raise UxError('link: %s' % e) from e
     rom = sorted(n for m in chosen if id(m) in rom_members for n in m.defs())

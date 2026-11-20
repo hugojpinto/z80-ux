@@ -114,7 +114,10 @@ to 65,535, 180k at worst (`1E+38`).
 `libc48` (`libux/float.asm`): C48, and the Pascal and Fortran compilers,
 which link it. `rcc` emits `@fop`, `@ftoi`/`@ftou`, `@itof`/`@utof`,
 `@fcmp`, `@ftst`; only `@fop` and the integer conversion reach the engine.
-`beep()` still borrows the ROM's BEEP (the FDD3000 rings the terminal's
-bell). The BASIC compiler, with `rbc --ux` (`platform/basic.md`): its
+`rcc --no-rom` asks call 42 only (no engine: the program ends, saying so)
+and plays `beep()` itself (`libux/norom.asm`: the tone on the speaker's
+bit, the terminal's bell behind a terminal); `rcc --rom48k` falls back to
+the ROM's calculator on a kernel without call 42 and borrows the ROM's
+BEEP (`libux/rom48k.asm`). The BASIC compiler, with `rbc --no-rom` (`platform/basic.md`): its
 runtime's calculator calls (RST 28h) go to libux's clean-room calculator,
 which reaches the engine through this call (`@rfcall`).

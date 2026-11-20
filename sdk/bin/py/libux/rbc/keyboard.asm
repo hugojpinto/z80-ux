@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: the keys, in place of the 48K ROM's KEY-SCAN, K-TEST, K-DECODE
+; rbc (libux): the keys, in place of the 48K ROM's KEY-SCAN, K-TEST, K-DECODE
 ; (the runtime's INKEY$) and KEYBOARD (rbc's PAUSE).
 ;
 ; On a screen console (system call 41, E = 0: a Spectrum) the keyboard's

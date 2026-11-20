@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: the screen as PRINT sees it, in place of the 48K ROM's
+; rbc (libux): the screen as PRINT sees it, in place of the 48K ROM's
 ; output (platform/basic.md).
 ;
 ; @r10 (RST 10h) prints A through the current channel: the screen ('S',

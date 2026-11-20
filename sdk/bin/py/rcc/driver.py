@@ -81,12 +81,12 @@ def stack_estimate(g):
     return max(384, (d + 15) & ~15)
 
 
-# z80-ux (rcc --ux): what a program needs of the screen, from what it
-# references (platform/screen-kinds.md).  SSX1 flags: bit 3 set, the kind
-# in bits 2-1.
+# z80-ux (rcc --no-rom, --rom48k): the libux runtime, with the 48K ROM
+# or without it (libux/rom48k.asm, norom.asm), and what the program needs
+# of the screen, from what it references (platform/screen-kinds.md).
+# SSX1 flags (rld.py): bit 3 set, the kind in bits 2-1, bit 5 with the ROM.
 KIND_STREAM, KIND_CONSOLE, KIND_BITMAP, KIND_FIXED = 0, 1, 2, 3
-KIND_DECLARED = 8           # flags bit 3: set - an older binary's flags are 0
-                            # and it draws at 4000h whatever bits 2-1 say
+RUNTIMES = {'--no-rom': 'libc48norom.ssa', '--rom48k': 'libc48rom.ssa'}
 KINDS = {'stream': KIND_STREAM, 'console': KIND_CONSOLE, 'bitmap': KIND_BITMAP,
          'fixed': KIND_FIXED}
 BITMAP_API = {'_plot', '_point', '___pixel', '@pixel', '@pxok', '_udg_define', '_udg_get',
@@ -120,8 +120,8 @@ def build(src, opts):
     text, prog, g = compile_to_asm(src, opts)
     base = os.path.splitext(src)[0]
     obj = ras.assemble_text(text, os.path.basename(base) + '.s')
-    ux = opts.get('ux')
-    libp = os.path.join(SDK, 'libux' if ux else 'lib', 'libc48.ssa')
+    runtime = opts.get('runtime')            # None: the original SDK's
+    libp = os.path.join(SDK, 'libux' if runtime else 'lib', 'libc48.ssa')
     objs = [rld.Obj(obj, base)]
     # A C48 source may have a matching application assembly companion.  Link
     # it automatically as a normal translation-unit input, not as a release
@@ -134,6 +134,10 @@ def build(src, opts):
         objs.append(rld.Obj(companion_obj, companion))
     with open(libp, 'rb') as stream:
         arcs = [rld.read_archive(stream.read(), libp)]
+    if runtime:
+        p = os.path.join(SDK, 'libux', RUNTIMES[runtime])
+        with open(p, 'rb') as stream:
+            arcs = [rld.read_archive(stream.read(), p)] + arcs
     stack = opts.get('stack')
     if stack is None:
         stack = stack_estimate(g)
@@ -142,15 +146,17 @@ def build(src, opts):
         if os.path.isfile(companion):
             stack = max(stack, 800)
     data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0)
-    if ux:
+    if runtime:
         kind = opts.get('kind')
         if kind is None:
             kind = screen_kind(chosen, os.path.isfile(companion))
         if kind < KIND_BITMAP:              # its text through the terminal
             with open(os.path.join(SDK, 'libux', 'libtty.ssa'), 'rb') as stream:
                 arcs = [rld.read_archive(stream.read(), 'libtty.ssa')] + arcs
-        data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0,
-                                                 KIND_DECLARED | kind << 1)
+        flags = rld.FLAG_DECLARED | kind << 1
+        if runtime == '--rom48k':
+            flags |= rld.FLAG_ROM48K
+        data, bss, ent, gaddr, chosen = rld.link(objs, arcs, 'start', stack, 0, flags)
         opts['kind_found'] = kind
     h = rld.parse_ssx(data)
     need = max(len(h['image']) + h['bss'] + h['stack'], len(data))
@@ -171,7 +177,7 @@ def main(argv):
     fit = True
     limit = ZXUX_MAX
     files = []
-    ux = False
+    runtime = None
     kind = None
     i = 0
     while i < len(argv):
@@ -211,14 +217,16 @@ def main(argv):
                 return 2
             asm_only |= a == '-S'
             obj_only |= a == '-c'
-        elif a == '--ux':
-            ux = True
+        elif a in RUNTIMES:
+            if runtime is not None and runtime != a:
+                emit('CLI_RUNTIME', 'Choose one of --no-rom and --rom48k.')
+                return 2
+            runtime = a
         elif a.startswith('--kind='):
             if a[7:] not in KINDS:
                 emit('CLI_KIND', 'Option --kind takes stream, console, bitmap or fixed.')
                 return 2
             kind = KINDS[a[7:]]
-            ux = True
         elif a == '--fit':
             fit = True
         elif a == '--no-fit':
@@ -238,7 +246,7 @@ def main(argv):
             return 2
         fit = False
     if len(files) != 1:
-        emit('CLI_ARGUMENTS', 'Expected exactly one C48 source filename; usage: rcc [-S|-c] [-o out] [--bytecode|--native|--fit|--no-fit] [--max BYTES] [--stack N] [--heap N] [--udgs N] [--ux] [--kind=stream|console|bitmap|fixed] file.c')
+        emit('CLI_ARGUMENTS', 'Expected exactly one C48 source filename; usage: rcc [-S|-c] [-o out] [--bytecode|--native|--fit|--no-fit] [--max BYTES] [--stack N] [--heap N] [--udgs N] [--no-rom|--rom48k [--kind=stream|console|bitmap|fixed]] file.c')
         return 2
     src = files[0]
     base = os.path.splitext(src)[0]
@@ -250,8 +258,11 @@ def main(argv):
         emit('IO_SOURCE_MISSING', 'C48 source file %s does not exist or cannot be read.' % src)
         return 1
     opts = {'lib': lib, 'heap': heap, 'stack': stack, 'udgs': udgs, 'module': obj_only}
-    if ux:
-        opts['ux'] = True
+    if kind is not None and runtime is None:
+        emit('CLI_KIND', 'Option --kind needs --no-rom or --rom48k (the libux runtime).')
+        return 2
+    if runtime:
+        opts['runtime'] = runtime
         if kind is not None:
             opts['kind'] = kind
     if mode == 'all':

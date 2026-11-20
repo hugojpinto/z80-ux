@@ -88,6 +88,15 @@ IWOTH   equ 001h            ; 01 octal: others may write. Sharing has consequenc
 ; platform's (its devtab: dev.asm).
 DEV_TTY equ 1
 DEV_MEM equ 2
+; SSX1 flags (sdk/bin/py/rld.py, platform/screen-kinds.md): what a program
+; needs.  An older binary's are 0: it needs the 48K ROM and draws at 4000h.
+SSXB_DECL equ 3             ; a screen kind is declared ...
+SSX_KIND equ 06h            ; ... in bits 2-1: 00 stream, 01 console,
+SSX_CONSOLE equ 02h         ;     10 bitmap (its own drawing, where call 41
+SSX_FIXED equ 06h           ;     says), 11 fixed (its own drawing at 4000h)
+SSXB_DRAWS equ 2            ; (the kinds that draw: bit 2)
+SSX_NARROW equ 10h          ; the console 32 columns wide
+SSXB_ROM equ 5              ; it needs the 48K ROM
 DV_SEQ  equ 01h             ; devtab flags: a sequential device - one record a
                             ; transfer, no seeking; programs found on it by
                             ; name (exec DEV/NAME: /etc/ldx; HAL_SEQDEV)

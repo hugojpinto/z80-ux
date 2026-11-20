@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: @rfcall, the platform's float engine (platform/float.md):
+; rbc (libux): @rfcall, the platform's float engine (platform/float.md):
 ; A = the operation, HL = x, DE = y, BC = the result -> CF: none.  Its
 ; address from system call 42, asked once.  No ROM fallback (libux's
 ; @fcall has one, for kernels without call 42): a kernel without the

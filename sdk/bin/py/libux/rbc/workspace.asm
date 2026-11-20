@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: room in the program's BASIC memory, in place of the 48K ROM's
+; rbc (libux): room in the program's BASIC memory, in place of the 48K ROM's
 ; MAKE-ROOM (ONE-SPACE), RECLAIM-2 and BC-SPACES (RST 30h): bytes made or
 ; taken back inside the area the system variables VARS .. STKEND point
 ; into (the workspace, the calculator stack), every one of those pointers

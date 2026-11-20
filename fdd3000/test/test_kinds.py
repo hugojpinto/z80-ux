@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The screen kinds on the FDD3000 (platform/screen-kinds.md).
 
-The system disk's programs are built with rcc --ux.  Checked:
+The system disk's programs are built with rcc --no-rom.  Checked:
   - hello (/mnt/a/bin's: the shell's own hello is resident) and trek,
     console kind, write to the terminal: their text is there;
   - hello's output redirected to a file holds its text (and the console

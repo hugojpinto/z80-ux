@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: the line INPUT types, shown in the lower screen, in place of
+; rbc (libux): the line INPUT types, shown in the lower screen, in place of
 ; the 48K ROM's ED-COPY, CLEAR-SP and the end of INPUT (20A0h).  The line:
 ; from WORKSP to its ENTER (E_LINE when not INPUT: FLAGX), K_CUR in it.
 ; ED-COPY prints it from the lower screen's position (S_POSNL), the cursor

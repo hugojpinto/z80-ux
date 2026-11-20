@@ -879,8 +879,8 @@ forkcpy:
 conset: push af
         call conrel
         pop af
-        and 1Eh                 ; declared (bit 3), console (bits 2-1: 01),
-        cp 1Ah                  ; 32 columns (bit 4)
+        and 1 << SSXB_DECL | SSX_KIND | SSX_NARROW  ; declared, console,
+        cp 1 << SSXB_DECL | SSX_CONSOLE | SSX_NARROW    ; 32 columns
         ret nz
         call conbit
         ld hl,conar

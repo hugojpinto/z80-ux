@@ -1,14 +1,16 @@
-# BASIC without the ROM: rbc --ux
+# BASIC without the ROM: rbc --no-rom
 
 For the SDK (`sdk/bin/py/rbc`, `sdk/bin/py/libux`) and the kernel, z80-ux
 branch `portable-hal`.
 
 `rbc` compiles a 48K Spectrum BASIC program with the HiSoft compiler's
 runtime, which calls the 48K ROM for its arithmetic, its screen, its
-keys, BEEP and INPUT's line.  `rbc --ux` links the same program with
+keys, BEEP and INPUT's line.  `rbc --no-rom` links the same program with
 clean-room routines in place of every one of those (`libux/rbc/*.asm`),
 so it runs where there is no ROM - the FDD3000 - as on a Spectrum.  All
-100 compiled examples link with no routine of the ROM.
+100 compiled examples link with no routine of the ROM.  (`rbc --rom48k`
+links the same, the ROM's routine where libux has none, and marks the
+program as needing the ROM: SSX1 flags bit 5, `screen-kinds.md`.)
 
 ## How
 
@@ -40,7 +42,7 @@ its row 22.  FLASH and OVER have no console code; UDGs and block graphics
 show as `#`.  The others are of the **bitmap** kind: their own display
 file (call 41), PRINT drawn into it as the ROM does - where there is a
 screen; a machine whose console is a terminal (the FDD3000) refuses them
-at load.  `rbc --ux --bitmap` makes any program bitmap.
+at load.  `--kind=bitmap` makes any program bitmap.
 
 ## Tested
 

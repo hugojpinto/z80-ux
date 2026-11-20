@@ -3,7 +3,7 @@
 
     python3 test/spectrum/kinds.py
 
-Programs built with rcc --ux, on this tree's Spectrum kernel (and one on
+Programs built with rcc --no-rom, on this tree's Spectrum kernel (and one on
 the shipped one), on the SDK's headless Spectrum:
   - hello, fortune (console kind): their text through the kernel's
     console; no display file claimed;
@@ -18,6 +18,8 @@ the shipped one), on the SDK's headless Spectrum:
   - float (test/kinds/float.c): floats through system call 42 (the
     kernel's adapter on the ROM's calculator: platform/float.md), and as
     text (ftoa, atof);
+  - bell (test/kinds/bell.c): beep() with no ROM plays its tone (the
+    speaker's edges, their spacing);
   - mandel on the shipped ZX-UX.tzx, a kernel with no system call 41:
     the runtime falls back to 4000h and it draws all the same; float
     there: no call 42, the runtime's own ROM adapter.
@@ -39,7 +41,8 @@ SRC = {'hello': 'examples/c48-src/examples/hello.c',
        'colour': 'test/kinds/colour.c',
        'lines': 'test/kinds/lines.c',
        'keys': 'test/kinds/keys.c',
-       'float': 'test/kinds/float.c'}
+       'float': 'test/kinds/float.c',
+       'bell': 'test/kinds/bell.c'}
 FLOATS = '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3'
 FTEXT = '1.4142136 0.33333333 1E+10 -.05 65535 -1250 6.2831853'
 KIND = ['stream', 'console', 'bitmap', 'fixed']
@@ -51,9 +54,10 @@ def build():
     os.makedirs(OUT, exist_ok=True)
     out = {}
     import rld
-    for name, src in SRC.items():
+    builds = [(n, s, '--no-rom') for n, s in SRC.items()] + [('float48k', SRC['float'], '--rom48k')]
+    for name, src, runtime in builds:
         dst = os.path.join(OUT, name + '.ssx')
-        r = subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--ux',
+        r = subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), runtime,
                             '-o', dst, os.path.join(ROOT, src)], capture_output=True, text=True)
         if r.returncode:
             raise SystemExit('rcc %s: %s%s' % (name, r.stdout, r.stderr))
@@ -167,6 +171,20 @@ def main():
     check(FLOATS in s.text() and FTEXT in s.text() and 'float ok' in s.text(),
           'float: %r' % s.text()[-300:])
 
+    # beep() with no ROM (libux/norom.asm): the tone on the speaker's bit,
+    # three of 0.05 s at middle C - about 13 cycles each, a half cycle of
+    # the clock over twice the frequency
+    s.kb.type('cls\n')
+    s.wait_prompt()
+    t0 = len(m.speaker)
+    run(s, progs['bell'][0], 'bell', 600)
+    settle(s)
+    edges = [t for t, _ in m.speaker[t0:]]        # (with the typed keys' clicks)
+    want = 3_500_000 / 2 / (440 * 2 ** (-9 / 12))
+    tone = [b - a for a, b in zip(edges, edges[1:]) if abs(b - a - want) < want / 20]
+    check('bell ok' in s.text() and 3 * (2 * 12 - 1) <= len(tone) <= 3 * (2 * 14 - 1),
+          'beep, no ROM: %d half cycles of %d T (%d edges)' % (len(tone), want, len(edges)))
+
     # the shipped kernel: no call 41
     t = golden.session('shipped')
     job = run(t, progs['mandel'][0], 'mandel', 2500)
@@ -175,7 +193,7 @@ def main():
     t.wait_prompt(6000)
     t.kb.type('cls\n')
     t.wait_prompt()
-    run(t, progs['float'][0], 'float', 3000)
+    run(t, progs['float48k'][0], 'float48k', 3000)
     settle(t)
     check(FLOATS in t.text() and FTEXT in t.text() and 'float ok' in t.text(),
           'float, shipped kernel: %r' % t.text()[-300:])

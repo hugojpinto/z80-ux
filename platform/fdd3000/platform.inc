@@ -16,6 +16,7 @@ mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)
+HAL_ROM48K   equ 0              ; no 48K ROM: programs built for it are refused
 HAL_SEQDEV   equ 0              ; sequential devices: none (no cassette)
         DEFINE HAL_DEVFILES "tty:1 mem:2 fd0:8 fd1:9 fd2:10 fd3:11"  ; /dev (build.py)
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
@@ -25,7 +26,7 @@ HAL_SCR4000  equ 0
 HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are refused              ; 4000h-5AFFh holds resident programs: an SSX1
                                 ; program that cannot move its display file
                                 ; (upstream's: no kind declared; the fixed
-                                ; kind) is refused.  rcc --ux bitmap programs
+                                ; kind) is refused.  rcc --no-rom bitmap programs
                                 ; ask call 41 where it is.
         DEFINE HAL_LAYER "hal.asm"  ; the machine layer, assembled with the kernel
         DEFINE HAL_SYSDEV "/dev/fd0"

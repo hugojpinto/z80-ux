@@ -48,19 +48,33 @@ hssx:   ld a,(ix+0)
         inc hl
         inc de
         djnz .c
+; What it needs (its flags: const.inc SSX*) that this machine has not:
+; refused, saying which.  Before the kinds were declared, a program
+; needed all of it: the 48K ROM, a screen, at 4000h.
+        ld a,(u_dirbuf+4)
+        ld c,a
+        IF HAL_ROM48K == 0
+        ld hl,s_rom             ; the 48K ROM
+        bit SSXB_ROM,c
+        jr nz,.ref
+        bit SSXB_DECL,c
+        jr z,.ref
+        ENDIF
         IF HAL_SCREEN == 0
-        ld a,(u_dirbuf+4)       ; no screen here: only a program declared of
-        and 0Ch                 ; the stream or console kind (bit 3 set,
-        cp 08h                  ; bit 2 clear: kinds 00, 01) - not one that
-        jr nz,.at               ; draws, nor an older, undeclared one
+        ld hl,s_draws           ; a screen to draw on
+        bit SSXB_DECL,c
+        jr z,.ref
+        bit SSXB_DRAWS,c
+        jr nz,.ref
         ELSE
         IF HAL_SCR4000 == 0
-        ld a,(u_dirbuf+4)       ; a program that needs 4000h (built before
-        and 0Eh                 ; rcc --ux - no kind declared - or of the
-        cp 08h+6                ; fixed kind): 4000h is not to be had here
-        jr z,.at
-        bit 3,a
-        jr z,.at
+        ld hl,s_at4000          ; the screen at 4000h
+        bit SSXB_DECL,c
+        jr z,.ref
+        ld a,c
+        and SSX_KIND
+        cp SSX_FIXED
+        jr z,.ref
         ENDIF
         ENDIF
         pop hl
@@ -71,17 +85,16 @@ hssx:   ld a,(ix+0)
 .nx:    pop hl
 .no:    or 1
         ret
-        IF HAL_SCREEN == 0
-.at:    ld hl,s_draws
-        call kputs
+.ref:   call kputs
         jr .nx
+        IF HAL_ROM48K == 0
+s_rom:  db "this program needs the 48K ROM",10,0
+        ENDIF
+        IF HAL_SCREEN == 0
 s_draws: db "this program draws: it needs a screen",10,0
         ELSE
         IF HAL_SCR4000 == 0
-.at:    ld hl,s_at4000
-        call kputs
-        jr .nx
-s_at4000: db "this program draws at 4000h: rebuild it with rcc --ux",10,0
+s_at4000: db "this program draws at 4000h: there is no screen there",10,0
         ENDIF
         ENDIF
 s_ssx1: db "SSX1"

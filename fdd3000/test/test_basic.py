@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""BASIC programs compiled by rbc --ux, on the emulated FDD3000.
+"""BASIC programs compiled by rbc --no-rom, on the emulated FDD3000.
 
     python3 fdd3000/test/test_basic.py
 
-rbc --ux links the BASIC runtime with libux's clean-room routines in
+rbc --no-rom links the BASIC runtime with libux's clean-room routines in
 place of the 48K ROM's (platform/basic.md): no ROM, the system
 variables in the program, the display file where system call 41 puts it,
 the keys from the terminal, floats from the platform's engine.  Drive B
@@ -48,10 +48,10 @@ def main():
     os.makedirs(out, exist_ok=True)
     for name, src in PROGRAMS.items():
         dst = os.path.join(out, name + '.ssx')
-        r = subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rbc'), '--ux',
+        r = subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rbc'), '--no-rom',
                             '-o', dst, os.path.join(BASIC, src)], capture_output=True, text=True)
         if r.returncode:
-            raise SystemExit('rbc --ux %s: %s' % (name, r.stderr.strip()))
+            raise SystemExit('rbc --no-rom %s: %s' % (name, r.stderr.strip()))
         with open(dst, 'rb') as f:
             fs.put('/' + name, f.read())
     m = fddrun.FDDUX([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK), to_model(b)])

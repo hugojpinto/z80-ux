@@ -58,8 +58,8 @@ float exp(float x);
 float log(float x);
 float fabs(float x);
 float pow(float x, float y);
-char *ftoa(float x, char *buf); /* rcc --ux: as PRINT writes it, 14 bytes */
-float atof(char *s);            /* rcc --ux: 0 when there is no number */
+char *ftoa(float x, char *buf); /* libux: as PRINT writes it, 14 bytes */
+float atof(char *s);            /* libux: 0 when there is no number */
 int open(char *path, int mode);
 int close(int h);
 int read(int h, void *p, unsigned int n);

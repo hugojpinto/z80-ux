@@ -25,7 +25,7 @@ Byte for byte as upstream has them: `README.md`, `LICENSE`,
 `THIRD-PARTY`, `docs/` (the book), `examples/` (the programs and their
 built `.ssx`), `sdk/bin/py/lib` (the SDK's runtime) and the shipped tape
 `zx-ux/tzx/`. The SDK's tools keep their upstream behaviour by default:
-what the fork adds to them is behind an option (`rcc --ux`, `rbc --ux`)
+what the fork adds to them is behind an option (`--no-rom`, `--rom48k`)
 or beside them (`sdk/bin/py/libux`).
 
 **Upstream stays reproducible**: `fdd3000/tools/build.py upstream` takes
@@ -52,7 +52,9 @@ Fourteen files differ from upstream's. The changes:
   (`HAL_SSXFILE`);
 - for programs: system calls 41 (where the display is, and its size) and
   42 (floats, from the platform's engine); SSX1 flags that declare a
-  program's kind (stream, console, bitmap, fixed) and a 32-column console;
+  program's kind (stream, console, bitmap, fixed), a 32-column console and
+  whether it needs the 48K ROM - the kernel refuses what the machine
+  cannot give (`HAL_ROM48K`, `HAL_SCREEN`);
   a raw terminal read that does not wait (`TT_NOWAIT`);
 - the resident programs: placed in whatever free places the machine has
   (`build.py place()`), and the few lines they share with programs a
@@ -68,10 +70,11 @@ the screen, masking only what may differ without a change of behaviour
 
 **Programs**: an SSX1 program built by upstream's SDK runs on this
 Spectrum kernel unchanged (the golden sessions run the shipped `.ssx`
-files). Programs built with `rcc --ux` also run on upstream's kernel: they
-ask for calls 41 and 42 and fall back to the Spectrum's own places when
-the kernel does not have them (`test/spectrum/kinds.py` runs them on the
-shipped tape too). On a machine without a screen (the FDD3000) a program
+files). Programs built with `rcc --rom48k` also run on upstream's
+kernel: they ask for calls 41 and 42 and fall back to the Spectrum's own
+places and the ROM's calculator when the kernel does not have them
+(`test/spectrum/kinds.py` runs them on the shipped tape too); `--no-rom`
+ones need the platform's float engine (call 42) if they use floats. On a machine without a screen (the FDD3000) a program
 that draws is refused at load; one that only writes text runs on the
 terminal.
 

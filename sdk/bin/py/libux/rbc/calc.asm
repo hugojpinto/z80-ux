@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: the calculator stack and its arithmetic, in place of the 48K
+; rbc (libux): the calculator stack and its arithmetic, in place of the 48K
 ; ROM's entry points the HiSoft runtime calls (@rNNNN: platform/basic.md).
 ;
 ; Clean room: each routine keeps the interface the runtime relies on -

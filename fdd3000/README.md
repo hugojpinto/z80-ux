@@ -29,12 +29,14 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
 - **SDK programs** (SSX1: C48, BASIC, Pascal, FORTRAN, Forth) run from any
   file with execute permission; the system disk's `/bin` (`/mnt/a/bin`, in
   the shell's path) carries ten C48 ones (`trek`, `advent`, `rogue`,
-  `hangman`...), built with `rcc --ux`: they write to the terminal
+  `hangman`...), built with `rcc --no-rom`: they write to the terminal
   (redirection works). The console is a terminal, so there is no screen:
   a program that draws (the bitmap or fixed kind, or an older undeclared
   one) is refused at load - "this program draws: it needs a screen"
   (`../platform/screen-kinds.md`). BASIC programs with no pixels run as
-  32-column console programs (`rbc --ux`: `../platform/basic.md`).
+  32-column console programs (`rbc --no-rom`: `../platform/basic.md`).
+  A program built for the 48K ROM (`--rom48k`, or an older one) is
+  refused: "this program needs the 48K ROM".
 
 ## Build and run
 
@@ -70,7 +72,7 @@ python3 fdd3000/test/test_bound.py   # the design book's boundary cases, on the 
 python3 fdd3000/test/test_fsmod.py   # file system types loaded at mount time
 python3 fdd3000/test/test_tfs.py     # TOS disks: a real one read, a blank one written
 python3 fdd3000/test/test_kinds.py   # SDK programs by screen kind: terminal, redirection
-python3 fdd3000/test/test_basic.py   # BASIC (rbc --ux) on the terminal
+python3 fdd3000/test/test_basic.py   # BASIC (rbc --no-rom) on the terminal
 python3 test/spectrum/golden.py check   # the Spectrum build behaves as the shipped tape
 python3 test/spectrum/kinds.py       # the screen kinds on the Spectrum
 python3 fdd3000/test/fuse_shot.py OUT.png 'root\r' 'trek\r' '~300'   # a Fuse screenshot

@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: BEEP, in place of the 48K ROM's: the duration and the pitch on
+; rbc (libux): BEEP, in place of the 48K ROM's: the duration and the pitch on
 ; the stack (the pitch on top): semitones from middle C (@cmidc), -@cblo
 ; to below @cbhi, 0 to @cbmax seconds (libux/build.py's BEEP_ limits);
 ; else B Integer out of range.  On a

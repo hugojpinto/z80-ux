@@ -27,13 +27,18 @@ def main(argv=None):
     mode.add_argument('-c', action='store_true', help='relocatable ras object')
     parser.add_argument('--max', type=int, default=14000)
     parser.add_argument('--stack', type=int, default=384)
-    parser.add_argument('--ux', action='store_true',
-                        help='no 48K ROM: clean-room routines from libux (rbc/ux.py)')
-    parser.add_argument('--bitmap', action='store_true',
-                        help='with --ux: the bitmap kind (its own display file) even with no pixels')
-    parser.add_argument('--rom-ok', action='store_true',
-                        help='with --ux: allow the ROM for routines not yet clean-room (a Spectrum only)')
+    runtime = parser.add_mutually_exclusive_group()
+    runtime.add_argument('--no-rom', action='store_true',
+                         help='libux: clean-room routines in place of the 48K ROM\'s (rbc/ux.py)')
+    runtime.add_argument('--rom48k', action='store_true',
+                         help='libux, the ROM for what libux has not: the program needs the 48K ROM')
+    parser.add_argument('--kind', choices=('console', 'bitmap'),
+                        help='with --no-rom or --rom48k: the screen kind (default: console '
+                             'with no pixels, else bitmap)')
     args = parser.parse_args(argv)
+    libux = args.no_rom or args.rom48k
+    if args.kind and not libux:
+        parser.error('--kind needs --no-rom or --rom48k')
     source = args.source.resolve()
     target = (args.output or source.with_suffix('.s' if args.S else '.sso' if args.c else '.ssx')).resolve()
     if target == source:
@@ -84,16 +89,18 @@ def main(argv=None):
             asm, obj, ssx, report = compile_native(
                 inp, HERE, HERE / 'frontend', HERE / 'hisoft48.tap',
                 SDK / 'rom/48.rom', stack=args.stack, maximum=args.max,
-                use_fit=not args.ux)
-            if args.ux:
+                use_fit=not libux)
+            if libux:
                 from . import ux
                 basic = inp.read_text(encoding='ascii')
-                kind = ux.KIND_BITMAP if args.bitmap else ux.kind_of(basic)
-                asm, ssx, uxr = ux.link(asm, args.stack, kind=kind, tokens=ux.needs_tokens(basic))
+                kind = ({'console': ux.KIND_CONSOLE, 'bitmap': ux.KIND_BITMAP}[args.kind]
+                        if args.kind else ux.kind_of(basic))
+                asm, ssx, uxr = ux.link(asm, args.stack, kind=kind, tokens=ux.needs_tokens(basic),
+                                        rom48k=args.rom48k)
                 print('RBC_UX_KIND %s' % ('console' if kind == ux.KIND_CONSOLE else 'bitmap'),
                       file=sys.stderr)
-                if uxr['rom'] and not args.rom_ok:
-                    raise ValueError('still the ROM for %s (--rom-ok: a Spectrum only)'
+                if uxr['rom'] and args.no_rom:
+                    raise ValueError('still the ROM for %s (--rom48k: a machine with it)'
                                      % ' '.join(uxr['rom']))
                 image = rld.parse_ssx(ssx)
                 report.update(file=len(ssx), image=len(image['image']), bss=image['bss'],
@@ -103,12 +110,12 @@ def main(argv=None):
                 if uxr['rom']:
                     print('RBC_UX_ROM ' + ' '.join(uxr['rom']), file=sys.stderr)
                 if args.c:
-                    raise ValueError('--ux makes a linked program; -c is not available')
+                    raise ValueError('--no-rom and --rom48k make a linked program; -c is not available')
                 ux_map = uxr['symbols']
             payload = asm.encode('ascii') if args.S else obj if args.c else ssx
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
-        if args.ux and not args.S:          # the clean-room routines' offsets in the image
+        if libux and not args.S:          # the clean-room routines' offsets in the image
             import json
             Path(str(target) + '.map').write_text(json.dumps(ux_map, sort_keys=True) + '\n')
         print(f'RBC_NATIVE_OK file={report["file"]} image={report["image"]} '

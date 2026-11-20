@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""rbc --ux against rbc: the same BASIC program, the same screen.
+"""rbc --rom48k against rbc: the same BASIC program, the same screen.
 
     python3 test/basic/uxsame.py [-v] [--frames N] [--part i/n] [name ...]
 
 Each example (examples/basic-src, or the names given: a substring of the
-path) is compiled twice - by rbc (the ROM's routines) and by rbc --ux
---rom-ok (libux's clean-room routines, the ROM for those not written
+path) is compiled twice - by rbc (the ROM's routines) and by rbc
+--rom48k (libux's clean-room routines, the ROM for those not written
 yet) - and both are run on this tree's Spectrum kernel, on the SDK's
 headless Spectrum, from the same state with the same keys.  The display
 files (pixels and attributes) must match after every step: each
@@ -47,7 +47,7 @@ def compile_(src, ux):
     dst = os.path.join(OUT, name)
     if not os.path.exists(dst) or os.path.getmtime(dst) < max(
             os.path.getmtime(src), newest_lib()):
-        cmd = [sys.executable, RBC, '-o', dst, src] + (['--ux', '--rom-ok'] if ux else [])
+        cmd = [sys.executable, RBC, '-o', dst, src] + (['--rom48k'] if ux else [])
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
             return None, (r.stderr.strip().splitlines() or ['?'])[-1]
@@ -96,7 +96,7 @@ def run(data, name, frames, steps, entry):
         m.hooks[entry] = hit
         sys_hook0 = m.hooks[SYSCALL]  # the ROM's build: the ROM's print position as
 
-        def top_left(mm):             # after CLS (--ux's own starts there; the ROM's
+        def top_left(mm):             # after CLS (libux's own starts there; the ROM's
             if m.hooks.get(SYSCALL) is top_left and mm.cpu.a == 39:   # is where the
                 mm.mem[0x5C88:0x5C8A] = bytes([0x21, 0x18])           # system left it)
                 mm.mem[0x5C84:0x5C86] = bytes([0x00, 0x40])
@@ -114,7 +114,7 @@ def run(data, name, frames, steps, entry):
                 base = ret - len(START)
                 if bytes(mm.mem[base:ret]) == START:
                     if mm.mem[base - 4] == 0xFD and mm.mem[base - 3] == 0x21:
-                        base -= 4       # (--ux: ld iy,@rsv+3Ah first)
+                        base -= 4       # (libux: ld iy,@rsv+3Ah first)
                     m.hooks[base + offset] = hit
                     m.hooks[SYSCALL] = sys_hook
             return sys_hook(mm)
@@ -186,7 +186,7 @@ def main():
         ux, why = compile_(src, True)
         if ux is None:
             differ += 1
-            print('%-28s FAIL: rbc --ux: %s' % (name, why))
+            print('%-28s FAIL: rbc --rom48k: %s' % (name, why))
             continue
         entry = ROM_OUT                     # the ROM's, or the clean-room @r10 (an offset)
         mp = os.path.join(OUT, name + '.ux.ssx.map')

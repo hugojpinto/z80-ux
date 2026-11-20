@@ -16,6 +16,14 @@ import sys
 import os
 
 SSX_HDR = 20
+# SSX1 flags (z80-ux, platform/screen-kinds.md): bit 3 a screen kind is
+# declared, bits 2-1 it, bit 4 a 32-column console, bit 5 the program
+# needs the 48K ROM; an older binary's flags are 0 (needs the ROM, draws
+# at 4000h).
+FLAG_DECLARED = 0x08
+FLAG_NARROW = 0x10
+FLAG_ROM48K = 0x20
+FLAGS_ALL = 0x3F
 
 
 class LinkError(Exception):
@@ -226,8 +234,7 @@ def parse_ssx(data):
     if len(data) < SSX_HDR or data[:4] != b'SSX1':
         raise LinkError('not an SSX1 file')
     flags, hsz, isz, bss, stack, heap, ent, nrel, ck = struct.unpack_from('<BBHHHHHHH', data, 4)
-    if hsz != SSX_HDR or flags & ~31:      # bit 3: a kind declared, bits 2-1: it, bit 4: the
-                                            # console 32 columns wide (z80-ux)
+    if hsz != SSX_HDR or flags & ~FLAGS_ALL:
         raise LinkError('bad SSX1 header')
     image = data[SSX_HDR:SSX_HDR + isz]
     p = SSX_HDR + isz

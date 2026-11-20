@@ -7,7 +7,7 @@ The builds (the kernels and the FDD3000 image - upstream's must stay
 identical to ZX-UX.tzx - and libux), then each suite; a line for each,
 and the total.  --quick leaves out the slow ones (the float engine's and
 the routines' random runs at full count).  Names: only the suites whose
-name contains one of them.  (test/basic/uxsame.py, rbc against rbc --ux
+name contains one of them.  (test/basic/uxsame.py, rbc against rbc --rom48k
 on every example, takes about 25 minutes: run it by hand, by name.)
 """
 import os

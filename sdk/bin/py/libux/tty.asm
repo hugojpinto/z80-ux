@@ -14,7 +14,7 @@
 ; is followed here (64 columns, 24 rows, as the console wraps) so that
 ; print_at puts it back where it was.  Arguments as the screen's own
 ; routines take them (console.asm).  This archive is linked before
-; libc48.ssa for a program that draws no pixels (rcc --ux).
+; libc48.ssa for a program that draws no pixels (rcc (libux)).
 SYS     equ 6003h
         section text
         global @scrstart,_putchar,_puts,_cls,_cursor_at,_print_at

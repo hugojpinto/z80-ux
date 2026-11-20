@@ -5,7 +5,7 @@
 # Non-commercial use only under the repository LICENSE.
 # Commercial use prohibited without separate written permission.
 # =====================================================================
-"""Build the z80-ux C48 runtime (rcc --ux), beside the original one.
+"""Build the z80-ux C48 runtime (rcc --no-rom, --rom48k), beside the original one.
 
     libux/libc48.ssa   lib/*.asm and lib/*.c as lib/build.py builds them,
                        with libux's crt0.asm (no screen claimed at start:
@@ -14,10 +14,14 @@
                        rows behind a terminal) and float.asm (the
                        platform's float engine: sys 42) in place of lib's,
                        and fstr.asm (numbers to text and back: ftoa, atof)
+    libux/libc48rom.ssa   rom48k.asm: what may use the 48K ROM (its
+                       calculator without call 42, its BEEP): rcc --rom48k
+    libux/libc48norom.ssa norom.asm and the constants: the same without
+                       the ROM: rcc --no-rom
     libux/libtty.ssa   libux/tty.asm: the stream and console kinds' text
                        through the terminal (platform/screen-kinds.md)
     libux/librbc.ssa   libux/rbc/*.asm: the BASIC compiler's clean-room
-                       routines in place of the 48K ROM's (rbc --ux)
+                       routines in place of the 48K ROM's (rbc)
     libux/librbccon.ssa libux/rbc/con/*.asm: the console kind's output (BASIC
                        through the kernel's console, 32 columns), before
                        librbc.ssa for those programs
@@ -229,6 +233,11 @@ def main():
         objs.append((os.path.basename(f)[:-2] + '.sso', ras.assemble_text(text, os.path.basename(f))))
     with open(os.path.join(HERE, 'libc48.ssa'), 'wb') as f:
         f.write(rld.write_archive(objs))
+    with open(os.path.join(HERE, 'libc48rom.ssa'), 'wb') as f:
+        f.write(rld.write_archive(members([os.path.join(HERE, 'rom48k.asm')])))
+    with open(os.path.join(HERE, 'libc48norom.ssa'), 'wb') as f:
+        f.write(rld.write_archive(members([os.path.join(HERE, 'norom.asm')],
+                                          extra=[('consts.asm', consts_asm())])))
     tty = members([os.path.join(HERE, 'tty.asm')])
     with open(os.path.join(HERE, 'libtty.ssa'), 'wb') as f:
         f.write(rld.write_archive(tty))

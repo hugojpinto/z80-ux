@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: numbers as text and strings, in place of the 48K ROM's
+; rbc (libux): numbers as text and strings, in place of the 48K ROM's
 ; PRINT-FP, STR$, VAL, CHR$, string addition, the fixed-length LET and
 ; USR "a".  A string on the calculator stack: its address (D E) and length
 ; (B C), as STK-STORE puts them; its text in the workspace (BC-SPACES).

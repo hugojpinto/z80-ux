@@ -2,17 +2,20 @@
 """SDK programs (SSX1 files) run from disk, on the emulated FDD3000.
 
 The system disk's ZXFS is mounted on /mnt/a at boot; its /bin holds C48
-programs (rcc --ux, the stream and console kinds), so the shell finds
-them by name.  Drive B gets a ZXFS with more, built here with rcc --ux,
-and the shipped mandel (built for a display file at 4000h), mounted on
-/mnt/b and run by path.  Checked:
+programs (rcc --no-rom, the stream and console kinds), so the shell finds
+them by name.  Drive B gets a ZXFS with more, built here with rcc --no-rom,
+hello built with rcc --rom48k, and the shipped mandel (built for the 48K
+ROM and a display file at 4000h), mounted on /mnt/b and run by path.
+Checked:
   - the C48 hello from the disk (the shell's plain hello is resident);
   - fortune, hangman, trek write to the terminal; hangman takes keys;
-  - colors and mandel (the bitmap kind) and the shipped mandel are
-    refused at load: the FDD3000's console is a terminal, it has no screen
-    to draw on (screen.asm, ssx.asm); the machine lives on;
-  - bell (test/kinds/bell.c): beep() rings the terminal's bell (hbeep),
-    at most one every fifth of a second;
+  - colors and mandel (the bitmap kind) are refused at load: the
+    FDD3000's console is a terminal, it has no screen to draw on
+    (screen.asm, ssx.asm); hello built for the 48K ROM and the shipped
+    mandel are refused too, for the ROM the FDD3000 has not; the machine
+    lives on;
+  - bell (test/kinds/bell.c): beep() with no ROM (libux/norom.asm) rings
+    the terminal's bell;
   - float (test/kinds/float.c): system call 42 loads the clean-room float
     engine (/mnt/a/lib/fp, drivers/fp) into the arena; the results are
     the Spectrum ROM's; the engine is freed when float ends;
@@ -54,10 +57,15 @@ def main():
                       ('keys', '../../test/kinds/keys.c'),
                       ('float', '../../test/kinds/float.c')):
         dst = os.path.join(out, name + '.ssx')
-        subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--ux', '-o', dst,
+        subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--no-rom', '-o', dst,
                         os.path.join(ROOT, 'examples', 'c48-src', src)], check=True)
         with open(dst, 'rb') as f:
             fs.put('/' + name, f.read())
+    dst = os.path.join(out, 'hello48.ssx')
+    subprocess.run([sys.executable, os.path.join(ROOT, 'sdk', 'bin', 'rcc'), '--rom48k', '-o', dst,
+                    os.path.join(ROOT, 'examples', 'c48-src', 'examples', 'hello.c')], check=True)
+    with open(dst, 'rb') as f:
+        fs.put('/hello48', f.read())
     with open(os.path.join(ROOT, 'examples', 'c48-bin', 'ssx', 'mandel.ssx'), 'rb') as f:
         fs.put('/mand0', f.read())
     m = fddrun.FDDUX([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK), to_model(b)])
@@ -88,6 +96,7 @@ def main():
     run('/mnt/b/bell\r', settle=6.0, name='bell')
     bells = m.link.out.count(7) - bel0
     run('/mnt/b/mand0\r', name='old')
+    run('/mnt/b/hello48\r', name='hello48')
     sym = json.load(open(os.path.join(ROOT, 'build', 'fdd3000', 'kernel.json')))['symbols']
     run('/mnt/b/float\r', settle=10.0, name='float')
     if m.m[sym['fpblk']] | m.m[sym['fpblk'] + 1] or m.m[sym['fpown']]:
@@ -115,7 +124,8 @@ def main():
     expect('bell', 'bell ok', 'bell did not finish')
     if not 1 <= bells <= 3:
         fails.append('bell: its three beeps rang the bell %d times (1-3)' % bells)
-    expect('old', 'this program draws: it needs a screen', 'a program built for 4000h was not refused')
+    expect('old', 'this program needs the 48K ROM', 'a program built before the kinds was not refused')
+    expect('hello48', 'this program needs the 48K ROM', 'a program built with --rom48k was not refused')
     expect('float', '14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3',
            'the float engine did not give the ROM\'s results')
     expect('float', '1.4142136 0.33333333 1E+10 -.05 65535 -1250 6.2831853',

@@ -46,6 +46,7 @@ is not a flag: it is the platform's choice of drivers (below).
 | `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`); device read/write go to the layer | 0 | 1 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
+| `HAL_ROM48K` | the 48K ROM at 0000h: programs built for it (`--rom48k`, or older binaries) may run; 0 refuses them at load | 1 | 0 |
 | `HAL_SEQDEV` | sequential devices (devtab `DV_SEQ`: one record a transfer, no seeking): exec of `DEV/NAME` runs `/etc/ldx`, which finds NAME on DEV (the cassette's `/dev/cassette/NAME`); the device hold (`dhold`: its process keeps the CPU between records); `tar` | 1 | 0 |
 | `HAL_SSXFILE` | SSX1 programs from files: exec of an SSX1 file runs `/etc/ldx` on it (with `HAL_SEQDEV` too: both; `/etc/ldx` tells them apart - a device has no length) | 0 | 1 |
 | `HAL_SCR4000` | with `HAL_SSXFILE`: 4000h–5AFFh is the display file; 0 refuses SSX1 programs that need it there (no kind declared, or fixed) | 1 | 0 |
@@ -167,11 +168,11 @@ absolute address:
 |---|---|---|
 | **6003h** | every program (`SYS`) | the system-call entry: a `jp` there is enough |
 | call numbers 0–42, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL; 41 the screen (`screen-kinds.md`), 42 the float engine (`float.md`) |
-| SSX1 flags | `rcc --ux`, `rbc --ux` | bit 3 a kind declared, bits 2–1 the kind (stream, console, bitmap, fixed), bit 4 a 32-column console; a platform with no screen (`HAL_SCREEN equ 0`: the FDD3000) loads only the stream and console kinds |
-| stty mode bits | INKEY$ (`rbc --ux`) | `TT_RAW` 20h, `TT_ECHO` 10h, `TT_NOWAIT` 40h (z80-ux: raw, no key waiting: a read takes nothing) |
+| SSX1 flags | `rcc`, `rbc` (`--no-rom`, `--rom48k`) | bit 3 a kind declared, bits 2–1 the kind (stream, console, bitmap, fixed), bit 4 a 32-column console, bit 5 needs the 48K ROM; the kernel refuses a program what the machine has not (`HAL_ROM48K`, `HAL_SCREEN`, `HAL_SCR4000`: `screen-kinds.md`) |
+| stty mode bits | INKEY$ (`rbc`, libux) | `TT_RAW` 20h, `TT_ECHO` 10h, `TT_NOWAIT` 40h (z80-ux: raw, no key waiting: a read takes nothing) |
 | **5BE4h** (`TTOP`) | programs that draw (`console.asm`) | the shared console rows; goes with a screen-page call |
-| **4000h** screen | programs that draw, built without `rcc --ux` (or the fixed kind) | `--ux` bitmap programs ask call 41 for the page; the FDD3000 has no screen and refuses every program that draws (`HAL_SCREEN equ 0`) |
-| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | float programs built without `rcc --ux` (and `beep()`) | the ROM calculator; `--ux` programs use system call 42 instead (`float.md`): the ROM on a Spectrum, a loaded clean-room engine elsewhere |
+| **4000h** screen | the fixed kind, and older binaries | bitmap programs ask call 41 for the page; the FDD3000 has no screen and refuses every program that draws (`HAL_SCREEN equ 0`) |
+| **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | `--rom48k` float programs on a kernel without call 42 (and their `beep()`), older binaries | the ROM calculator; others use system call 42 (`float.md`): the ROM on a Spectrum, a loaded clean-room engine elsewhere |
 | port **FEh** keyboard rows | `sys.asm` (key reads) | the ULA's keyboard: only where the keyboard is the ULA's |
 
 **Everything else is per build**: the kernel's place (6000h), its
@@ -247,7 +248,7 @@ kernel sites:
    the child's bank) and can then stop reserving window room in each SAVE
    block (`savefit`); the TC3256 copies to and from RAM-disk sectors.
 5. ~~Screen page, terminal console for SDK programs~~ — done
-   (`screen-kinds.md`): kinds in the SSX1 flags, `rcc --ux`, call 41; the
+   (`screen-kinds.md`): kinds in the SSX1 flags, `rcc --no-rom`, call 41; the
    FDD3000 places display files in the arena and its resident text at
    4000h.
 6. ~~Memory layout per platform~~ — done: the platform's map

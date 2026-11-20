@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux, the console kind: a BASIC program with no pixels (no PLOT,
+; rbc (libux), the console kind: a BASIC program with no pixels (no PLOT,
 ; DRAW, CIRCLE, POINT, SCREEN$, ATTR) prints through the kernel's console,
 ; 32 columns wide (SSX1 flags bit 4: platform/screen-kinds.md) - a
 ; Spectrum's screen in the ROM's 8x8 characters, a terminal's text.

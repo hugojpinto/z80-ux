@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: the names libux/rbc/*.asm share (libux/build.py puts this
+; rbc (libux): the names libux/rbc/*.asm share (libux/build.py puts this
 ; before each of them).
 ;
 ; The system variables: @rsv + their offset in the Spectrum's layout

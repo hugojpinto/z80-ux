@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: @rsv, the BASIC system variables, in the program: the
+; rbc (libux): @rsv, the BASIC system variables, in the program: the
 ; Spectrum's layout (its 5C00h + n at @rsv + n; rbc/ux.py rewrites the
 ; compiled program's references), IY = @rsv + ERRNR.  Each program its
 ; own: two at once do not share them, and a machine without the ROM's

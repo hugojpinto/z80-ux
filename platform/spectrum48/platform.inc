@@ -18,6 +18,7 @@ mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 0              ; disk block devices
+HAL_ROM48K   equ 1              ; the 48K ROM at 0000h: programs may call it
 HAL_SEQDEV   equ 1              ; sequential devices: the cassette (rom48)
 DEV_TAP      equ 5              ; its device number: /dev/tap, /dev/cassette
         DEFINE HAL_DEVFILES "tty:1 mem:2 tap:5 cassette:5"  ; /dev (build.py)

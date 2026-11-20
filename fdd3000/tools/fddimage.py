@@ -57,7 +57,7 @@ Unmount a disk before you take it out of its drive.
 SYSTEM_RC = b'echo /dev/fd0 on /mnt/a\n'
 
 # SDK programs on the system disk's /bin (/mnt/a/bin once mounted), built
-# from their sources with rcc --ux: each declares its screen kind - here
+# from their sources with rcc --no-rom: each declares its screen kind - here
 # only the stream and console kinds, which write to the terminal; one that
 # draws would be refused (platform/screen-kinds.md)
 SYSTEM_PROGRAMS = ['hello', 'arith', 'fortune', 'hangman', 'quiz',
@@ -66,7 +66,7 @@ UX_SOURCES = {'hello': 'examples'}  # else games
 
 
 def ux_program(b, name, out):
-    """examples/c48-src/.../NAME.c built with rcc --ux into OUT (kept while
+    """examples/c48-src/.../NAME.c built with rcc --no-rom into OUT (kept while
     neither the source nor the z80-ux runtime is newer)."""
     import subprocess
     src = os.path.join(b.ROOT, 'examples', 'c48-src', UX_SOURCES.get(name, 'games'), name + '.c')
@@ -75,10 +75,10 @@ def ux_program(b, name, out):
     newest = max(os.path.getmtime(p) for p in [src] + [os.path.join(lib, f) for f in
                                                       ('libc48.ssa', 'libtty.ssa')])
     if not os.path.exists(dst) or os.path.getmtime(dst) < newest:
-        r = subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'rcc'), '--ux',
+        r = subprocess.run([sys.executable, os.path.join(b.ROOT, 'sdk', 'bin', 'rcc'), '--no-rom',
                             '-o', dst, src], capture_output=True, text=True)
         if r.returncode:
-            raise b.BuildError('rcc --ux %s: %s%s' % (name, r.stdout, r.stderr))
+            raise b.BuildError('rcc --no-rom %s: %s%s' % (name, r.stdout, r.stderr))
     with open(dst, 'rb') as f:
         data = f.read()
     flags = data[4]

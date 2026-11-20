@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; rbc --ux: pixels, in place of the 48K ROM's PIXEL-ADD, PLOT, DRAW (a
+; rbc (libux): pixels, in place of the 48K ROM's PIXEL-ADD, PLOT, DRAW (a
 ; line) and SCREEN$, in the display file at page @rdh.  PLOT and DRAW set
 ; points under OVER and INVERSE and colour their cells as PRINT does
 ; (@rsetat); a line steps along its longer side, the shorter one by an
