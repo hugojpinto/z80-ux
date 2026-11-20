@@ -1,6 +1,6 @@
-# z80-ux and ZX-UX
+# ZX-UX+ and ZX-UX
 
-**z80-ux** (github.com/hugojpinto/z80-ux) is a fork of **ZX-UX**,
+**ZX-UX+** (github.com/hugojpinto/zx-ux) is a fork of **ZX-UX**,
 *the ZX Spectrum 48K Unix project* by Supratim Sanyal of SANYALnet Labs
 (github.com/tuklusan/ZX-UX-The-ZX-Spectrum-48K-Unix-Project). It takes
 ZX-UX to other Z80 machines: first the **Timex FDD3000**, a disk unit with

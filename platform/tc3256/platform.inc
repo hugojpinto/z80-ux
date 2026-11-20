@@ -65,7 +65,7 @@ SV_BORDCR    equ 05C48h         ; the border's colour, where the console and
         ALIGN 2                 ; ITAB and the arena blocks are word aligned.
         ENDM
         MACRO HAL_BANNER
-        db 10,"ZX-UX UNIX v1 / Timex TC3256 Z80 3.5MHz 64K",10
+        db 10,"ZX-UX+ UNIX v1 / Timex TC3256 Z80 3.5MHz 64K",10
         db "Based on original work by Supratim Sanyal of SANYALnet Labs.",10
         db "TC3256 port: LoadZX Museum.",10
         ENDM

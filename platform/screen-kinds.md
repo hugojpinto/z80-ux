@@ -1,6 +1,6 @@
 # SDK programs and the screen: three declared kinds
 
-For the SDK (`sdk/bin/py`) and the kernel, z80-ux branch `portable-hal`.
+For the SDK (`sdk/bin/py`) and the kernel, ZX-UX+ branch `portable-hal`.
 
 **Status.** Built: the kinds, `rcc --no-rom`/`--rom48k` (`sdk/bin/py/libux`: the
 terminal runtime `libtty.ssa`, the relocatable bitmap runtime), the

@@ -1,4 +1,4 @@
-/* z80-ux test: floats through the platform's engine (platform/float.md).
+/* zx-ux+ test: floats through the platform's engine (platform/float.md).
  * Each result, scaled and truncated, is far from a whole number, so every
  * binding - the Spectrum ROM, the clean-room engine - prints the same:
  * 14142 8414 5403 1218 23025 31415 1024 5463 5235 10471 350 -3

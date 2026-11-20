@@ -138,7 +138,7 @@ memwr:  ld de,(u_off)
 
 ; ---------------------------------------------------------------------
 ; tty input - ISR side. The keyboard has no rewind switch.
-; z80-ux: NTTY terminals (kvars.inc): each its own ring; the console is 0.
+; zx-ux+: NTTY terminals (kvars.inc): each its own ring; the console is 0.
 ; ---------------------------------------------------------------------
 ; ttrawin: 89 bytes. A = key code from ROM KEY-INPUT (ISR): the console's.
 ; ttrawn: A = a key, E = its terminal.  One keystroke, one chance to behave.
@@ -493,7 +493,7 @@ ttcuroff equ curoff
         ENDIF
 
 ; ttread: 244 bytes. Read the terminal line. The keyboard gets a turn.
-; (A = the device: /dev/tty, the process's own; z80-ux: /dev/ttyN)
+; (A = the device: /dev/tty, the process's own; zx-ux+: /dev/ttyN)
 ttread:
         IF NTTY > 1
         call ttnum
@@ -508,7 +508,7 @@ ttread:
         ld a,(ttymode)
         and TT_RAW
         jr z,.can
-        ld a,(ttymode)          ; z80-ux: TT_NOWAIT - no key waiting, nothing read
+        ld a,(ttymode)          ; zx-ux+: TT_NOWAIT - no key waiting, nothing read
         and TT_NOWAIT
         jr z,.raw
         TTYC
@@ -672,7 +672,7 @@ ttout   equ kputc
 ; kputs: 11 bytes. Print a string. The screen charges by the character.
 kputs:
         IF NTTY > 1
-        call ttself             ; z80-ux: the running process's terminal
+        call ttself             ; zx-ux+: the running process's terminal
         ENDIF
 .l:     ld a,(hl)
         or a
@@ -741,7 +741,7 @@ sysgtty:
         jp sysok
 
 ; ckty: 10 bytes. HL = fsp entry → CF if it is not the terminal. Other devices need not apply.
-; (z80-ux: a terminal - /dev/tty, /dev/ttyN - its line state loaded.
+; (zx-ux+: a terminal - /dev/tty, /dev/ttyN - its line state loaded.
 ; Keeps HL, DE.)
 ckty:
         IF NTTY > 1

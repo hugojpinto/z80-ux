@@ -8,7 +8,7 @@
 ; =====================================================================
 ;  kernel globals - live in the ZX printer buffer (5B00-5BFF)
 ; =====================================================================
-; z80-ux: terminals - the console (0) and the platform's others (HAL_NTTY;
+; zx-ux+: terminals - the console (0) and the platform's others (HAL_NTTY;
 ; 1 if unset).  Each its own key ring (ttrawn) and line state; the line
 ; state of the one in use (ttyc) is in the variables below (ttymode,
 ; ttycnt, ttypos, ttyrdy, ttat, ttcc, ttp1, TTYBUF), the others' saved
@@ -22,7 +22,7 @@ NTTY    equ 1
         ASSERT NTTY >= 1 && NTTY <= 8
 TTRING  equ 32                  ; a key ring (a power of two)
 
-; z80-ux: the process table, NPROC slots (const.inc: the platform's), at
+; zx-ux+: the process table, NPROC slots (const.inc: the platform's), at
 ; PTBASE - KV here, as on the Spectrum, for four; a platform with more
 ; gives it a page-aligned block of its own (HAL_PTAB 1: the label proctab,
 ; PTSZ bytes, in its layer).  p_stat starts a page: H = p_stat >> 8, L = slot.

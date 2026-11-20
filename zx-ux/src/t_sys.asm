@@ -19,7 +19,7 @@
 STK_INIT equ 160                ; switch frames, "/etc/init" argv, wait. The scheduler has a very small
                                 ; watch.
         IF NTTY > 1
-IN_PID  equ U_T+2               ; z80-ux: each terminal's getty (NTTY words;
+IN_PID  equ U_T+2               ; zx-ux+: each terminal's getty (NTTY words;
                                 ; U_T: the boot's rc, HAL_BOOTMNT)
 IN_T    equ IN_PID+2*NTTY       ; a terminal (the one being seen to)
 IN_NAME equ R_BUF               ; /dev/ttyN, built for a child
@@ -81,7 +81,7 @@ init_m:
         jp exitc
         ENDIF
         IF NTTY > 1
-; z80-ux: a getty on each terminal, started again when it ends.
+; zx-ux+: a getty on each terminal, started again when it ends.
 .l:     xor a
 .t:     ld (IN_T),a
         call .pp

@@ -1,5 +1,5 @@
 ; =====================================================================
-; z80-ux: the float interface (platform/float.md) on a machine without
+; zx-ux+: the float interface (platform/float.md) on a machine without
 ; the 48 ROM.  The engine (fp.asm) is a module on the system disk
 ; (HAL_FPMOD, made by fsmod.py), loaded at a process's first system call
 ; 42 into a fixed arena block and shared; each process holding it has a

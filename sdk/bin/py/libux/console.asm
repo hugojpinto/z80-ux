@@ -6,7 +6,7 @@
 ; =====================================================================
 ; C48 screen: 64 x 24 text with a 4 x 8 font, colour, PLOT/POINT and UDGs.
 ; Writes straight to display RAM. No glass between us and the pixels.
-; z80-ux (the bitmap kind, platform/screen-kinds.md): the display file is
+; zx-ux+ (the bitmap kind, platform/screen-kinds.md): the display file is
 ; where system call 41 puts it (@scrhi: its page; 40h on a kernel without
 ; the call), not always at 4000h.
 SYS     equ 6003h

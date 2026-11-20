@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; z80-ux: the 48K Spectrum's memory map (const.inc's comment draws it),
+; zx-ux+: the 48K Spectrum's memory map (const.inc's comment draws it),
 ; included by platform.inc.  A platform with another map sets these
 ; itself - all of them - keeping 6003h and 5BE4h (unix.asm asserts).
 

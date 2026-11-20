@@ -1,4 +1,4 @@
-/* z80-ux test: kbd_down and kbdmatrix.  Waits up to 3 seconds for A to be
+/* zx-ux+ test: kbd_down and kbdmatrix.  Waits up to 3 seconds for A to be
  * held, then prints what it saw: "a:1" on a Spectrum while A is held,
  * "a:0" behind a terminal (the FDD3000), where no key is ever down. */
 #include <c48.h>

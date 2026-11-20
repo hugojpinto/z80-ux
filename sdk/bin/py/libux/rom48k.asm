@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; z80-ux (libux, rcc --rom48k): what of the C48 runtime may use the 48K
+; zx-ux+ (libux, rcc --rom48k): what of the C48 runtime may use the 48K
 ; ROM - its calculator when the kernel has no float engine (call 42), and
 ; its BEEP.  A program linked with these needs the ROM (SSX1 flags bit 5);
 ; norom.asm is the same without it.

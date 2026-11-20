@@ -182,7 +182,7 @@ r48keys:
 .b2:    ret
 
 ; ---------------------------------------------------------------------
-; z80-ux: the float interface (platform/float.md) on the 48 ROM's own
+; zx-ux+: the float interface (platform/float.md) on the 48 ROM's own
 ; calculator - the same operations, numbers and results as the engine a
 ; machine without this ROM loads (drivers/fp/fp.asm).  System call 42
 ; gives programs romfpe.  The caller's workspace (IX) holds the ROM's

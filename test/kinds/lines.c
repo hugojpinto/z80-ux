@@ -1,4 +1,4 @@
-/* z80-ux test: a stream-kind program (putchar and puts only) */
+/* zx-ux+ test: a stream-kind program (putchar and puts only) */
 #include <c48.h>
 
 int main(void)

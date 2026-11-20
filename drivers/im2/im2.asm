@@ -1,6 +1,6 @@
 ; =====================================================================
 ; ZX-UX platform driver: IM 2 from a vector table in RAM.
-; z80-ux (platform/README.md: interrupt vectors).
+; zx-ux+ (platform/README.md: interrupt vectors).
 ; =====================================================================
 ;
 ;  The 48K Spectrum's IM 2 needs no table: its ROM has 257 FFh bytes at

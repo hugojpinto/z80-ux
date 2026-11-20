@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX's console language on a VT52 terminal: shared.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; z80-ux: LoadZX Museum.  Non-commercial use only: see ../../LICENSE.
+; zx-ux+: LoadZX Museum.  Non-commercial use only: see ../../LICENSE.
 ; =====================================================================
 ;
 ;  A terminal, not a screen (platform/terminals.md): the FDD3000's console

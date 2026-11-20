@@ -67,7 +67,7 @@ HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are
         ALIGN 2                 ; ITAB and the arena blocks are word aligned.
         ENDM
         MACRO HAL_BANNER
-        db 10,"ZX-UX UNIX v1 / Timex FDD3000 Z80 4MHz 64K",10
+        db 10,"ZX-UX+ UNIX v1 / Timex FDD3000 Z80 4MHz 64K",10
         db "Based on original work by Supratim Sanyal of SANYALnet Labs.",10
         db "FDD3000 port: LoadZX Museum.",10
         ENDM

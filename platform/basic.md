@@ -1,6 +1,6 @@
 # BASIC without the ROM: rbc --no-rom
 
-For the SDK (`sdk/bin/py/rbc`, `sdk/bin/py/libux`) and the kernel, z80-ux
+For the SDK (`sdk/bin/py/rbc`, `sdk/bin/py/libux`) and the kernel, ZX-UX+
 branch `portable-hal`.
 
 `rbc` compiles a 48K Spectrum BASIC program with the HiSoft compiler's

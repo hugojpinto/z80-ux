@@ -32,7 +32,7 @@ and the FDD3000 image came out as before. Since then (`DESIGN.md`: the
 drivers, the device table, memory per platform) the Spectrum build is no
 longer the tape byte for byte; it is held to **behaving** as the tape does
 (`test/spectrum/golden.py`), and `build.py upstream` still rebuilds
-upstream's own sources into the tape exactly (`../Z80-UX.md`).
+upstream's own sources into the tape exactly (`../ZX-UX+.md`).
 
 ## Capabilities
 
@@ -179,7 +179,7 @@ absolute address:
 | **6003h** | every program (`SYS`) | the system-call entry: a `jp` there is enough |
 | call numbers 0–42, the SSX1 format | every program | 21/22 = mount/umount where `HAL_VFS`, else EINVAL; 41 the screen (`screen-kinds.md`), 42 the float engine (`float.md`) |
 | SSX1 flags | `rcc`, `rbc` (`--no-rom`, `--rom48k`) | bit 3 a kind declared, bits 2–1 the kind (stream, console, bitmap, fixed), bit 4 a 32-column console, bit 5 needs the 48K ROM; the kernel refuses a program what the machine has not (`HAL_ROM48K`, `HAL_SCREEN`, `HAL_SCR4000`: `screen-kinds.md`) |
-| stty mode bits | INKEY$ (`rbc`, libux) | `TT_RAW` 20h, `TT_ECHO` 10h, `TT_NOWAIT` 40h (z80-ux: raw, no key waiting: a read takes nothing) |
+| stty mode bits | INKEY$ (`rbc`, libux) | `TT_RAW` 20h, `TT_ECHO` 10h, `TT_NOWAIT` 40h (ZX-UX+: raw, no key waiting: a read takes nothing) |
 | **5BE4h** (`TTOP`) | programs that draw (`console.asm`) | the shared console rows; goes with a screen-page call |
 | **4000h** screen | the fixed kind, and older binaries | bitmap programs ask call 41 for the page; the FDD3000 has no screen and refuses every program that draws (`HAL_SCREEN equ 0`) |
 | **5C3Dh–5C92h** (ERR_SP, STKBOT, STKEND, MEM, MEMBOT) | `--rom48k` float programs on a kernel without call 42 (and their `beep()`), older binaries | the ROM calculator; others use system call 42 (`float.md`): the ROM on a Spectrum, a loaded clean-room engine elsewhere |

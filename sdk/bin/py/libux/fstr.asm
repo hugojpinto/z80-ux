@@ -4,7 +4,7 @@
 ; Non-commercial use only under the repository LICENSE.
 ; Commercial use prohibited without separate written permission.
 ; =====================================================================
-; z80-ux: numbers to text and back, in the program (platform/float.md).
+; zx-ux+: numbers to text and back, in the program (platform/float.md).
 ;
 ; @fstr  HL = a five-byte number, DE = a buffer (14 bytes) -> the number
 ;        there as the Spectrum's PRINT writes it, NUL-ended; HL = the NUL.

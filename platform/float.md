@@ -1,6 +1,6 @@
 # Floating point: one interface, a binding per platform
 
-For the kernel, the SDK (`sdk/bin/py/libux`) and the platforms, z80-ux
+For the kernel, the SDK (`sdk/bin/py/libux`) and the platforms, ZX-UX+
 branch `portable-hal`.
 
 ## The interface
