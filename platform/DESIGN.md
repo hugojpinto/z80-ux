@@ -71,8 +71,8 @@ SDK runtime uses call 41.
    generated `userland.inc`, the layer's text places `TXn` packed by the
    build, `HAL_KMAX`) rather than by splitting `unix.asm`: the same
    freedom, a smaller change to upstream's file. On the FDD3000 all
-   resident text but ulib is below 5B00h: arena 24,954 bytes free at
-   boot (memory-plan §13-14).
+   resident text is below 5B00h: arena 26,244 bytes free at boot
+   (memory-plan §13-14).
 6. `mem_swapout`/`mem_swapin`: the seam the 128K (bank switch) and the
    TC3256 (RAM-disk sectors) need. **Done**: the four places that move a
    window (the scheduler's hand-over, fork, exec) call them; both

@@ -74,11 +74,10 @@ MORE_PROGRAMS = [('/bin/dd', 'dd', 0), ('/etc/mount', 'mount', 0),
 # whose machine layer declares free places for text (TX0, TX0_LIM, TX1...:
 # fdd3000/src/hal.asm) gets them packed there (place(): textN.inc); the
 # rest is assembled after the kernel, as on the Spectrum (userland.inc).
-# ulib.asm stays there, first: it defines the macro the others use.
+# (Their macro, SC, is in usys.inc, assembled before any of them.)
 USERLAND = ['ulib.asm', 't_sys.asm', 't_file.asm', 't_misc.asm', 't_tap.asm',
             't_proc.asm', 't_vi.asm', 't_zx.asm', 't_tar.asm', 't_ldx.asm',
             't_mkfs.asm', 't_fs.asm', 't_dd.asm']
-PINNED = ['ulib.asm']
 
 # What a program, its source, a document or a directory needs of the
 # machine (its platform.inc): left out where that is 0.
@@ -298,7 +297,7 @@ def place(target, defines=()):
     files = sources(target)
     size = {x: sym['txsize%d' % (k + 1)] - sym['txsize%d' % k] for k, x in enumerate(files)}
     placed = {n: [] for n in room}
-    for x in sorted((x for x in files if x not in PINNED), key=lambda x: -size[x]):
+    for x in sorted(files, key=lambda x: -size[x]):
         fits = [n for n in room if room[n] >= size[x]]
         if fits:
             n = min(fits, key=lambda n: room[n])

@@ -10,10 +10,7 @@
 ;  Runs in user mode; talks to the kernel only through system calls.
 ; =====================================================================
 
-        MACRO SC num
-        ld a,num
-        call SYS
-        ENDM
+; (SC, the system call macro: usys.inc, assembled before every program.)
 
 ; ---- per-process library data (start of user data, cleared by exec)
 U_ARGC  equ UDATA+0

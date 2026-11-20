@@ -1988,6 +1988,7 @@ kend:
 ; =====================================================================
 ; user land (resident pure text).
 ; =====================================================================
+        include "usys.inc"      ; their system call macro, before any of them
         include "userland.inc"  ; the resident programs placed here: all but
                                 ; those the platform puts elsewhere (build.py)
 

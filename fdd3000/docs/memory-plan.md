@@ -422,8 +422,9 @@ its free places and the build fills them:
   kernel and a label before each (`txsizeK`), so it has their sizes and
   the places' room; it packs them, largest first, each into the place
   with the least room it fits (best-fit decreasing); what does not fit
-  stays after the kernel (`userland.inc`). `ulib.asm` always stays there:
-  it defines the `SC` macro the others use, so it is assembled first.
+  stays after the kernel (`userland.inc`). (`ulib.asm` stayed there at
+  first: it defined the `SC` macro the others use. That macro is now in
+  `usys.inc`, assembled before them all, and ulib is packed like the rest.)
 - `fddimage.py` takes the places from the symbols (`text0.bin`...); the
   image starts at the lowest one. A machine that declares no `TXn` (the
   Spectrum) gets everything after the kernel, as before.
@@ -451,6 +452,13 @@ bytes left); TX2 t_misc, t_tap (du), t_vi, t_zx, t_ldx, t_fs (1,656
 left). After the kernel: ulib only. **Arena: 24,954 bytes** at boot;
 image 139 sectors. (The Spectrum, which keeps its cassette, pays 94
 bytes of arena for the general redirect and the loader's one path.)
+
+**Then: ulib packed too.** `SC` moved to `usys.inc` (assembled before every
+resident program), so nothing is pinned: TX1 holds ulib and t_file (114
+bytes left), TX2 t_misc, t_tap (du), t_proc, t_vi, t_zx, t_ldx, t_mkfs,
+t_fs (305 left). After the kernel there is no resident text at all, only
+PTAB and the boot code. **Arena: 26,244 bytes** at boot; image 134 sectors.
+The Spectrum, with no text places, builds as before.
 
 ## 14. A clean-memory platform: the broad view
 
@@ -489,7 +497,7 @@ the boot sector's page (256 bytes) and the trap zone's filler.
 | Lever | Gain | Cost |
 |---|---|---|
 | ~~Drop `tar`/`tap` from the FDD build~~ | done (`HAL_SEQDEV`, above): ldx went low | — |
-| `ulib` packable: `SC` and the `U_*` names in an include of their own, assembled first | ulib (1,291 B) fits TX2's 1,656 spare bytes: the kernel's image ends after the kernel, PTAB and the boot code | a small split of a shared file |
+| ~~`ulib` packable~~ | done (`usys.inc`): the kernel's image ends after the kernel, PTAB and the boot code | — |
 | The boot sector moves itself (to the window: free while booting) before loading, so the image may cover 3F00h | +256 B; TX1 and TX2 become one place 31ECh-5AFFh (better packing) | boot.asm: a copy and a jump |
 | Trap zone 0068h-03FFh down to the entry points used (RSTs, BEEP, BEEPER) | ~0.9 KB of place | a program calling an unlisted ROM routine runs into text, not a clean stop (§8) |
 | Buffer cache 8 → 4 sectors (`NBUF`) | +1 KB of place | slower directory-heavy work |
@@ -497,10 +505,12 @@ the boot sector's page (256 bytes) and the trap zone's filler.
 | Resident programs to disk (Idea E) | anything beyond the above | load time; commands need the system disk |
 | One arena over two runs (Idea D) | uses free place below 5B00h as arena | the allocator's core; only once the places have room to spare |
 
-Room in the places is only arena once the text after the kernel can move
-into it: now ulib alone (1,291 bytes). Past that ceiling, the next byte
-of arena comes from Idea E or Idea D. So: make ulib packable (arena about
-26.2 KB); then the boot sector's page; the rest only with a reason.
+Room in the places was only arena while text after the kernel could move
+into it; none is left there now. So the levers above that add room in the
+places (the boot sector's page, the trap zone, the buffer cache) no
+longer grow the arena by themselves: the next byte of arena comes from
+Idea E (programs to disk) or Idea D (an arena over two runs, which would
+put the places' spare bytes to use).
 
 **For the next clean machine** (a CP/M-class Z80 with 64K, or the TC3256
 on its own): copy `memmap48.inc`'s values (the pinned ones decide the

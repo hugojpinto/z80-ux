@@ -97,10 +97,10 @@ Memory of the FDD3000 while ZX-UX runs:
 | 0068h–03FFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
 | 0400h–0FFFh | resident programs (text place TX0: `init`, `getty`, `login`, `sh`, `glob`, `dd`) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer (1800h–3190h), then resident programs (TX1: `cat`/`ls`/`cp`... (t_file), `ps`/`top`, `mkfs`) |
+| 1800h–3EFFh | the hardware layer (1800h–3190h), then resident programs (TX1: ulib, `cat`/`ls`/`cp`... (t_file)) |
 | 3F00h–3FFFh | the boot sector (free once the system runs) |
-| 4000h–5AFFh | resident programs (TX2: `date`/`wc`/`more`... (t_misc), `du`, `vi`, `zxpack`, `ldx`, `mount`/`umount`; 1,656 bytes left) |
-| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, ulib, arena (24,954 bytes free at boot), window at F000h |
+| 4000h–5AFFh | resident programs (TX2: `date`/`wc`/`more`... (t_misc), `du`, `ps`/`top`, `vi`, `zxpack`, `ldx`, `mkfs`, `mount`/`umount`) |
+| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena (26,244 bytes free at boot), window at F000h |
 
 The build packs the resident programs into the text places (`build.py
 place()`, best fit, largest first) and prints what went where;
