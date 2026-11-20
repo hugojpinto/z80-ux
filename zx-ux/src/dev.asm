@@ -16,12 +16,14 @@
 ; ---------------------------------------------------------------------
 ; The devices are the platform's: devtab (platform/README.md) lists, from
 ; device number FIRST to LAST, the routines that read, write and open
-; them.  An entry: db FIRST, LAST; dw read, write, open (0: none).  A 0
-; ends the table.  read and write: A = the device number, the transfer in
+; them, and what kind they are.  An entry: db FIRST, LAST; dw read,
+; write, open (0: none); db flags (DV_SEQ: const.inc).  A 0 ends the
+; table.  read and write: A = the device number, the transfer in
 ; u_off, u_base, u_count, as readi/writei.  open: HL = the device's
 ; i-number; CF, A on an error; keeps HL, DE, BC, IX.
 ; ---------------------------------------------------------------------
-DEVSZ   equ 8
+DEVSZ   equ 9
+DV_FLAGS equ 6                  ; the flags, from what devfind gives
 
 ; devread, devwrite: the device of i-node IX.
 devread:

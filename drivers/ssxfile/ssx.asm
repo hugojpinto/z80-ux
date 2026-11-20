@@ -17,11 +17,10 @@
 ;    - /etc/ldx (t_ldx.asm, FDD3000 part) reads the SSX1 header from
 ;      LDXFD, works out the memory the program needs - what a cassette
 ;      header carried - and makes sys ssxload;
-;    - ssxload reads the file from LDXFD (ssxrd) where it read the tape,
-;      closes it, relocates and starts the program, as before.
+;    - ssxload reads the file from LDXFD (ldxrd, unix.asm) as it reads a
+;      sequential device's record, closes it, relocates and starts the
+;      program, as before.
 ; =====================================================================
-
-LDXFD   equ NUFILE-1            ; the program being loaded: descriptor 9
 
 ; hssx: kexec, i-node HL (IX) is no resident text.  If it is an
 ; executable SSX1 file, open it on LDXFD and say Z; else NZ.  Keeps HL.
@@ -64,20 +63,9 @@ hssx:   ld a,(ix+0)
         jr z,.at
         ENDIF
         ENDIF
-        ld a,LDXFD              ; LDXFD: closed, then the file on it
-        call fclosea
         pop hl
-        push hl
-        ld a,F_READ
-        call fopen
-        jr c,.nx
-        ld a,l                  ; fopen gave the lowest free descriptor:
-        ld hl,u_fp              ; move it to LDXFD
-        call addhla
-        ld a,(hl)
-        ld (hl),0
-        ld (u_fp+LDXFD),a
-        pop hl
+        call ldxopen            ; the file on LDXFD (unix.asm); keeps HL
+        jr c,.no
         xor a
         ret
 .nx:    pop hl
@@ -97,40 +85,6 @@ s_at4000: db "this program draws at 4000h: rebuild it with rcc --ux",10,0
         ENDIF
         ENDIF
 s_ssx1: db "SSX1"
-
-; ssxrd: ssxload, in place of the tape: u_count bytes of the file open on
-; LDXFD, from its start, to u_base; then LDXFD is closed.  CF, A = EIO.
-ssxrd:  push ix
-        ld hl,(u_count)
-        ld (ssxn),hl
-        ld hl,LDXFD
-        call getf
-        jr c,.e
-        call fget
-        jr c,.e
-        ld hl,0
-        ld de,(u_base)
-        ld bc,(ssxn)
-        xor a
-        call iio
-        jr c,.e
-        ld hl,(u_nread)
-        ld de,(ssxn)
-        or a
-        sbc hl,de
-        jr nz,.e
-        ld a,LDXFD
-        call fclosea
-        pop ix
-        or a
-        ret
-.e:     ld a,LDXFD
-        call fclosea
-        pop ix
-        ld a,EIO
-        scf
-        ret
-ssxn:   dw 0
 
 ; ssxfix: ssxload, the image relocated (KC_IMG, u_tmp2 bytes): what in
 ; it would stop the FDD3000 is made harmless.

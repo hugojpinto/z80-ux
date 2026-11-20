@@ -65,20 +65,59 @@ class BuildError(Exception):
     pass
 
 
-# Programs of the FDD3000 build only (drivers/, fdd3000/src), after programs.txt.
-FDD_PROGRAMS = [('/bin/dd', 'dd', 0), ('/etc/mount', 'mount', 0),
-                ('/etc/umount', 'umount', 0), ('/etc/mkfs', 'mkfs', 0)]
+# Programs beyond programs.txt, after it (drivers/, a machine layer's).
+MORE_PROGRAMS = [('/bin/dd', 'dd', 0), ('/etc/mount', 'mount', 0),
+                 ('/etc/umount', 'umount', 0), ('/etc/mkfs', 'mkfs', 0)]
 
 
-# Resident program sources, in the order they are assembled (unix.asm's
-# userland.inc); LOWTEXT: those a platform places elsewhere (lowtext.inc,
-# its machine layer) - on the FDD3000 at 0400h, where the ROM was.
+# Resident program sources, in the order they are assembled.  A platform
+# whose machine layer declares free places for text (TX0, TX0_LIM, TX1...:
+# fdd3000/src/hal.asm) gets them packed there (place(): textN.inc); the
+# rest is assembled after the kernel, as on the Spectrum (userland.inc).
+# ulib.asm stays there, first: it defines the macro the others use.
 USERLAND = ['ulib.asm', 't_sys.asm', 't_file.asm', 't_misc.asm', 't_tap.asm',
-            't_proc.asm', 't_vi.asm', 't_zx.asm', 't_tar.asm', 't_ldx.asm']
-USERLAND_FDD = ['t_mkfs.asm', 't_fs.asm']
-LOWTEXT = {'fdd3000': {'lowtext.inc': ['t_vi.asm', 't_zx.asm'],          # 0400h
-                       'lowtext2.inc': ['t_file.asm', 't_misc.asm', 't_tap.asm',  # 4000h
-                                        't_proc.asm', 't_tar.asm', 't_ldx.asm']}}
+            't_proc.asm', 't_vi.asm', 't_zx.asm', 't_tar.asm', 't_ldx.asm',
+            't_mkfs.asm', 't_fs.asm', 't_dd.asm']
+PINNED = ['ulib.asm']
+
+# What a program, its source, a document or a directory needs of the
+# machine (its platform.inc): left out where that is 0.
+NEEDS = {'tar': 'HAL_SEQDEV', 't_tar.asm': 'HAL_SEQDEV',     # the cassette's
+         'mount': 'HAL_VFS', 'umount': 'HAL_VFS', 'mkfs': 'HAL_VFS',
+         't_fs.asm': 'HAL_VFS', 't_mkfs.asm': 'HAL_VFS', '/mnt': 'HAL_VFS',
+         'dd': 'HAL_BLKDEV', 't_dd.asm': 'HAL_BLKDEV'}
+
+
+def platform(target):
+    """The machine's settings (platform/<name>/platform.inc): the HAL_*
+    numbers, and the DEFINEd strings.  upstream: the Spectrum's."""
+    name = PLATFORM.get(target, PLATFORM['spectrum'])
+    caps = {}
+    with open(os.path.join(PLATFORMS, name, 'platform.inc')) as f:
+        for line in f:
+            m = re.match(r'^(HAL_\w+)\s+equ\s+(\d+)', line)
+            if m:
+                caps[m.group(1)] = int(m.group(2))
+            m = re.match(r'^\s+DEFINE\s+(HAL_\w+)\s+"([^"]*)"', line)
+            if m:
+                caps[m.group(1)] = m.group(2)
+    return caps
+
+
+def wanted(target, name):
+    """Whether this machine has what name (a program, a source...) needs."""
+    need = NEEDS.get(name)
+    return need is None or bool(platform(target).get(need))
+
+
+def sources(target):
+    return [x for x in USERLAND if wanted(target, x)]
+
+
+def devfiles(target):
+    """/dev's entries: name, device number (HAL_DEVFILES)."""
+    return [(n, int(d)) for n, d in
+            (x.split(':') for x in platform(target)['HAL_DEVFILES'].split())]
 
 
 def programs(target='spectrum'):
@@ -89,9 +128,8 @@ def programs(target='spectrum'):
             if line:
                 mode = int(line[2], 8) if len(line) > 2 else 0
                 out.append((line[0], line[1], mode))
-    if target == 'fdd3000':
-        out += FDD_PROGRAMS
-    return out
+    out += MORE_PROGRAMS
+    return [p for p in out if wanted(target, p[1])]
 
 
 def upstream_src():
@@ -108,8 +146,13 @@ def upstream_src():
     return os.path.join(out, 'zx-ux', 'src')
 
 
-def stage(target):
-    """A private copy of the sources with the generated includes."""
+TEXTMAX = 8                     # text places a machine layer may declare (TXn)
+
+
+def stage(target, placed=None, measure=False):
+    """A private copy of the sources with the generated includes: placed,
+    {n: [source...]} the resident sources in place TXn (place()); measure,
+    a label before each of the others (txsizeK), for their sizes."""
     top = os.path.join(BUILD, target)
     src = os.path.join(top, 'src')
     if os.path.isdir(top):
@@ -129,14 +172,21 @@ def stage(target):
             if name.endswith(('.asm', '.inc')):
                 shutil.copy(os.path.join(PORT, 'src', name), src)
     progs = programs(target)
-    files = USERLAND + (USERLAND_FDD if target == 'fdd3000' else [])
-    regions = LOWTEXT.get(target, {})
-    low = [x for lst in regions.values() for x in lst]
-    for name, lst in [('userland.inc', [x for x in files if x not in low])] + \
-            [(r, regions.get(r, [])) for r in ('lowtext.inc', 'lowtext2.inc')]:
-        with open(os.path.join(src, name), 'w') as f:
+    files = sources(target)
+    placed = placed or {}
+    low = [x for lst in placed.values() for x in lst]
+    with open(os.path.join(src, 'userland.inc'), 'w') as f:
+        f.write('; generated by fdd3000/tools/build.py\n')
+        for k, x in enumerate(x for x in files if x not in low):
+            if measure:
+                f.write('txsize%d:\n' % k)      # (place(): where each begins)
+            f.write('        include "%s"\n' % x)
+        if measure:
+            f.write('txsize%d:\n' % len(files))
+    for n in range(TEXTMAX):
+        with open(os.path.join(src, 'text%d.inc' % n), 'w') as f:
             f.write('; generated by fdd3000/tools/build.py\n')
-            f.writelines('        include "%s"\n' % x for x in lst)
+            f.writelines('        include "%s"\n' % x for x in placed.get(n, []))
     with open(os.path.join(src, 'ptab.inc'), 'w') as f:
         f.write('; generated by fdd3000/tools/build.py: text, size, mode bits\n')
         f.write('NPROG   equ %d\n' % len(progs))
@@ -209,24 +259,20 @@ def root_fs(target):
     etc = fs.mkdir(zxfs.ROOTINO, 'etc')
     fs.mkdir(zxfs.ROOTINO, 'tmp', R | W | O | a)
     usr = fs.mkdir(zxfs.ROOTINO, 'usr', R | W | O | a)
-    if target == 'fdd3000':
+    if wanted(target, '/mnt'):
         mnt = fs.mkdir(zxfs.ROOTINO, 'mnt', R | W | O | a)
         for drive in 'abcd':                    # /mnt/a - /mnt/d: drives A-D
             fs.mkdir(mnt, drive, R | W | O | a)
     for i, (path, _label, _mode) in enumerate(programs(target)):
         d, name = path.rsplit('/', 1)
         fs.link(bin_ if d == '/bin' else etc, name, zxfs.TXINO + i)
-    if target in ('spectrum', 'upstream'):
-        devices = [('tty', 1), ('mem', 2), ('tap', 5), ('cassette', 5)]
-    else:
-        devices = [('tty', 1), ('mem', 2), ('fd0', 8), ('fd1', 9),
-                   ('fd2', 10), ('fd3', 11)]
-    for name, ino in devices:
+    for name, ino in devfiles(target):
         fs.link(dev, name, ino)
     fs.create(etc, 'motd', MOTD)
     doc = fs.mkdir(usr, 'doc', R | W | O | a)
     for name, payload, size in shipped_docs():
-        fs.create(doc, name, None, packed=(payload, size))
+        if wanted(target, name):
+            fs.create(doc, name, None, packed=(payload, size))
     # The shipped /bin lists login and sh first, then programs.txt, and
     # /etc lists motd last: reorder to match (names, not numbers, differ).
     order = [p for p, _, _ in programs(target)]
@@ -237,11 +283,35 @@ def root_fs(target):
     return fs
 
 
-def kernel(target, defines=()):
+def place(target, defines=()):
+    """The resident sources packed into the machine layer's free places
+    (TXn .. TXn_LIM, from an assembly with all of them after the kernel):
+    the largest first, each into the place with the least room it fits.
+    -> {n: [source...]} in source order, {} for a machine with none."""
+    top, src = stage(target, measure=True)
+    bootinfo(top, 8192, 0)
+    sym = assemble(src, 'unix.asm', defines)
+    room = {n: sym['TX%d_LIM' % n] - sym['TX%d' % n] for n in range(TEXTMAX)
+            if 'TX%d' % n in sym}
+    if not room:
+        return {}
+    files = sources(target)
+    size = {x: sym['txsize%d' % (k + 1)] - sym['txsize%d' % k] for k, x in enumerate(files)}
+    placed = {n: [] for n in room}
+    for x in sorted((x for x in files if x not in PINNED), key=lambda x: -size[x]):
+        fits = [n for n in room if room[n] >= size[x]]
+        if fits:
+            n = min(fits, key=lambda n: room[n])
+            room[n] -= size[x]
+            placed[n].append(x)
+    return {n: sorted(lst, key=files.index) for n, lst in placed.items()}
+
+
+def kernel(target, defines=(), placed=None):
     """Assemble unix.asm; the boot banner reports the free arena, which
     depends on where ITAB lands, which depends on the banner's length (the
     boot area may outgrow ZXWSZ): iterate to the fixed point."""
-    top, src = stage(target)
+    top, src = stage(target, placed)
     fs = root_fs(target)
     state, seen = (8192, 0), set()
     while True:

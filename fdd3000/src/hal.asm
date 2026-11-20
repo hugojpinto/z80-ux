@@ -25,8 +25,8 @@
 ; This file is included at the end of unix.asm (HAL_LAYER, set by
 ; platform/fdd3000/platform.inc) and lives
 ; in RAM that was the Spectrum's ROM, HALBASE up to the boot sector's
-; 3F00h.  4000h-5AFFh, the old display file, holds resident programs
-; (lowtext2.inc); a program that draws gets a display file from the arena.
+; 3F00h.  Resident programs fill what this machine leaves free (TX0-TX2,
+; at the end of this file); no program draws (screen.asm).
 ; =====================================================================
 
 HALBASE equ 01800h              ; after the vectors, the ROM traps, the buffers
@@ -88,11 +88,11 @@ hinit:  ld hl,0
         ld (0067h),a
 ; 0068h-03FFh: where the Spectrum's first ROM routines were.  A program
 ; that calls one (CALL, JP) meets RST 30h and is stopped (htrap) - except
-; BEEP and BEEPER, which ring the terminal's bell (hbeep).  (0400h-0FFFh:
-; resident programs, LOWTEXT.)
+; BEEP and BEEPER, which ring the terminal's bell (hbeep).  (TX0 on:
+; resident programs.)
         ld hl,0068h
         ld de,0069h
-        ld bc,LOWTEXT-0069h
+        ld bc,TX0-0069h
         ld (hl),0F7h            ; rst 30h
         ldir
         ld hl,hbeep
@@ -668,10 +668,13 @@ kcls:   call hcls
 ; devtab: the FDD3000's devices (dev.asm)
 devtab: db DEV_TTY, DEV_TTY
         dw ttread, ttwrite, 0
+        db 0
         db DEV_MEM, DEV_MEM
         dw memrd, memwr, 0
+        db 0
         db DEV_FD0, DEV_FD0+NDRV-1      ; /dev/fd0-3 (fd.asm)
         dw fdread, fdwrite, hdopen
+        db 0
         db 0
 kclick  equ hret                ; no key click: port FEh is the drive latch
 ; nodev: 3 bytes. The FDD3000 has no cassette: /dev/tap answers EIO.
@@ -705,28 +708,38 @@ halend:
         SAVEBIN "hal.bin", HALBASE, halend - HALBASE
 
 ; ---------------------------------------------------------------------
-; Resident programs placed low (build.py LOWTEXT: lowtext.inc), where the
-; Spectrum's ROM routines were: what they take there is left to the arena.
-; The ROM trap zone keeps 0068h-03FFh (the restarts, BEEPER 03B5h, BEEP
-; 03F8h); a program calling a ROM routine above it runs into this text.
+; Resident program text, outside the kernel's image: the places this
+; machine has free, TXn up to TXn_LIM, n from 0.  build.py measures the
+; resident programs and packs them in (textn.inc); what does not fit is
+; assembled after the kernel, as on the Spectrum (userland.inc).
+;  TX0: where the Spectrum ROM's routines were, above the trap zone
+;       (0068h-03FFh: the restarts, BEEPER 03B5h, BEEP 03F8h - a program
+;       calling a ROM routine above it runs into this text), below the
+;       buffer cache;
+;  TX1: the rest of this layer's page, below the boot sector (3F00h);
+;  TX2: where the Spectrum's display file was: no program draws here
+;       (screen.asm; ssx.asm refuses those that do).
 ; ---------------------------------------------------------------------
-LOWTEXT equ 0400h
-        org LOWTEXT
-        include "lowtext.inc"
-; The FDD3000's own resident programs, not in the kernel image (mount,
-; umount and mkfs are: t_mkfs.asm).
-        include "t_dd.asm"      ; /bin/dd
-lowend:
-        ASSERT lowend <= BUFMEM
-        SAVEBIN "low.bin", LOWTEXT, lowend - LOWTEXT
+TX0     equ 0400h
+TX0_LIM equ BUFMEM
+        org TX0
+        include "text0.inc"
+tx0end:
+        ASSERT tx0end <= TX0_LIM
+        SAVEBIN "text0.bin", TX0, tx0end - TX0
 
-; ---------------------------------------------------------------------
-; More resident programs (lowtext2.inc) where the Spectrum's display file
-; was: no program draws here (screen.asm; ssx.asm refuses those that do).
-; ---------------------------------------------------------------------
-LOWTEXT2 equ 4000h
-        org LOWTEXT2
-        include "lowtext2.inc"
-low2end:
-        ASSERT low2end <= 5B00h
-        SAVEBIN "low2.bin", LOWTEXT2, low2end - LOWTEXT2
+TX1     equ halend
+TX1_LIM equ 3F00h
+        org TX1
+        include "text1.inc"
+tx1end:
+        ASSERT tx1end <= TX1_LIM
+        SAVEBIN "text1.bin", TX1, tx1end - TX1
+
+TX2     equ 4000h
+TX2_LIM equ 5B00h
+        org TX2
+        include "text2.inc"
+tx2end:
+        ASSERT tx2end <= TX2_LIM
+        SAVEBIN "text2.bin", TX2, tx2end - TX2

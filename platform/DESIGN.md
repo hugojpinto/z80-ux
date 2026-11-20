@@ -68,11 +68,11 @@ SDK runtime uses call 41.
 5. The platform as the top-level assembly; a memory map per platform (the
    FDD3000's larger arena: `fdd3000/docs/memory-plan.md` §11). **Done**,
    as include points the platform owns (`HAL_DRIVERS`, `HAL_LAYER`, the
-   generated `userland.inc` and `lowtext.inc`, `HAL_KMAX`) rather than by
-   splitting `unix.asm`: the same freedom, a smaller change to upstream's
-   file. The FDD3000 places `vi` and `zxpack` at 0400h (+2.3K arena). The
-   rest of §11 (all resident text low, ~28K arena) waits for the SDK's
-   screen page (programs draw at 4000h until then).
+   generated `userland.inc`, the layer's text places `TXn` packed by the
+   build, `HAL_KMAX`) rather than by splitting `unix.asm`: the same
+   freedom, a smaller change to upstream's file. On the FDD3000 all
+   resident text but ulib is below 5B00h: arena 24,954 bytes free at
+   boot (memory-plan §13-14).
 6. `mem_swapout`/`mem_swapin`: the seam the 128K (bank switch) and the
    TC3256 (RAM-disk sectors) need. **Done**: the four places that move a
    window (the scheduler's hand-over, fork, exec) call them; both

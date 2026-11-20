@@ -338,23 +338,17 @@ FDD3000 the disk is there anyway; the shell already searches `/mnt/a/bin`.
 
 - Link-time or run-time choice of console (size vs one portable binary)?
 - What should a graphical program do when the pool is busy: screen in the
-  arena, wait, or fail?
+  arena, wait, or fail? *Settled (§12): no program draws on the FDD3000.*
 - Does chess draw (attributes, board graphics) or only print text? Decides
   whether it gains from Idea A.
 - Keep 64-column `print_at` semantics on an 80-column terminal, or widen?
+  *Settled: call 41 gives the console's width (80, or 32 for a program
+  that asks for the narrow console); the program lays out to it.*
 - Which resident programs are "always needed" on the FDD3000?
 - Offer call 41 + the portable runtime to upstream (with the email), or keep
   it in the port?
 
 ---
-
-## 12. Added 2026-11-19 (later): no screen
-
-The console is a terminal, so programs that draw are refused at load and
-the mirror is gone (`screen.asm`): the HAL is 1800h-31EBh (was -3E3Eh),
-about 3.3 KB free below 3F00h; no display file is ever taken from the
-arena. The rows above that mention the mirror, its FONT or a display
-file for SDK programs describe the earlier build.
 
 ## 11. Added 2026-11-19: a memory map per platform ("defragmenting")
 
@@ -405,3 +399,114 @@ t_tar, t_proc, t_tap, t_ldx (6,890 of 6,912 bytes). A program that draws
 gets its display file from the arena at its claim (`platform/screen-kinds.md`
 §5); programs pinned to 4000h are refused at load. Arena free at boot:
 **13,724 → 20,614 bytes**; the boot image shrank from 183 to 156 sectors.
+
+## 12. Added 2026-11-19 (later): no screen
+
+The console is a terminal, so programs that draw are refused at load and
+the mirror is gone (`screen.asm`): the HAL is 1800h-31EBh (was -3E3Eh),
+about 3.3 KB free below 3F00h; no display file is ever taken from the
+arena. The rows above that mention the mirror, its FONT or a display
+file for SDK programs describe the earlier build.
+
+## 13. Added 2026-11-20: text places, packed by the build
+
+The HAL's 3.3 KB left by the mirror (§12) is a third place for resident
+text. Rather than a third hand-made list, the machine layer now declares
+its free places and the build fills them:
+
+- `hal.asm` declares `TXn` .. `TXn_LIM` (n from 0) and includes
+  `textn.inc` at each: TX0 0400h-0FFFh (above the trap zone, below the
+  buffer cache), TX1 `halend`-3EFFh (the rest of the layer's page), TX2
+  4000h-5AFFh (the old display file).
+- `build.py place()` assembles once with every resident source after the
+  kernel and a label before each (`txsizeK`), so it has their sizes and
+  the places' room; it packs them, largest first, each into the place
+  with the least room it fits (best-fit decreasing); what does not fit
+  stays after the kernel (`userland.inc`). `ulib.asm` always stays there:
+  it defines the `SC` macro the others use, so it is assembled first.
+- `fddimage.py` takes the places from the symbols (`text0.bin`...); the
+  image starts at the lowest one. A machine that declares no `TXn` (the
+  Spectrum) gets everything after the kernel, as before.
+
+Result (the build prints it): TX0 holds t_sys (init, getty, login, sh,
+glob) and dd, 89 bytes left; TX1 t_file (cat ... ls, df), t_tap (du),
+t_zx (zxpack), t_mkfs, 3 bytes left; TX2 t_misc (date ... more), t_proc
+(ps, top), t_vi, t_tar (tar, tap), t_fs (mount, umount), 30 bytes left. Only ulib,
+ldx and PTAB remain after the kernel (resident text ends at 8425h, was
+91E4h). **Arena free at boot: 20,486 → 24,004 bytes**; the boot image
+went from 156 to 143 sectors. A source that grows or shrinks is packed
+again by the next build: no list to keep by hand.
+
+**Then (2026-11-20): no sequential device, no `tar`.** Tape support is
+a capability now, `HAL_SEQDEV` (sequential devices: one record a
+transfer, no seeking, programs found by name - the cassette, a
+Microdrive), beside `HAL_BLKDEV`; `build.py` chooses programs, sources,
+`/dev` and `/mnt` from the platform's settings (`NEEDS`, `HAL_DEVFILES`),
+not the target's name. The FDD3000 has none: `tar`/`tap` (1,831 bytes)
+and the kernel's cassette redirect and device hold go. Other programs'
+cross-jumps into tar's code (shared tails: exit 1, `jp sc_write`...)
+now land in code every build has (`/etc/ldx`, `t_misc`, or the target
+itself). `ldx` moved low as well: TX1 holds t_file, t_proc, t_mkfs (54
+bytes left); TX2 t_misc, t_tap (du), t_vi, t_zx, t_ldx, t_fs (1,656
+left). After the kernel: ulib only. **Arena: 24,954 bytes** at boot;
+image 139 sectors. (The Spectrum, which keeps its cassette, pays 94
+bytes of arena for the general redirect and the loader's one path.)
+
+## 14. A clean-memory platform: the broad view
+
+What a machine like the FDD3000 (64K of RAM, nothing of the Spectrum's
+left) can do with its memory inside the framework as it is: the platform
+settings (`platform.inc`, the `memmap48.inc` names: `KBASE`, `KV`,
+`KSTACK`, `TTYBUF`, `KARGS`, `MEMBOT`, `WINDOW`, `HAL_TOP`; `HAL_KMAX`),
+its own layer at its own address (`HAL_LAYER`), its text places (`TXn`),
+the seams `mem_swapout`/`mem_swapin`.
+
+**Three kinds of memory.**
+
+1. *Pinned by the program ABI*: `jp sysent` at 6003h (so the kernel
+   starts at 6000h), `TTOP` at 5BE4h (so the kernel variables stay round
+   5B00h-5FFFh), the window at F000h (`UDATA`; programs are linked to
+   run there) and the u-area under `HAL_TOP`. A platform keeps these or
+   breaks every SSX1 program.
+2. *Fixed size, fixed after boot*: vectors, the layer, the buffer cache,
+   the kernel, resident text, PTAB, the i-node table. They can be
+   anywhere; resident text is assembled to whatever address the build
+   gives it, so it is the natural filler for odd-shaped holes.
+3. *Dynamic*: the arena (files, saved processes, SSX1 images, modules).
+   It wants **one run, as long as possible, ending at the window**: the
+   largest program is that run plus the window's loan, and a run in two
+   pieces is two smaller limits (§5 Alternative D).
+
+**The rule that follows**: fixed things fill the space the pinned
+addresses leave below 5B00h; the kernel's image (kernel, the text that
+did not fit, the boot code, ITAB) is kept as short as possible; the
+arena is everything from there to F000h. That is where the FDD3000 now
+is: below 5B00h, 0000h-5AFFh is used but for 122 bytes in the places,
+the boot sector's page (256 bytes) and the trap zone's filler.
+
+**What is left, by gain and cost:**
+
+| Lever | Gain | Cost |
+|---|---|---|
+| ~~Drop `tar`/`tap` from the FDD build~~ | done (`HAL_SEQDEV`, above): ldx went low | — |
+| `ulib` packable: `SC` and the `U_*` names in an include of their own, assembled first | ulib (1,291 B) fits TX2's 1,656 spare bytes: the kernel's image ends after the kernel, PTAB and the boot code | a small split of a shared file |
+| The boot sector moves itself (to the window: free while booting) before loading, so the image may cover 3F00h | +256 B; TX1 and TX2 become one place 31ECh-5AFFh (better packing) | boot.asm: a copy and a jump |
+| Trap zone 0068h-03FFh down to the entry points used (RSTs, BEEP, BEEPER) | ~0.9 KB of place | a program calling an unlisted ROM routine runs into text, not a clean stop (§8) |
+| Buffer cache 8 → 4 sectors (`NBUF`) | +1 KB of place | slower directory-heavy work |
+| Cold parts of the layer as loadable modules (as the float engine and the TOS file system are): measure first | ? | a load on first use |
+| Resident programs to disk (Idea E) | anything beyond the above | load time; commands need the system disk |
+| One arena over two runs (Idea D) | uses free place below 5B00h as arena | the allocator's core; only once the places have room to spare |
+
+Room in the places is only arena once the text after the kernel can move
+into it: now ulib alone (1,291 bytes). Past that ceiling, the next byte
+of arena comes from Idea E or Idea D. So: make ulib packable (arena about
+26.2 KB); then the boot sector's page; the rest only with a reason.
+
+**For the next clean machine** (a CP/M-class Z80 with 64K, or the TC3256
+on its own): copy `memmap48.inc`'s values (the pinned ones decide the
+rest), put the layer and its buffers at the bottom after the vectors,
+declare a `TXn` for every hole below 5B00h, set `HAL_TOP` under whatever
+the machine keeps at the top. With banked RAM (the 128K, the TC3256's
+RAM disk), `mem_swapout`/`mem_swapin` switch a bank instead of copying
+the window, and the saved processes leave the arena altogether: that,
+not packing, is the next big step in memory.

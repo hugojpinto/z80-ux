@@ -10,7 +10,8 @@ the shipped one), on the SDK's headless Spectrum:
   - colour (console, test/kinds/colour.c): INK and PAPER reach the
     attribute bytes of what the console draws;
   - lines (stream, test/kinds/lines.c): its output redirected to a file,
-    which then holds it;
+    which then holds it; run as /dev/cassette/lines, /dev/tap/lines and
+    /dev/cassette/* (the first program on the tape, named as found);
   - mandel (bitmap): it claims the screen and draws; BREAK stops it;
   - keys (test/kinds/keys.c): kbd_down sees A held (the keyboard rows:
     the Spectrum's console is a screen, not a terminal);
@@ -124,6 +125,19 @@ def main():
     s.wait_prompt()
     text = s.text()
     check('1 line\n2 line\n3 line' in text, 'lines > /tmp/out: %r' % text[-200:])
+    # any path to the cassette device (a sequential device: seqx), and DEV/*:
+    # the first program on it, argv[0] made DEV/NAME (/etc/ldx says so)
+    for cmd, dev in (('/dev/tap/lines', '/dev/tap'), ('/dev/cassette/*', '/dev/cassette')):
+        s.kb.type('cls\n')
+        s.wait_prompt()
+        m.cassette.extend(rtap.records(progs['lines'][0], 'lines'))
+        s.kb.type('%s > /tmp/out\n' % cmd)
+        s.wait_prompt(6000)
+        s.kb.type('cat /tmp/out\n')
+        s.wait_prompt()
+        text = s.text()
+        check('Loading: %s/lines' % dev in text and '1 line\n2 line\n3 line' in text,
+              '%s > /tmp/out: %r' % (cmd, text[-200:]))
     # bitmap: mandel draws, BREAK stops it
     s.kb.type('cls\n')
     s.wait_prompt()

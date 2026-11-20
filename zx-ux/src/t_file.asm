@@ -62,7 +62,7 @@ cat_m:  pop hl
 .ok:    ld (U_T+4),hl
         call copyfd
         ld hl,(U_T+4)
-        jp tpsv.xj0_47  
+        jp sc_close
 e_cat:
 
 ; ------------------------------------------------------------- cp
@@ -238,7 +238,7 @@ mv_m:   pop hl
 .xj0_31:
 .xj1_12:
 .xj2_4:
-.err:   jp tperr.xj3_0  
+.err:   jp ldx_m.xj0_1  
 s_mvu:  db "mv f1 f2",0
 e_mv:
 
@@ -268,7 +268,7 @@ ln_m:   pop hl
         ld a,1
         call argn
         ld de,s_cantln
-        jp tparc.xj1_3  
+        jp ldx_m.xpe  
 s_lnu:  db "ln target [newname]",0
 s_cantln: db "can't link",0
 e_ln:

@@ -18,7 +18,8 @@ the same tape bootstrap with this tree's image in place of the shipped one.
 
 Masked before comparing (they may differ between builds without ZX-UX
 behaving differently): the status line (row 23: the clock); hh:mm:ss times;
-free memory and the kernel's size in the boot banner and in df; the order
+free memory and the kernel's size in the boot banner and in df; the size
+`ls -l` gives a resident program (type t: its code, as the kernel's); the order
 in which forktest's parent and child print (their counts stay).  Anything
 else that differs is a change of behaviour.
 """
@@ -93,6 +94,7 @@ MASKS = [
     (re.compile(r'free=\d+B'), 'free=NB'),
     (re.compile(r'kernel \d+B'), 'kernel NB'),
     (re.compile(r'^\d+ bytes free', re.M), 'N bytes free'),
+    (re.compile(r'^(t\S* +\d+ +)\d+(?= )', re.M), r'\g<1>N'),   # ls -l: resident text
 ]
 
 
@@ -227,7 +229,7 @@ def main():
                 f.write(got)
             print('%-6s recorded (%d lines)' % (name, got.count('\n')))
             continue
-        want = open(path).read()
+        want = mask(open(path).read())   # (recorded before a mask was added)
         if got == want:
             print('%-6s ok' % name)
             continue

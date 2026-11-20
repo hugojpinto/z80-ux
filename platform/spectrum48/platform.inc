@@ -18,6 +18,9 @@ mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 0              ; disk block devices
+HAL_SEQDEV   equ 1              ; sequential devices: the cassette (rom48)
+DEV_TAP      equ 5              ; its device number: /dev/tap, /dev/cassette
+        DEFINE HAL_DEVFILES "tty:1 mem:2 tap:5 cassette:5"  ; /dev (build.py)
 HAL_VFS      equ 0              ; mounts and file system types (21, 22)
 HAL_SSXFILE  equ 0              ; SSX1 programs from files
 HAL_BOOTMNT  equ 0              ; init mounts a system volume, runs its rc

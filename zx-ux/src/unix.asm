@@ -19,6 +19,9 @@
         include "platform.inc"  ; the machine: capabilities and hooks (platform/).
         include "const.inc"
         include "kvars.inc"
+; A device's hold on the CPU (ktick): for drivers that cannot be
+; interrupted between their records - the sequential ones (the cassette).
+DHOLD   equ HAL_SEQDEV
 
         org KBASE
         jp boot                 ; 6000 cold start.
@@ -98,7 +101,7 @@ panic:
 ; ktick: the kernel's part of a tick, called by the platform's interrupt
 ; handler once per tick (HAL_HZ a second) with every register saved and
 ; interrupts off, after its own part (keys, display).  The clock and the
-; sleepers; CPU accounting; a device's hold on the CPU (tapq); the time
+; sleepers; CPU accounting; a device's hold on the CPU (dhold); the time
 ; slice: a program in user mode is switched now, a system call at its way
 ; out (runrun); a signal for a program in user mode, now - which kills it
 ; and does not return.
@@ -120,18 +123,21 @@ ktick:  call clk1               ; a tick of time.
         inc hl
         ld (idlet),hl
 .c9:
-; a tape transfer in the last 5 s: the process using the tape keeps the CPU, so no other one can hold it (a
-; BEEP runs with interrupts off) while the next block goes by. (dev.asm tapend). The cassette makes us wait
-; for every bit.
-        ld hl,tapq
+; a device's hold (DHOLD): a transfer on a device whose driver cannot be
+; interrupted between its records (the cassette: rom48's tapend) in the
+; last 5 s - the process using it keeps the CPU, so no other one can hold
+; it (a BEEP runs with interrupts off) while the next record goes by.
+        IF DHOLD
+        ld hl,dhold
         ld a,(hl)
         or a
         jr z,.q0
         dec (hl)
-        inc hl                  ; (tapqp: whose transfer it was). The next block may take its sweet time.
+        inc hl                  ; (dholdp: whose transfer it was). The next block may take its sweet time.
         ld a,(cur)
         cp (hl)
         jr z,.q9
+        ENDIF
 .q0:    ; scheduler: quantum.
         ld hl,quant
         ld a,(hl)
@@ -966,13 +972,15 @@ sysexit:
 ; doexit: 136 bytes. Leave without leaving the place in ruins.
 doexit:                         ; HL = status.
         ld (u_tmp),hl
-        ld hl,tapqp             ; Find the tape hold owner. Its clock privilege ends here.
+        IF DHOLD
+        ld hl,dholdp            ; Find the device hold's owner. Its clock privilege ends here.
         ld a,(cur)              ; Look at the exiting slot. No inherited tape holidays.
         xor (hl)                ; Compare the two slots. The hold belongs to its owner.
         jr nz,.nt
-        dec hl                  ; tapq.
+        dec hl                  ; dhold.
         ld (hl),a
 .nt:
+        ENDIF
 ; close all files (v1: fclose loop).
         ld b,0
 .cl:    push bc
@@ -1301,10 +1309,10 @@ kargv:  ld bc,KARGS
 ; code.
 kexec:
         ld (u_tmp),hl           ; the path (status line name).
-        call tapnam             ; /dev/cassette/NAME: the loader runs it.
-        jr nz,.nt
-        ld hl,ks_ldx
 .nt:    call namei
+        IF HAL_SEQDEV
+        call c,seqx             ; DEV/NAME, DEV sequential: the loader runs it.
+        ENDIF
         ld a,ENOENT
         ret c
         call iget
@@ -1563,31 +1571,101 @@ exname: ld a,(u_intr)
         djnz .n2
 .n3:    jp setdirty
 
-; tapnam: 35 bytes. HL = path; Z and HL = name for /dev/cassette/NAME or /dev/tap/NAME. Slow mail.
-tapnam: ld de,ks_cas
-        call .pre
-        ret z
-        ld de,ks_tap
-.pre:   push hl
-.l:     ld a,(de)
+        IF HAL_SEQDEV
+; seqx: kexec, the path not found (namei: CF, A).  DEV/NAME with DEV a
+; sequential device (devtab: DV_SEQ) - the cassette's /dev/cassette/NAME:
+; the device opened on LDXFD, NC and HL = /etc/ldx's i-number; /etc/ldx
+; finds NAME on it (argv unchanged).  Else CF.
+seqx:   cp ENOTDIR              ; a file was looked for in DEV ...
+        scf
+        ret nz
+        ld a,(u_nlast)          ; ... and NAME was the last part
         or a
-        jr z,.e
-        cp (hl)
-        jr nz,.no
-        inc hl
-        inc de
-        jr .l
-.e:     ld a,(hl)
-        cp '/'
-        jr nz,.no
-        inc hl
-        pop af
-        xor a
+        scf
+        ret z
+        ld hl,(u_nmi)           ; DEV: a device's i-number
+        ld a,h
+        or a
+        scf
+        ret nz
+        ld a,l
+        cp ROOTINO
+        ccf
+        ret c
+        call devfind
+        ret c
+        ld de,DV_FLAGS
+        add hl,de
+        bit 0,(hl)              ; DV_SEQ
+        scf
+        ret z
+        ld hl,(u_nmi)
+        call ldxopen
+        ret c
+        ld hl,ks_ldx
+        jp namei
+        ENDIF
+
+; ldxopen: i-node HL opened for reading on LDXFD (what was there closed):
+; the program /etc/ldx and sys ssxload read - a file (ssx.asm) or a
+; sequential device (seqx).  CF on an error.  Keeps HL.
+LDXFD   equ NUFILE-1            ; descriptor 9
+ldxopen: push hl
+        ld a,LDXFD
+        call fclosea
+        pop hl
+        push hl
+        call devopen
+        jr c,.e
+        ld a,F_READ
+        call fopen
+        jr c,.e
+        ld a,l                  ; fopen gave the lowest free descriptor:
+        ld hl,u_fp              ; move it to LDXFD
+        call addhla
+        ld a,(hl)
+        ld (hl),0
+        ld (u_fp+LDXFD),a
+        pop hl
+        or a
         ret
-.no:    pop hl
-        or 1
+.e:     pop hl
         ret
 
+; ldxrd: ssxload: u_count bytes of what is open on LDXFD, from its start
+; (a device: its next record), to u_base; then LDXFD is closed.  CF, A =
+; EIO.
+ldxrd:  push ix
+        ld hl,(u_count)
+        ld (ldxn),hl
+        ld hl,LDXFD
+        call getf
+        jr c,.e
+        call fget
+        jr c,.e
+        ld hl,0
+        ld de,(u_base)
+        ld bc,(ldxn)
+        xor a
+        call iio
+        jr c,.e
+        ld hl,(u_nread)
+        ld de,(ldxn)
+        or a
+        sbc hl,de
+        jr nz,.e
+        ld a,LDXFD
+        call fclosea
+        pop ix
+        or a
+        ret
+.e:     ld a,LDXFD
+        call fclosea
+        pop ix
+        ld a,EIO
+        scf
+        ret
+ldxn:   dw 0
 
 ; ---------------------------------------------------------------------
 ;  sys ssxload (40): run an SSX1 program from the cassette.  /etc/ldx
@@ -1677,11 +1755,7 @@ sysssxl:
         ld (KC_F),hl
         ld (u_base),hl
         ld (u_count),de
-        IF HAL_SSXFILE
-        call ssxrd              ; the program file, open on LDXFD (ssx.asm).
-        ELSE
-        call taprd
-        ENDIF
+        call ldxrd              ; the program: a file or a device's record, on LDXFD.
         jr c,.bad
         ld hl,(KC_F)            ; z80-ux: its console's width (flags, bit 4)
         ld bc,4
@@ -1726,7 +1800,9 @@ sysssxl:
         ld bc,(u_tmp2)
         call ldirz              ; Copy the body and keep the relocation start. No guessing.
         xor a                   ; Zero A and the carry flag. Other jobs may run again.
-        ld (tapq),a             ; End the tape hold now. Job done; privilege gone.
+        IF DHOLD
+        ld (dhold),a            ; End the device hold now. Job done; privilege gone.
+        ENDIF
         pop bc
         push de
         ld de,0
@@ -2016,13 +2092,13 @@ LOWSTK  equ 180
 lowk:
 ; strings and tables the kernel reads (kexec, panic, the keyboard). A bad result still deserves a clean
 ; exit.
-ks_cas: db "/dev/cassette",0
-ks_tap: db "/dev/tap",0
 ks_ldx: db "/etc/ldx",0
 ks_nomem: db ": not enough memory",10,0
-; Tape ownership (dev.asm and the ISR) begins clear. No queue-jumping.
-tapq:   db 0                    ; Frames remaining for the tape owner. Five seconds, tops.
-tapqp:  db 0                    ; Owner of that short hold. No sharing the queue.
+        IF DHOLD
+; A device's hold (ktick) begins clear. No queue-jumping.
+dhold:  db 0                    ; Frames remaining for the holder. Five seconds, tops.
+dholdp: db 0                    ; Its process slot. No sharing the queue.
+        ENDIF
 msg_noinit: db "no "            ; Panic text starts here. The argument fills the gap.
 initarg: db "/etc/init",0
 initarg_e:

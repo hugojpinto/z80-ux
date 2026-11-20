@@ -141,7 +141,7 @@ fputs:  push hl
         pop de
         ld l,a
         ld h,0
-        jp tpadopt.xj1_17  
+        jp sc_write
 ; eputs: 4 bytes. Send the complaint to stderr. Correct address.
 eputs:  ld a,2
         jr fputs
@@ -537,7 +537,7 @@ getline:
 rclose: ld a,(R_FD)
         ld l,a
         ld h,0
-        jp tpsv.xj1_18  
+        jp sc_close
 
 ; ---------------------------------------------------------------------
 ; ctime: 213 bytes. DE:HL = seconds since 1970; put human-readable time in U_CT. Calendars are fussy.

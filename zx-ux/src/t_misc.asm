@@ -27,7 +27,7 @@ date_m: pop hl
 .xj0_5:
 .xj1_0:
         call eputs
-        jp tperr.xj2_0  
+        jp ldx_m.xj0_1  
 .show:  call sc_time
         call ctime
 .xj0_4:
@@ -252,8 +252,10 @@ stat_m: pop hl
         ld hl,(U_STB+2+22)
         ld de,(U_STB+2+24)
         call ctime
+; (shared: puts, then a new line)
 .xj0_24:
-        jp tpls.xj1_1  
+        call puts
+        jp crlf
 s_colon: db ":",10,0
 s_inum: db " i-number ",0
 s_nl1:  db 10," ",0
@@ -334,7 +336,7 @@ wcone:  push hl
         call putdecw
         call space
         pop hl
-        jp tpls.xj0_12  
+        jp stat_m.xj0_24  
 s_null  equ m_colon+2           ; "".
 e_wc:
 
@@ -498,7 +500,7 @@ cmp_m:  pop hl
         call putdec
 .xj0_3:
         call crlf
-        jp tperr.xj1_2  
+        jp ldx_m.xj0_1  
 ; cmget: 50 bytes. Read for comparison. Same bytes, same judgement.
 cmget:  ld hl,(CM_N)
         ld a,h

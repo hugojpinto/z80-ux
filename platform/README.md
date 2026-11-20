@@ -44,7 +44,8 @@ is not a flag: it is the platform's choice of drivers (below).
 | `HAL_KMAX` | the kernel's budget, KBASE to `kend` (an `ASSERT`) | 8192 | 8192 |
 | `HAL_BLKDEV` | disk block devices (`/dev/fdN`); device read/write go to the layer | 0 | 1 |
 | `HAL_VFS` | mounts and file system types: sys mount (21), umount (22), i-numbers ≥ 1000h, the i-node cache | 0 | 1 |
-| `HAL_SSXFILE` | SSX1 programs from files: exec of an SSX1 file runs `/etc/ldx` on it | 0 | 1 |
+| `HAL_SEQDEV` | sequential devices (devtab `DV_SEQ`: one record a transfer, no seeking): exec of `DEV/NAME` runs `/etc/ldx`, which finds NAME on DEV (the cassette's `/dev/cassette/NAME`); the device hold (`dhold`: its process keeps the CPU between records); `tar` | 1 | 0 |
+| `HAL_SSXFILE` | SSX1 programs from files: exec of an SSX1 file runs `/etc/ldx` on it (with `HAL_SEQDEV` too: both; `/etc/ldx` tells them apart - a device has no length) | 0 | 1 |
 | `HAL_SCR4000` | with `HAL_SSXFILE`: 4000h–5AFFh is the display file; 0 refuses SSX1 programs that need it there (no kind declared, or fixed) | 1 | 0 |
 | `HAL_BOOTMNT` | `/etc/init` mounts `HAL_SYSDEV` on `HAL_SYSMNT` and runs its `etc/rc`; the shell also searches `HAL_SYSMNT/bin` | 0 | 1 |
 
@@ -52,19 +53,28 @@ Defines (`DEFINE`, strings): **`HAL_DRIVERS`**, the platform's driver
 file, assembled right after the kernel's 8K (`platform/spectrum48/
 drivers.asm`: `machine.asm`, `rom48.asm`, `screen64.asm`); **`HAL_LAYER`**,
 a machine layer assembled at its own address (`fdd3000/src/hal.asm`,
-1800h); `HAL_SYSDEV`, `HAL_SYSMNT` (with `HAL_BOOTMNT`).
+1800h); `HAL_SYSDEV`, `HAL_SYSMNT` (with `HAL_BOOTMNT`); **`HAL_DEVFILES`**,
+`/dev`'s entries as `name:number` (`tty:1 mem:2 tap:5 cassette:5`),
+which `build.py` makes - the numbers the platform's `devtab` serves.
+
+`build.py` reads these settings, not the target's name: a resident
+program, its source, a document or `/mnt` that needs one (`NEEDS`: `tar`
+`HAL_SEQDEV`; `mount`, `umount`, `mkfs`, `/mnt` `HAL_VFS`; `dd`
+`HAL_BLKDEV`) is left out of a machine that has it 0.
 
 ## The memory map is the platform's
 
 Only the program ABI is fixed (below). Within that, a platform places
 its parts: its drivers right after the kernel (`HAL_DRIVERS`), its machine
-layer at its own address (`HAL_LAYER`), and the resident programs —
-`build.py` writes `userland.inc` (the programs assembled after the
-kernel, as on the Spectrum) and `lowtext.inc` (those the platform puts
-elsewhere: `LOWTEXT` in `build.py`). The FDD3000 puts `vi`, `zxpack`
-and `dd` at 0400h–0FFFh, where the 48 ROM's routines were, and six more
-at 4000h–5AFFh, where the display file was. The kernel's size is
-`HAL_KMAX`.
+layer at its own address (`HAL_LAYER`), and the resident programs:
+the layer may declare free places for them, `TXn` up to `TXn_LIM` (n
+from 0), each including `textn.inc`; `build.py` measures the resident
+programs and packs them in (`place()`, best fit, largest first), the
+rest assembled after the kernel as on the Spectrum (`userland.inc`). The
+FDD3000 declares three: 0400h-0FFFh (where the 48 ROM's routines were),
+the rest of its layer's page up to 3F00h, and 4000h-5AFFh (where the
+display file was); `fdd3000/docs/memory-plan.md` §13-14. The kernel's
+size is `HAL_KMAX`.
 
 The addresses themselves — `KBASE` (the kernel), `HAL_TOP` (the top the
 kernel uses: `CORE` = `HAL_TOP` − 59, the running process's u-area),
@@ -85,7 +95,9 @@ hardware; a platform's driver file includes the ones it uses.
   128K's ROM1, the +2A/+3's ROM3 and the TC3256's BASIC page have the same
   entry points): `rom48.inc` (ROM entry points, system variables, `IM2I`;
   the kernel names no ROM address), `rom48.asm`: `rom_error` (RST 8),
-  the tape (`tapwr`, `taprd`, `tclk`), `kclick`, `snd_beep`.
+  the tape (`tapwr`, `taprd`, `tclk`; the cassette is a sequential
+  device, and holds the CPU between blocks: `dhold`), `kclick`,
+  `snd_beep`.
 - **`drivers/screen64`** — the console as 64×24 4×8 characters on a
   Spectrum display file: `kputc`, `kcls`, `curon`, `curoff`, `cblnk`,
   the status line `stdraw`, the font; sys screen (`sysscreen`, `scrrel`,
@@ -123,8 +135,8 @@ layer:
 | **Key click, sound** | `kclick`; `snd_beep` (HL, DE as BEEPER) | rom48 | `kclick equ hret` |
 | **Memory** | `mem_swapout` (A = slot: the window as it is becomes that slot's image), `mem_swapin` (A = slot: its image into the window) — the scheduler's lazy hand-over, fork, exec | `equ wsave`, `wload`: a copy to and from the slot's SAVE block in the arena | the same |
 | **Boot** | `HAL_INIT` (vectors, interrupt mode, ...), `HAL_START` | `sp_init` (machine.asm): IM 2, ERR_SP, L mode | `hinit`, `tinit` |
-| **Devices** | `devtab`: entries `db FIRST, LAST` / `dw read, write, open` (0: none), a 0 ends it; read/write: A = device number, the transfer in u_off, u_base, u_count; open: HL = the i-number, CF/A, keeps HL, DE, BC, IX. The kernel's `devfind`, `devread`, `devwrite`, `devopen` use it (iget, open) | tty, mem, tap (machine.asm) | tty, mem, fd0–3 with `hdopen` (hal.asm); seek in sectors (`hseek`, `fhclr`) with `HAL_BLKDEV` |
-| **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`, `ssxrd`, `LDXFD` | — | `drivers/vfs`, `drivers/ssxfile` (shared), over the block interface |
+| **Devices** | `devtab`: entries `db FIRST, LAST` / `dw read, write, open` (0: none) / `db flags` (`DV_SEQ`: a sequential device), a 0 ends it; read/write: A = device number, the transfer in u_off, u_base, u_count; open: HL = the i-number, CF/A, keeps HL, DE, BC, IX. The kernel's `devfind`, `devread`, `devwrite`, `devopen` use it (iget, open) | tty, mem, tap (machine.asm) | tty, mem, fd0–3 with `hdopen` (hal.asm); seek in sectors (`hseek`, `fhclr`) with `HAL_BLKDEV` |
+| **Subsystems** | with `HAL_VFS`: `vfs_iget`, `vfs_ialloc`, `vfs_ifree`, `vfs_trunc`, `vfs_readi`, `vfs_writei`, `vfsix`, `vfscross`, `vbusy`, `vsync`, `sysmnt`, `sysumnt`; with `HAL_SSXFILE`: `hssx`; the kernel's, for both sources: `LDXFD`, `ldxopen`, `ldxrd`; with `HAL_SEQDEV`: `seqx` | — | `drivers/vfs`, `drivers/ssxfile` (shared), over the block interface |
 
 The register conventions are the kernel's own (the routines' headers).
 The kernel's IY is `KIY`: 5C3Ah with rom48 (its routines need it), 0 on

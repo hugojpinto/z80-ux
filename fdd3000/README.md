@@ -95,12 +95,16 @@ Memory of the FDD3000 while ZX-UX runs:
 |---|---|
 | 0000h–0067h | restart vectors; RST 38h = the WD1770's INTRQ |
 | 0068h–03FFh | the Spectrum ROM's place: RST 30h traps (BEEP/BEEPER: RET) |
-| 0400h–0FFFh | resident programs placed low: `vi`, `zxpack`, `dd` (build.py `LOWTEXT`) |
+| 0400h–0FFFh | resident programs (text place TX0: `init`, `getty`, `login`, `sh`, `glob`, `dd`) |
 | 1000h–17FFh | the buffer cache (8 sectors) |
-| 1800h–3EFFh | the hardware layer (1800h–31EBh used: about 3.3 KB free) |
+| 1800h–3EFFh | the hardware layer (1800h–3190h), then resident programs (TX1: `cat`/`ls`/`cp`... (t_file), `ps`/`top`, `mkfs`) |
 | 3F00h–3FFFh | the boot sector (free once the system runs) |
-| 4000h–5AFFh | resident programs: `cat`/`ls`/`cp`... (t_file), t_misc, `tar`, `ps`/`kill`, `tap`, `ldx` (build.py `LOWTEXT`, lowtext2.inc) |
-| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, arena (20,614 bytes free at boot), window at F000h |
+| 4000h–5AFFh | resident programs (TX2: `date`/`wc`/`more`... (t_misc), `du`, `vi`, `zxpack`, `ldx`, `mount`/`umount`; 1,656 bytes left) |
+| 5B00h–FFFFh | ZX-UX as on the Spectrum: kernel data, kernel at 6000h, ulib, arena (24,954 bytes free at boot), window at F000h |
+
+The build packs the resident programs into the text places (`build.py
+place()`, best fit, largest first) and prints what went where;
+`docs/memory-plan.md` §13–14.
 
 No program draws: one that would (the bitmap or fixed kind, or an older
 one with no kind declared) is refused at load (`ssx.asm`, `HAL_SCREEN`),
@@ -247,8 +251,9 @@ says so here.
 - **The boot chain** (ch. 20) gains one step: `init` mounts the system
   disk and runs its `rc` before the first `getty`; the shell (ch. 32) also
   looks in `/mnt/a/bin`.
-- **Cassette** (ch. 6, 29): none; SSX1 programs are files, and `/etc/ldx`
-  reads them from a descriptor instead of a tape.
+- **Cassette** (ch. 6, 29): none (`HAL_SEQDEV` 0: no sequential device,
+  no `/dev/tap`, no `tar`); SSX1 programs are files, and `/etc/ldx` reads
+  them from a descriptor, as it reads a sequential device's records.
 
 **Checking** (ch. 34 distinguishes four kinds, each answering a different
 question): the assembled-image size and symbol layout — `build.py` (the 8 KB

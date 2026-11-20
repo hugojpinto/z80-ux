@@ -115,6 +115,6 @@ to 65,535, 180k at worst (`1E+38`).
 which link it. `rcc` emits `@fop`, `@ftoi`/`@ftou`, `@itof`/`@utof`,
 `@fcmp`, `@ftst`; only `@fop` and the integer conversion reach the engine.
 `beep()` still borrows the ROM's BEEP (the FDD3000 rings the terminal's
-bell). **Not yet:** the BASIC compiler (`rbc`), whose runtime calls the
-ROM's calculator itself; moving it onto this interface is the next step
-for floats.
+bell). The BASIC compiler, with `rbc --ux` (`platform/basic.md`): its
+runtime's calculator calls (RST 28h) go to libux's clean-room calculator,
+which reaches the engine through this call (`@rfcall`).

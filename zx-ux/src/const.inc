@@ -84,11 +84,13 @@ IWOWN   equ 004h            ; 04 octal: owner may write. Handle with care.
 IROTH   equ 002h            ; 02 octal: others may read. Sharing has rules.
 IWOTH   equ 001h            ; 01 octal: others may write. Sharing has consequences.
 
-; Special files: tty, memory and tape. No imaginary drives.
+; Special files: tty and memory on every machine; the rest are the
+; platform's (its devtab: dev.asm).
 DEV_TTY equ 1
 DEV_MEM equ 2
-DEV_TAP equ 5
-NSPEC   equ 5
+DV_SEQ  equ 01h             ; devtab flags: a sequential device - one record a
+                            ; transfer, no seeking; programs found on it by
+                            ; name (exec DEV/NAME: /etc/ldx; HAL_SEQDEV)
 
 ; ---------------------------------------------------------------- processes
 NPROC   equ 4               ; Four processes maximum. Not much of a crowd.

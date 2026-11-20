@@ -16,6 +16,8 @@ mem_swapin   equ wload          ; its SAVE block in the arena (unix.asm)
 
 ; --- optional subsystems
 HAL_BLKDEV   equ 1              ; /dev/fd0-3 (fd.asm)
+HAL_SEQDEV   equ 0              ; sequential devices: none (no cassette)
+        DEFINE HAL_DEVFILES "tty:1 mem:2 fd0:8 fd1:9 fd2:10 fd3:11"  ; /dev (build.py)
 HAL_VFS      equ 1              ; vfs.asm, fsmod.asm; ZXFS built in, modules
 HAL_SSXFILE  equ 1              ; ssx.asm, /etc/ldx's file part
 HAL_BOOTMNT  equ 1              ; init: HAL_SYSDEV on HAL_SYSMNT, its etc/rc

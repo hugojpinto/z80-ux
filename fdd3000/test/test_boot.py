@@ -6,7 +6,8 @@ First boot: /mnt/a is the system disk's; mkfs the blank disk in drive B and
 add "mount it on /mnt/b" to /mnt/a/etc/rc, as the system disk's README says.
 Second boot, same disks: B is mounted on /mnt/b before the login, and what
 was written to it is there.  A system disk with no ZXFS on it still boots
-(the mount fails quietly, no rc).
+(the mount fails quietly, no rc).  No cassette (HAL_SEQDEV 0): no
+/dev/tap, no tar; /dev/cassette/NAME is not found.
     python3 fdd3000/test/test_boot.py
 """
 import os
@@ -53,6 +54,18 @@ def main():
     out3 = boot([blank], ['root', 'ls /mnt/a'])
     if 'login: root' not in out3 or '/dev/fd0 on /mnt/a' in out3:
         fails.append('a disk without a ZXFS does not boot cleanly')
+    # no sequential device here (HAL_SEQDEV 0): no /dev/tap, no tar, and
+    # DEV/NAME is no program to look for
+    out4 = boot([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK)],
+                ['root', 'ls /dev', 'tar', '/dev/cassette/x', 'echo alive'])
+    print(out4[-400:])
+    devs = out4.split('ls /dev')[-1].split('#')[0].split()
+    if 'fd0' not in devs or 'tap' in devs or 'cassette' in devs:
+        fails.append('/dev: %r' % devs)
+    if 'tar: not found' not in out4:
+        fails.append('tar is there')
+    if '/dev/cassette/x: not found' not in out4 or 'alive' not in out4.split('echo alive')[-1]:
+        fails.append('/dev/cassette/x was not refused')
     for f in fails:
         print('FAIL:', f)
     print('test_boot: %s' % ('FAIL' if fails else 'ok'))

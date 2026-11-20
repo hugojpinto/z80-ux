@@ -596,7 +596,8 @@ sh_exec:
         ld de,SH_ARGV+2
         call execp
         ld hl,(SH_ARGV+2)
-        jp tpsv.xj0_14  
+        ld de,s_nf
+        jp perr
 .cd:    ld a,(SH_NARG)
         cp 2
         ld hl,s_argc
@@ -904,17 +905,21 @@ glob_m:
 .a:     push af
         call argn
         jr z,.done
+        IF HAL_SEQDEV
         push hl
         ld de,s_cas             ; Cassette names are paths, not arena files.
         call tppfx              ; Match the cassette prefix. The tape has its own rules.
         pop hl                  ; Leave cassette wildcards to the tape loader.
         jr z,.cas
+        ENDIF
         call hasmeta
         jr z,.lit
         call gexpand
         jr glob_m.xj0_53  
+        IF HAL_SEQDEV
 .cas:   ld a,1                  ; Count the cassette wildcard as a match.
         ld (GL_ANY),a
+        ENDIF
 .lit:   call gadd
 .xj0_53:
         pop af

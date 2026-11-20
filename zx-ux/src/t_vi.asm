@@ -690,7 +690,7 @@ vrow:   ld hl,VI_ROW
 ; vwrite: 9 bytes. Write a row. No room for extras.
 vwrite: ld hl,1
         ld de,VI_ROW
-        jp tpadopt.xj0_45  
+        jp sc_write
 
 ; vstat: 77 bytes. Fill row 22 with status text, or file name and position. Small screen, big gossip.
 vstat:  ld de,VI_CMD

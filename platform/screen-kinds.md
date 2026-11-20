@@ -6,7 +6,8 @@ For the SDK (`sdk/bin/py`) and the kernel, z80-ux branch `portable-hal`.
 terminal runtime `libtty.ssa`, the relocatable bitmap runtime), the
 console's colour codes, call 41, the FDD3000 system disk's programs
 built this way, and on the FDD3000 the display file in the arena with
-resident programs at 4000h-5AFFh (arena 13,724 → 20,614 bytes). Tests:
+resident programs at 4000h-5AFFh (arena 13,724 → 20,614 bytes; 24,954
+since the text places and no tar, memory-plan §13). Tests:
 `test/spectrum/kinds.py`, `fdd3000/test/test_kinds.py`,
 `fdd3000/test/test_ssx.py`. Where the building departed from this
 sketch, the sections below say so ("as built").

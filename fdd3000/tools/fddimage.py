@@ -2,9 +2,11 @@
 
 Memory image, loaded by the boot sector from track IMGTRK on:
 
-    0400h  low.bin    resident programs placed low (build.py LOWTEXT)
+    TX0    text0.bin  resident programs placed low (build.py place())
     1800h  hal.bin    the hardware layer (Spectrum: the ROM's place)
-    3F00h             (not loaded: the boot sector, the old display file)
+    TX1    text1.bin  resident programs, after it
+    3F00h             (not loaded: the boot sector)
+    TX2    text2.bin  resident programs, in the old display file
     5B00h             kernel globals (KV, MEMBOT, KV2: zero, boot clears)
     LOWK   lowk.bin   the low kernel
     6000h  unix.bin   the kernel, the resident programs, the boot code
@@ -88,7 +90,7 @@ def ux_program(b, name, out):
 FS_MODULES = [('tos', 'drivers/tos/tfs.asm')]   # TOS's disks
 
 # IMGBASE: the image starts with the resident programs placed low
-# (hal.asm LOWTEXT, 0400h), then a gap (the buffer cache), the hardware
+# (hal.asm TX0, 0400h), then a gap (the buffer cache), the hardware
 # layer at 1800h, ...
 IMGTRK = 1
 
@@ -97,19 +99,21 @@ def build(b):
     import fsmod
     # Twice: the kernel carries the checksum of its own ABI (fsmod.py),
     # which a first pass gives; the second must not move a thing.
-    top, src, sym, fsimg, free = b.kernel('fdd3000')
+    placed = b.place('fdd3000')
+    top, src, sym, fsimg, free = b.kernel('fdd3000', placed=placed)
     vals, stamp = fsmod.abi(sym)
-    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['KABI=0%04Xh' % stamp])
+    top, src, sym, fsimg, free = b.kernel('fdd3000', defines=['KABI=0%04Xh' % stamp],
+                                          placed=placed)
     if fsmod.abi(sym) != (vals, stamp) or sym['kabi'] != stamp:
         raise b.BuildError('the kernel ABI moved between passes')
     fsmod.write_kabi(os.path.join(top, 'kabi.inc'), sym)
-    parts = [('low', sym['LOWTEXT'], b.read(os.path.join(src, 'low.bin'))),
-             ('low2', sym['LOWTEXT2'], b.read(os.path.join(src, 'low2.bin'))),
-             ('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
+    parts = [('text%d' % n, sym['TX%d' % n], b.read(os.path.join(src, 'text%d.bin' % n)))
+             for n in sorted(placed)]
+    parts += [('hal', sym['HALBASE'], b.read(os.path.join(src, 'hal.bin'))),
              ('lowk', sym['LOWK'], b.read(os.path.join(src, 'lowk.bin'))),
              ('unix', sym['KBASE'], b.read(os.path.join(src, 'unix.bin'))),
              ('fs', sym['ITAB'], fsimg)]
-    IMGBASE = sym['LOWTEXT']                  # the low resident programs first
+    IMGBASE = min(a for _, a, _ in parts)     # the low resident programs first
     end = max(a + len(d) for _, a, d in parts)
     mem = bytearray(end - IMGBASE)
     used = []
@@ -190,6 +194,10 @@ def build(b):
     print('fdd3000:  hal %04X-%04X  lowk %04X  kernel %d bytes  user text to %04X'
           % (sym['HALBASE'], sym['halend'] - 1, sym['LOWK'], kern,
              sym['utext_end']))
+    for n in sorted(placed):
+        print('fdd3000:  text TX%d %04X-%04X  %4d bytes left  %s'
+              % (n, sym['TX%d' % n], sym['TX%d_LIM' % n] - 1,
+                 sym['TX%d_LIM' % n] - sym['tx%dend' % n], ' '.join(placed[n])))
     print('fdd3000:  root fs %04X, %d bytes free in the arena; image %d sectors'
           % (sym['ITAB'], free, nsec))
     print('fdd3000:  ZXFS on the system disk: sectors %d-%d, %d blocks free'

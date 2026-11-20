@@ -62,9 +62,9 @@ tapend: ld sp,(tapsp)           ; drop the error trap (flags kept). The exit is 
         ld (SV_ERRSP),hl
         di
         ld a,250                ; Give this tape user five quiet seconds. Preemption can wait.
-        ld (tapq),a             ; Count down the hold. The next tape block will not wait.
+        ld (dhold),a            ; Count down the hold. The next tape block will not wait.
         ld a,(cur)              ; Remember the slot that owns the hold. No passing the baton.
-        ld (tapqp),a
+        ld (dholdp),a
         ld a,0
         ld (tapbusy),a
         call c,tclk             ; the time it took onto the clock (CF kept). Even 50 Hz can feel impatient.

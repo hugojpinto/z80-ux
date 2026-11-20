@@ -9,11 +9,11 @@
 ; in at 0000h-07FFh.  As TOS's first sector does, this loads the system
 ; and hands over to it.
 ;
-; The system image is the FDD3000's memory from IMGBASE (0900h: the
-; hardware layer, a gap, the kernel's low data, the kernel, the root file
-; system), IMGSECS sectors of 256 bytes from track IMGTRK on, sector IDs
-; 0-15 in order; the sectors for 3F00h-5AFFh (this sector, the old
-; display file) are skipped.  Each track is read in two turns of the disk, even IDs
+; The system image is the FDD3000's memory from IMGBASE (the lowest text
+; place: resident programs, the buffer cache's gap, the hardware layer,
+; more resident programs, the kernel's low data, the kernel, the root
+; file system), IMGSECS sectors of 256 bytes from track IMGTRK on, sector
+; IDs 0-15 in order; the sector for 3F00h (this one) is skipped.  Each track is read in two turns of the disk, even IDs
 ; then odd ones (2:1, so the next sector is never just gone by), which
 ; any disk in the standard 16 x 256 format allows.
 ;
