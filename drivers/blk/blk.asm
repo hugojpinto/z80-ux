@@ -29,6 +29,7 @@
 ; =====================================================================
 
         ASSERT (BUFMEM & 0FFh) == 0
+        ASSERT (NBUF & (NBUF-1)) == 0   ; a power of two: bget's round is AND NBUF-1
 ; ---------------------------------------------------------------------
 ; The buffer cache.  bhdr: per buffer the drive (FFh: empty), the sector
 ; (word) and a dirty byte; buffer B's data is at BUFMEM + 256 * B.

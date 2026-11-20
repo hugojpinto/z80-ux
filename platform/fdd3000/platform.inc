@@ -56,7 +56,7 @@ HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are
         call hzpoll             ; no interrupt brings keys or ticks: fetch them.
         ENDM
         MACRO HAL_SSXFIX
-        call ssxfix             ; no OUT (FEh): the drive latch (ssx.asm).
+        call ssxfix             ; no OUT (FEh): the drive latch (ssxfix.asm).
         ENDM
         MACRO HAL_ITABALIGN
         ALIGN 2                 ; ITAB and the arena blocks are word aligned.

@@ -684,6 +684,7 @@ kclick  equ hret                ; no key click: port FEh is the drive latch
         include "fsmod.asm"     ; ... of types built in or loaded ...
         include "zfs.asm"       ; ... ZXFS, built in.
         include "ssx.asm"       ; SSX1 programs from files.
+        include "ssxfix.asm"    ; ... made safe here (HAL_SSXFIX).
         include "screen.asm"    ; no screen: a terminal (programs that draw: refused).
         include "tmr.asm"       ; a 50 Hz clock from the WD1770.
         include "fpload.asm"    ; the float engine, a module (sys 42).

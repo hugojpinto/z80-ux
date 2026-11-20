@@ -31,7 +31,7 @@
 DEV_FD0 equ 8                   ; special i-nodes 8-11: /dev/fd0 - /dev/fd3
 NDRV    equ 4
 SPT     equ 16
-NBUF    equ 8                   ; the cache: 8 sectors (BUFMEM, hal.asm)
+NBUF    equ 4                   ; the cache: 4 sectors, 1 KB (BUFMEM, hal.asm)
 TOS_RXSEC equ 1Bh               ; TOS's functions (TOS_Technical_Reference_v2.md §10)
 TOS_TXSEC equ 1Ch
 TD_TRKS equ 40                  ; a disk's tracks (logical: two-sided, twice)
