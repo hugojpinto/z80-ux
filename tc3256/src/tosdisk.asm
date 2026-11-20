@@ -13,6 +13,13 @@
 ;  sector; a D0h block comes back, then the reply) and TXSEC (1Ch: the
 ;  D0h block first, then the command), over link.asm in user mode.
 ;
+;  /dev/rd, the fifth unit (RD_UNIT): the TC3256's RAM disk, its RD_SECS
+;  sectors of 4 KB as blocks of 256 (rdsys.asm moves them, in system
+;  mode, through a bounce buffer above 4000h - the cache here is below,
+;  hidden then).  ZX-UX owns the RAM disk: the shadow ROM's own RAM-disk
+;  files (SAVE!, LOAD!) are not kept.  Nothing mounts it: /etc/mkfs
+;  /dev/rd, /etc/mount /dev/rd DIR - or leave it.
+;
 ;  The geometry: a disk is there if logical track 0 reads.  Its size is
 ;  never found by reading past it (TOS does not come back from a track a
 ;  disk has not got - nor should a 40-track drive be stepped there): a
@@ -28,8 +35,11 @@
 ;  those tracks as its file's: nothing else is written there.
 ; =====================================================================
 
-DEV_FD0 equ 8                   ; special i-nodes 8-11: /dev/fd0 - /dev/fd3
-NDRV    equ 4
+DEV_FD0 equ 8                   ; special i-nodes 8-11: /dev/fd0 - /dev/fd3,
+NDRV    equ 5                   ; 12: /dev/rd
+RD_UNIT equ 4
+RD_SECS equ 34h                 ; the RAM disk's sectors, 256 KB mode (MMU guide §8)
+RD_BLKS equ 4096/256            ; blocks a sector
 SPT     equ 16
 NBUF    equ 4                   ; the cache: 4 sectors, 1 KB (BUFMEM, hal.asm)
 TOS_RXSEC equ 1Bh               ; TOS's functions (TOS_Technical_Reference_v2.md §10)
@@ -46,7 +56,9 @@ TD_ROOT equ 0                   ; the root directory's id (a parent)
 
 ; fio: sector DE of drive A to or from (fwr: 0 read, 1 write) HL.  NC; or
 ; CF, A = EIO.  Uses everything but IX, IY.
-fio:    ld (tdbuf),hl
+fio:    cp RD_UNIT
+        jp z,rdfio
+        ld (tdbuf),hl
         push af
         push de
         call clrcom
@@ -96,7 +108,13 @@ fio:    ld (tdbuf),hl
 
 ; fprobe: what disk drive A has: its logical tracks (dtrk).  CF, A =
 ; ENXIO when its first sector does not read.
-fprobe: ld (tdprb),a
+fprobe: cp RD_UNIT              ; the RAM disk: always there
+        jr nz,.fd
+        ld a,RD_SECS
+        ld (dtrk+RD_UNIT),a
+        or a
+        ret
+.fd:    ld (tdprb),a
         xor a
         ld (fwr),a
         ld de,0
@@ -121,7 +139,8 @@ fprobe: ld (tdprb),a
         scf
         ret
 
-; fsize: HL = drive A's size in sectors (0 if never probed).
+; fsize: HL = drive A's size in sectors (0 if never probed): its logical
+; tracks (the RAM disk's: its sectors, RD_BLKS blocks each) x 16.
 fsize:  ld hl,dtrk
         call addhla
         ld l,(hl)
@@ -209,4 +228,42 @@ td_vol: db "ZXFS       "        ; the volume's TOS file: name, extension
 td_voll equ $-td_vol
 tdbuf:  dw 0
 tdprb:  db 0
-dtrk:   db 0,0,0,0              ; each drive's logical tracks (0: not probed)
+dtrk:   ds NDRV                 ; each drive's logical tracks (0: not probed)
+
+; rdfio: fio for the RAM disk: block DE, HL, fwr as fio's.
+rdfio:  ld (tdbuf),hl
+        ld hl,RD_SECS*RD_BLKS-1 ; past the end?
+        or a
+        sbc hl,de
+        jr c,.e
+        ld a,e
+        and RD_BLKS-1
+        ld (rdoff),a
+        ld b,4                  ; its sector: n / 16
+.sh:    srl d
+        rr e
+        djnz .sh
+        ld a,e
+        ld (rdsec),a
+        ld a,(fwr)
+        ld (rddir),a
+        or a
+        jr z,.go
+        ld hl,(tdbuf)           ; written: into the bounce buffer first
+        ld de,rdbounce
+        ld bc,256
+        ldir
+.go:    call rdsys
+        call lkei               ; (system mode left them off)
+        ld a,(rddir)
+        or a
+        ret nz
+        ld hl,rdbounce          ; read: out of it
+        ld de,(tdbuf)
+        ld bc,256
+        ldir
+        or a
+        ret
+.e:     ld a,EIO
+        scf
+        ret

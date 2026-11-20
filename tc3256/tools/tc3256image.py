@@ -42,6 +42,10 @@ SYSTEM_README = b'''ZX-UX on the Timex TC3256
 This file system is the system disk's ZXFS: a TOS file, ZXFS,
 on the disk TOS boots from.  /etc/init mounts it on /mnt/a at
 boot and runs its etc/rc.
+
+/dev/rd is the TC3256's RAM disk, 208 KB.  Nothing uses it
+until you do:  /etc/mkfs /dev/rd  then  /etc/mount /dev/rd /mnt/b
+(it is RAM: gone when the power goes).
 '''
 
 

@@ -162,6 +162,24 @@ def keys(lines, first):
     return ','.join(out), f
 
 
+def with_files(disk, files, out):
+    """A copy of the system disk DISK at OUT, FILES ({path: bytes}) put on
+    its system volume (where kernel.json says it is): scripts a test types
+    'sh /mnt/a/NAME' to run, under Fuse's limit of keys."""
+    import json
+    import zxdfs
+    with open(os.path.join(os.path.dirname(disk), 'kernel.json')) as f:
+        base, _ = json.load(f)['volume']
+    d = dsk.Disk.load(disk)
+    fs = zxdfs.FS(zxdfs.Device(d), base)
+    for path, data in files.items():
+        fs.put(path, data)
+    if fs.check():
+        raise SystemExit('the volume: %s' % fs.check())
+    d.save(out)
+    return out
+
+
 def run_disk(path, keys='', quit=QUIT, dumps=((0x4000, 0x1800),), keep=None):
     """Fuse's TC3256 on the disk at PATH: key 4 (Disk start), then KEYS
     (FUSE_AUTOKEY entries, frame:key, comma separated) -> the dumps; KEEP:
