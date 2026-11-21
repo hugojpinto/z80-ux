@@ -11,9 +11,12 @@ running the Terminal 3000 software) as a VT52 terminal on the link.
 ## What runs
 
 - The ZX-UX kernel, shell and its resident programs, unchanged in
-  behaviour: four processes, the RAM file system, `vi`, `ps`, `top`... -
+  behaviour: six processes, the RAM file system, `vi`, `ps`, `top`... -
   40 of them, with the disk's (`mount`, `mkfs`, `dd`...) and without the
   cassette's (`tar`/`tap`: there is no cassette).
+- **A second terminal**: `/dev/tty1` on the WD2123's channel A (9600
+  baud, VT52), with its own `getty`; no terminal there holds nothing up
+  (`../platform/terminals.md`).
 - **Disks**: `/dev/fd0` – `/dev/fd3` (drives A–D, 40/80 tracks, one or two
   sides, probed when opened); `/bin/dd` copies sectors.
 - **ZXFS**, a disk file system mounted into the RAM tree (`/etc/mkfs`,

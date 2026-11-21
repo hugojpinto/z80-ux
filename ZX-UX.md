@@ -3,10 +3,12 @@
 **ZX-UX+** (github.com/hugojpinto/zx-ux) is a fork of **ZX-UX**,
 *the ZX Spectrum 48K Unix project* by Supratim Sanyal of SANYALnet Labs
 (github.com/tuklusan/ZX-UX-The-ZX-Spectrum-48K-Unix-Project). It takes
-ZX-UX to other Z80 machines: first the **Timex FDD3000**, a disk unit with
-its own Z80 and 64K, used through a Timex computer as a terminal; and,
-along the way, a portable hardware layer for more of them (the 128K
-Spectrum, the TC3256, the TC/TS2068: `platform/hardware-notes.md`).
+ZX-UX to other Z80 machines: the **Timex FDD3000**, a disk unit with its
+own Z80 and 64K, used through a Timex computer as a terminal; the **Timex
+TC3256**, started from disk (its own screen and keyboard, 64K of RAM and
+no ROM, the FDD3000 as its disk server: `platform/tc3256.md`); and a
+portable hardware layer for more of them (the 128K Spectrum, the
+TC/TS2068: `platform/hardware-notes.md`).
 
 `README.md`, the book in `docs/` and the licence are upstream's and
 describe ZX-UX; this file says where the fork stands against it.
@@ -17,7 +19,7 @@ describe ZX-UX; this file says where the fork stands against it.
 |---|---|
 | upstream `main` | ZX-UX. The fork follows it; its sources at **`f302288`** (2026-11-17) are the ones that make the shipped `zx-ux/tzx/ZX-UX.tzx` |
 | `main` | the FDD3000 port, upstream merged (to `f302288`) |
-| `portable-hal` | the hardware layer (`platform/DESIGN.md`), the SDK's portable runtime, BASIC without the ROM, memory per platform; ahead of `main` |
+| `portable-hal` | the hardware layer (`platform/DESIGN.md`), the SDK's portable runtime, BASIC without the ROM, memory per platform, the TC3256 port, several terminals; ahead of `main` |
 
 ## What is upstream's, unchanged
 
@@ -108,6 +110,7 @@ ZX-UX is under the MIT licence (`LICENSE`: since 2026-11-21, upstream's
 say *Based on original work by Supratim Sanyal of SANYALnet Labs
 (ZX-UX)* and *Adapted by Hugo Pinto of the LoadZX Museum*. Upstream's
 own files keep the non-commercial notice their headers were written
-with; the `LICENSE` they point to is what holds. What could be useful upstream - the hardware seam, calls
-41 and 42 with the portable runtime - is for its author to take or leave
-(`platform/manual-notes.md`: what the seam would mean for the book).
+with; the `LICENSE` they point to is what holds. What could be useful
+upstream - the hardware seam, calls 41 and 42 with the portable runtime -
+is for its author to take or leave (`platform/manual-notes.md`: what the
+seam would mean for the book).
