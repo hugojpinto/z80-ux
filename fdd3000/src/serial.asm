@@ -14,6 +14,12 @@
 ; kept up; a byte not read before the next arrives is lost (overrun:
 ; the error cleared and the byte dropped) - fine for typing, not for a
 ; paste at full speed.
+; No terminal on the line (its CTS off: the UART never ready to send) must
+; not hold the system up - nothing else runs while a byte waits: a byte
+; waits SER_HOLD at most, then the line is down (serup) and bytes go
+; unsent at once - one look each - until the UART is ready again.  No
+; UART at all (the ports an empty bus, FFh): the channel is left alone
+; (serhw).
 ; =====================================================================
 
 SER_DATA equ 80h                ; channel A
@@ -29,7 +35,9 @@ SER_ON   equ 37h                ; transmit, receive, DTR, RTS on; errors cleared
 SER_TXRDY equ 01h               ; status: a byte may be sent ...
 SER_RXRDY equ 02h               ; ... one has come
 SER_ERR  equ 38h                ; ... parity, overrun, framing
-SER_WAIT equ 0                  ; status polls before a byte to send is dropped
+SER_POLLT equ 51                ; serout's wait: T-states a status poll
+SER_HOLD equ FDDHZ/10/SER_POLLT ; ... polls a byte waits at most (0.1 s)
+SER_NONE equ 0FFh               ; status of an empty bus: no UART
                                 ; (no terminal there: 256 x 256)
 
 ; serinit: the boot (HAL_START): the channel set up.
@@ -44,12 +52,21 @@ serinit: xor a
         ld a,SER_RATE
         out (SER_RGEN),a
         in a,(SER_DATA)         ; a stale byte
+        in a,(SER_CTL)
+        cp SER_NONE
+        ret z                   ; no UART: serhw, serup stay 0
+        ld a,1
+        ld (serhw),a
+        ld (serup),a
         ret
 
 ; serpoll: a byte from the terminal, if one has come: to terminal 1's
 ; ring (vtkey: mapped as the console's, ^C its BREAK); kgot set, so that
 ; kidle returns.  Uses A, BC, DE, HL.
-serpoll: in a,(SER_CTL)
+serpoll: ld a,(serhw)
+        or a
+        ret z
+        in a,(SER_CTL)
         bit 1,a                 ; SER_RXRDY
         ret z
         and SER_ERR
@@ -65,21 +82,31 @@ serpoll: in a,(SER_CTL)
         jp vtkey
 
 ; serout: A to the terminal (hal.asm's ttput, vt52.asm's bytes); waits
-; while the UART cannot take a byte (the terminal's CTS), so long; the
-; byte's time goes on the clock.  Keeps BC, DE, HL.
+; while the UART cannot take a byte (the terminal's CTS), SER_HOLD at
+; most - then the line is down, and while it is a byte is sent only if the
+; UART is ready at once.  The byte's time goes on the clock.  Keeps BC,
+; DE, HL.
 serout: push bc
         push af
-        ld bc,SER_WAIT
-.w:     in a,(SER_CTL)
+        ld bc,SER_HOLD          ; the line up: wait for it
+        ld a,(serup)
+        or a
+        jr nz,.w
+        ld bc,1                 ; down: one look
+.w:     in a,(SER_CTL)          ; (SER_POLLT: a pass)
         and SER_TXRDY
         jr nz,.go
-        dec c
+        dec bc
+        ld a,b
+        or c
         jr nz,.w
-        djnz .w
-        pop af                  ; no terminal: dropped
+        ld (serup),a            ; (A = 0) nobody takes it: the line down,
+        pop af                  ; the byte dropped
         pop bc
         ret
-.go:    pop af
+.go:    ld a,(serhw)            ; ready: the line up (if there is a UART)
+        ld (serup),a
+        pop af
         out (SER_DATA),a
         pop bc
         push de
@@ -89,3 +116,6 @@ serout: push bc
         pop hl
         pop de
         ret
+
+serhw:  db 0                    ; a UART answers (serinit)
+serup:  db 0                    ; ... and the line takes bytes (serout)

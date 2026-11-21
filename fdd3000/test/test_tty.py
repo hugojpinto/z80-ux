@@ -20,7 +20,12 @@ Checked:
     (0Ch, 16h) on the line, and its table is where AT put it;
   - each terminal keeps its own column: a line typed on the serial
     terminal with the console typing in the middle of it wraps at column
-    64 of its own, and the console's line is whole.
+    64 of its own, and the console's line is whole;
+  - no terminal on the serial line (its CTS off), or no UART at all (an
+    empty bus): the console's keys are echoed at once all the same - the
+    serial getty's banner does not hold the system up (serial.asm: a byte
+    waits SER_HOLD at most, then the line is down); and a terminal that
+    comes later gets its login once it sends a key.
 """
 import os
 import subprocess
@@ -36,6 +41,28 @@ import dsk  # noqa: E402
 from test_ssx import to_model  # noqa: E402
 
 SER = 0                 # the WD2123 channel of /dev/tty1
+ECHO = 0.5              # seconds a console key may take to be echoed
+
+
+def echo_delay(uart=True, cts=True):
+    """Boot with the serial line as given -> seconds until a key typed at
+    the console's login prompt is echoed (None: not in 20 s), the machine."""
+    m = fddrun.FDDUX([fddrun.fdd.Disk.load(fddrun.DEFAULT_DISK)], uart=uart)
+    if uart:
+        m.uart[SER].cts = cts
+    m.boot()
+    t = 0.0
+    while t < 40 and 'login:' not in fddrun.vt52(m.screen()):
+        m.run_for(0.25)
+        t += 0.25
+    m.link.keys.append(ord('r'))
+    s = 0.0
+    while 'login: r' not in fddrun.vt52(m.screen()):
+        if s >= 20:
+            return None, m
+        m.run_for(0.05)
+        s += 0.05
+    return s, m
 
 
 def main():
@@ -119,6 +146,18 @@ def main():
     print(bytes(ser.out).decode('latin-1')[-600:])
     if m.stopped is not None:
         fails.append('the FDD3000 halted at %04X' % m.stopped)
+    for what, uart, cts in (('no terminal on the line', True, False), ('no UART', False, True)):
+        d, mm = echo_delay(uart, cts)
+        print('%s: a console key echoed after %s s' % (what, d))
+        check(d is not None and d <= ECHO, '%s: the console\'s echo took %s s' % (what, d))
+        if what == 'no terminal on the line':
+            ser = mm.uart[SER]
+            n = len(ser.out)
+            ser.cts = True                      # a terminal comes
+            ser.keys.append(ord('\r'))
+            mm.run_for(10, quiet=2.0)
+            check('login:' in bytes(ser.out[n:]).decode('latin-1'),
+                  'a terminal that came later got no login: %r' % bytes(ser.out[n:]))
     for f in fails:
         print('FAIL:', f)
     print('test_tty: %s' % ('FAIL' if fails else 'ok'))

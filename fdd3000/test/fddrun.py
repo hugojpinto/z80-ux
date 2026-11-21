@@ -103,7 +103,9 @@ class WD2123:
     end there).  The rate generator takes a code of the WD1943 ladder.
     The far end: bytes in `keys` come one a character time apart, while
     RTS is up (a terminal honouring it); one not read before the next
-    comes is overrun.  Bytes sent collect in `out`."""
+    comes is overrun.  Bytes sent collect in `out`.  `cts`: the far end
+    lets bytes come (an 8251 is not ready to send while CTS is off - no
+    terminal on the line, or one holding it)."""
 
     RATES = (50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2000, 2400, 3600, 4800,
              7200, 9600, 19200)
@@ -120,6 +122,7 @@ class WD2123:
         self.rx = None
         self.err = 0
         self.due = 0
+        self.cts = True
 
     def control(self, v):
         if not self.moded:
@@ -134,7 +137,7 @@ class WD2123:
             self.err = 0
 
     def status(self):
-        return (0x80 | (1 if self.cmd & 1 else 0) | (2 if self.rx is not None else 0)
+        return (0x80 | (1 if self.cmd & 1 and self.cts else 0) | (2 if self.rx is not None else 0)
                 | self.err)
 
     def read(self):
@@ -142,7 +145,7 @@ class WD2123:
         return 0 if v is None else v
 
     def write(self, v):
-        if self.cmd & 1:
+        if self.cmd & 1 and self.cts:
             self.out.append(v)
 
     def tick(self, t):
@@ -157,14 +160,15 @@ class WD2123:
 
 
 class FDDUX(machine.Machine):
-    """The FDD3000 with a terminal on its link."""
+    """The FDD3000 with a terminal on its link; uart=False: no WD2123 (its
+    ports read FFh, an empty bus, and take nothing)."""
 
-    def __init__(self, disks):
+    def __init__(self, disks, uart=True):
         drives = [machine.Drive(cyls=d.cyls, heads=d.sides, disk=d) for d in disks]
         super().__init__(drives, max_instr=1 << 62)
         self.fdc = FDC(self)
         self.link = Link()
-        self.uart = (WD2123(self), WD2123(self))   # channels A (80h), B (40h)
+        self.uart = (WD2123(self), WD2123(self)) if uart else None   # channels A (80h), B (40h)
         self.tstates = 0
         self.stopped = None
 
@@ -176,7 +180,7 @@ class FDDUX(machine.Machine):
     def port_in(self, port):
         if port & 0xE0 == 0x20:
             return (0x80 if self.fdc.drq else 0) | self.link.read()
-        u = self.UART_GROUP.get(port & 0xE0)
+        u = self.UART_GROUP.get(port & 0xE0) if self.uart else None
         if u is not None:
             ch = self.uart[u]
             return ch.status() if port & 1 else ch.read()
@@ -186,11 +190,11 @@ class FDDUX(machine.Machine):
         if port & 0xFF == 0x2F:
             self.link.write(v)
             return
-        u = self.UART_GROUP.get(port & 0xE0)
+        u = self.UART_GROUP.get(port & 0xE0) if self.uart else None
         if u is not None:
             ch = self.uart[u]
             ch.control(v) if port & 1 else ch.write(v)
-        elif port & 0xE0 == 0x00:
+        elif port & 0xE0 == 0x00 and self.uart:
             self.uart[port & 1].rate = v & 0x0F
         else:
             super().port_out(port, v)
@@ -235,7 +239,7 @@ class FDDUX(machine.Machine):
                     sp0 = c.sp
                     ops[op]()
                     self.tstates += _tstates(m, pc, op, c.pc, c, sp0)
-            for ch in self.uart:
+            for ch in self.uart or ():
                 ch.tick(self.tstates)
             if len(link.out) != nout:
                 nout, last_out = len(link.out), self.tstates
