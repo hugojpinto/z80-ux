@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex FDD3000: file system types, built in and loaded.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ;  The type table (fstab) holds up to NFST file system types: a name and

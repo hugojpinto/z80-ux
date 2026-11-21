@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex TC3256: the keyboard, clean room.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; TC3256 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ; The Spectrum's matrix on port FEh (the TC3256's extra keys come as

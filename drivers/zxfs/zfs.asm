@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex FDD3000: ZXFS, the disk file system (type 1).
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ;  The format is fdd3000/tools/zxdfs.py's (its docstring is the

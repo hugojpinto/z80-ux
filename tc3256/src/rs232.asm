@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex TC3256: the second terminal, on the RS-232 port.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; TC3256 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ; /dev/tty1 (terminal 1, platform/terminals.md): CN5, the MMU's port FDh

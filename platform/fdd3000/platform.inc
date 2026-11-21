@@ -3,7 +3,7 @@
 ; Timex computer as a VT52 terminal on the link.  The machine layer is
 ; fdd3000/src (hal.asm and what it includes), at 1800h.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 
 HAL_HZ       equ 50             ; ticks a second (the WD1770 clock, the soft clock)
@@ -69,5 +69,5 @@ HAL_SCREEN   equ 0              ; no screen: a terminal - programs that draw are
         MACRO HAL_BANNER
         db 10,"ZX-UX+ UNIX v1 / Timex FDD3000 Z80 4MHz 64K",10
         db "Based on original work by Supratim Sanyal of SANYALnet Labs.",10
-        db "FDD3000 port: LoadZX Museum.",10
+        db "Adapted by Hugo Pinto of the LoadZX Museum.",10
         ENDM

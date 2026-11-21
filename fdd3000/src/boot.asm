@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex FDD3000: the boot sector (track 0, sector 0).
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ; The FDD3000 boot ROM restores drive A, reads sector 0 of track 0 to

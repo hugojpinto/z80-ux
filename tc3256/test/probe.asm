@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex TC3256: phase 0's probe (platform/tc3256.md §7).
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; TC3256 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ; A BOOT file for the boot menu's "4. Disk start": 16 KB that the shadow

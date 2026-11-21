@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex TC3256: the RAM disk's system-mode part.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; TC3256 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ; The RAM disk's 4 KB sectors are seen only in system mode, one at a time

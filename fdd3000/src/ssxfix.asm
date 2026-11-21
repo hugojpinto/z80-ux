@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex FDD3000: SSX1 programs made safe for the machine.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ; HAL_SSXFIX (platform.inc) calls this after sys ssxload relocates an
 ; SSX1 program (unix.asm): the FDD3000's port FEh is its drive latch, and

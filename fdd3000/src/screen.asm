@@ -1,7 +1,7 @@
 ; =====================================================================
 ; ZX-UX on the Timex FDD3000: no screen - a terminal.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ;  The FDD3000's console is a VT52 terminal on the link: text, no pixels.

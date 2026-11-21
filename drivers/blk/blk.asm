@@ -2,7 +2,7 @@
 ; ZX-UX block devices: the buffer cache and /dev/fdN, over a machine's
 ; sector I/O.
 ; Based on original work by Supratim Sanyal of SANYALnet Labs (ZX-UX).
-; FDD3000 port: LoadZX Museum.  Non-commercial use only: see ../LICENSE.
+; Adapted by Hugo Pinto of the LoadZX Museum.  MIT licence: see ../../LICENSE.
 ; =====================================================================
 ;
 ;  The disks, as special files and as the file systems' block device

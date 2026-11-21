@@ -103,8 +103,11 @@ oracle (`test/fp`, `test/basic/romdiff.py`).
 
 ## Licence and credit
 
-ZX-UX's non-commercial licence (`LICENSE`) covers the fork too; the
-fork's files say *Based on original work by Supratim Sanyal of SANYALnet
-Labs (ZX-UX)*. What could be useful upstream - the hardware seam, calls
+ZX-UX is under the MIT licence (`LICENSE`: since 2026-11-21, upstream's
+7890e40; before, a non-commercial one), and so is the fork. Its files
+say *Based on original work by Supratim Sanyal of SANYALnet Labs
+(ZX-UX)* and *Adapted by Hugo Pinto of the LoadZX Museum*. Upstream's
+own files keep the non-commercial notice their headers were written
+with; the `LICENSE` they point to is what holds. What could be useful upstream - the hardware seam, calls
 41 and 42 with the portable runtime - is for its author to take or leave
 (`platform/manual-notes.md`: what the seam would mean for the book).
